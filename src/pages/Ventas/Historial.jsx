@@ -1,0 +1,256 @@
+import { useState, useEffect } from 'react'
+import { useApp } from '../../context/AppContext'
+import { printTicket } from '../../utils/ticket'
+
+// ── Ticket preview ────────────────────────────────────────────────────────
+function TicketPreview({ venta }) {
+  return (
+    <div className="ticket-preview">
+      <div className="ticket-header">
+        <h2>HERRAJE CONSORCIO</h2>
+        <p>Ferretería y Herrajes</p>
+      </div>
+      <hr className="ticket-divider" />
+      <div className="ticket-row"><span>Folio:</span><strong>{venta.folio}</strong></div>
+      <div className="ticket-row"><span>Fecha:</span><span>{venta.fecha}</span></div>
+      <div className="ticket-row"><span>Hora:</span><span>{venta.hora}</span></div>
+      <hr className="ticket-divider" />
+      <table className="ticket-table">
+        <thead>
+          <tr>
+            <th>Cant.</th>
+            <th>Descripción</th>
+            <th>Tono</th>
+            <th className="right">P.U.</th>
+            <th className="right">Subtotal</th>
+          </tr>
+        </thead>
+        <tbody>
+          {venta.partidas.map((p, i) => (
+            <tr key={i}>
+              <td>{p.cantidad}</td>
+              <td>{p.descripcion}</td>
+              <td>{p.tono || '—'}</td>
+              <td className="right">${Number(p.precioUnitario).toFixed(2)}</td>
+              <td className="right">${Number(p.subtotal).toFixed(2)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <hr className="ticket-divider" />
+      <div className="ticket-total">
+        <span>TOTAL</span>
+        <span>${Number(venta.total).toFixed(2)}</span>
+      </div>
+      <hr className="ticket-divider" />
+      <div style={{ textAlign: 'center', fontSize: 11, color: 'var(--text-muted)', marginTop: 8 }}>
+        ¡Gracias por su compra!
+      </div>
+    </div>
+  )
+}
+
+// ── Modal de detalle (carga su propio detalle) ────────────────────────────
+function DetalleModal({ ventaResumen, onClose }) {
+  const { getDetalleVenta } = useApp()
+  const [venta, setVenta]     = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError]     = useState(null)
+
+  useEffect(() => {
+    getDetalleVenta(ventaResumen.id).then(({ data, error }) => {
+      if (error) setError(error)
+      else setVenta(data)
+      setLoading(false)
+    })
+  }, [ventaResumen.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal modal-lg" onClick={e => e.stopPropagation()}>
+        <div className="modal-header">
+          <div>
+            <div className="modal-title">Detalle — {ventaResumen.folio}</div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+              {ventaResumen.fecha} · {ventaResumen.hora}
+            </div>
+          </div>
+          <button className="btn-icon" onClick={onClose}>✕</button>
+        </div>
+
+        <div className="modal-body">
+          {loading && (
+            <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>
+              Cargando detalle…
+            </div>
+          )}
+          {error && (
+            <div className="alert alert-error">❌ {error}</div>
+          )}
+          {venta && <TicketPreview venta={venta} />}
+        </div>
+
+        <div className="modal-footer">
+          <button className="btn btn-outline" onClick={onClose}>Cerrar</button>
+          {venta && (
+            <>
+              <button
+                className="btn btn-outline"
+                onClick={() => printTicket(venta, '80mm')}
+              >
+                🖨️ Ticket 80 mm
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={() => printTicket(venta, 'carta')}
+              >
+                🖨️ Hoja carta
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Página Historial ──────────────────────────────────────────────────────
+export default function Historial() {
+  const { ventas } = useApp()
+  const [fechaDesde, setFechaDesde]           = useState('')
+  const [fechaHasta, setFechaHasta]           = useState('')
+  const [ventaSeleccionada, setVentaSeleccionada] = useState(null)
+
+  const filtered = ventas.filter(v => {
+    if (!fechaDesde && !fechaHasta) return true
+    const fecha = new Date(v.fechaISO)
+    if (fechaDesde && fecha < new Date(fechaDesde)) return false
+    if (fechaHasta && fecha > new Date(fechaHasta + 'T23:59:59')) return false
+    return true
+  })
+
+  const totalPeriodo = filtered.reduce((s, v) => s + v.total, 0)
+
+  return (
+    <>
+      <div className="page-header">
+        <div>
+          <div className="page-title">Historial de ventas</div>
+          <div className="page-subtitle">
+            {ventas.length} venta{ventas.length !== 1 ? 's' : ''} registrada{ventas.length !== 1 ? 's' : ''}
+          </div>
+        </div>
+      </div>
+
+      <div className="page-body">
+        {/* Stats */}
+        <div className="stats-row">
+          <div className="stat-card">
+            <div className="stat-label">Total de ventas</div>
+            <div className="stat-value">{ventas.length}</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-label">Ventas en período</div>
+            <div className="stat-value">{filtered.length}</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-label">Monto en período</div>
+            <div className="stat-value" style={{ fontSize: 18 }}>
+              ${totalPeriodo.toFixed(2)}
+            </div>
+          </div>
+        </div>
+
+        {/* Filtro de fechas */}
+        <div className="filter-bar" style={{ marginBottom: 20 }}>
+          <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Filtrar por fecha:</span>
+          <input
+            type="date"
+            className="filter-select"
+            value={fechaDesde}
+            onChange={e => setFechaDesde(e.target.value)}
+          />
+          <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>al</span>
+          <input
+            type="date"
+            className="filter-select"
+            value={fechaHasta}
+            onChange={e => setFechaHasta(e.target.value)}
+          />
+          {(fechaDesde || fechaHasta) && (
+            <button
+              className="btn btn-outline btn-sm"
+              onClick={() => { setFechaDesde(''); setFechaHasta('') }}
+            >
+              Limpiar
+            </button>
+          )}
+        </div>
+
+        {/* Lista */}
+        {filtered.length === 0 ? (
+          <div className="empty-state">
+            <div className="empty-state-icon">📊</div>
+            <h3>{fechaDesde || fechaHasta ? 'Sin ventas en ese período' : 'Sin ventas registradas'}</h3>
+            <p>
+              {fechaDesde || fechaHasta
+                ? 'Ajusta el rango de fechas'
+                : 'Las ventas aparecerán aquí una vez que confirmes tu primera venta'}
+            </p>
+          </div>
+        ) : (
+          <div className="table-container">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Folio</th>
+                  <th>Fecha</th>
+                  <th>Hora</th>
+                  <th>Productos</th>
+                  <th>Piezas</th>
+                  <th style={{ textAlign: 'right' }}>Total</th>
+                  <th style={{ width: 80 }}>Detalle</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map(venta => (
+                  <tr
+                    key={venta.folio}
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => setVentaSeleccionada(venta)}
+                  >
+                    <td>
+                      <span className="badge badge-blue">{venta.folio}</span>
+                    </td>
+                    <td>{venta.fecha}</td>
+                    <td style={{ color: 'var(--text-muted)' }}>{venta.hora}</td>
+                    <td>{venta.numPartidas}</td>
+                    <td>{venta.totalPiezas}</td>
+                    <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--primary)' }}>
+                      ${Number(venta.total).toFixed(2)}
+                    </td>
+                    <td>
+                      <button
+                        className="btn btn-outline btn-sm"
+                        onClick={e => { e.stopPropagation(); setVentaSeleccionada(venta) }}
+                      >
+                        Ver
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {ventaSeleccionada && (
+        <DetalleModal
+          ventaResumen={ventaSeleccionada}
+          onClose={() => setVentaSeleccionada(null)}
+        />
+      )}
+    </>
+  )
+}
