@@ -13,6 +13,7 @@ function ProveedorModal({ proveedor, onClose, onSave }) {
     const e = {}
     if (!form.nombre.trim()) e.nombre = 'El nombre es obligatorio'
     if (!form.telefono.trim()) e.telefono = 'El teléfono es obligatorio'
+    else if (!/^[\d\s\-\+\(\)]+$/.test(form.telefono)) e.telefono = 'Solo se permiten números'
     return e
   }
 
@@ -59,8 +60,13 @@ function ProveedorModal({ proveedor, onClose, onSave }) {
               <input
                 className={`form-input${errors.telefono ? ' error' : ''}`}
                 value={form.telefono}
-                onChange={set('telefono')}
+                onChange={e => {
+                  const val = e.target.value.replace(/[a-zA-ZáéíóúÁÉÍÓÚñÑ]/g, '')
+                  setForm(f => ({ ...f, telefono: val }))
+                }}
                 placeholder="Ej. 55 1234-5678"
+                inputMode="tel"
+                maxLength={20}
               />
               {errors.telefono && <div className="form-error">{errors.telefono}</div>}
             </div>

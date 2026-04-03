@@ -1,7 +1,45 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import * as api from '../lib/api'
+import { supabaseConfigured } from '../lib/supabase'
 
 const AppContext = createContext()
+
+// ── Setup screen (faltan variables de entorno) ────────────────────────────
+function SetupScreen() {
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      height: '100vh', flexDirection: 'column', gap: 16,
+      background: '#f0f4f8', padding: 32, textAlign: 'center',
+    }}>
+      <div style={{ fontSize: 48 }}>🔧</div>
+      <div style={{ fontSize: 18, fontWeight: 700, color: '#1e3a5f' }}>
+        Configuración requerida
+      </div>
+      <div style={{
+        background: 'white', border: '1px solid #e2e8f0', borderRadius: 10,
+        padding: '20px 28px', maxWidth: 520, textAlign: 'left',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+      }}>
+        <p style={{ marginBottom: 14, fontSize: 14, color: '#4a5568' }}>
+          Crea el archivo <code style={{ background: '#f0f4f8', padding: '2px 6px', borderRadius: 4 }}>.env</code> en la raíz del proyecto con tus credenciales de Supabase:
+        </p>
+        <pre style={{
+          background: '#1e3a5f', color: '#e2e8f0', padding: '14px 16px',
+          borderRadius: 8, fontSize: 12.5, lineHeight: 1.7, overflowX: 'auto',
+        }}>{`VITE_SUPABASE_URL=https://xxxx.supabase.co
+VITE_SUPABASE_ANON_KEY=eyJhbGci...`}</pre>
+        <p style={{ marginTop: 14, fontSize: 13, color: '#718096' }}>
+          Encuéntralos en tu panel de Supabase →{' '}
+          <strong>Settings → API → Project URL y anon public key</strong>.
+        </p>
+        <p style={{ marginTop: 10, fontSize: 13, color: '#718096' }}>
+          Después reinicia el servidor: <code style={{ background: '#f0f4f8', padding: '2px 6px', borderRadius: 4 }}>npm run dev</code>
+        </p>
+      </div>
+    </div>
+  )
+}
 
 // ── Loading screen ────────────────────────────────────────────────────────
 function LoadingScreen() {
@@ -70,7 +108,7 @@ export function AppProvider({ children }) {
     }
   }, [])
 
-  useEffect(() => { loadAll() }, [loadAll])
+  useEffect(() => { if (supabaseConfigured) loadAll() }, [loadAll])
 
   // ── Helpers ──────────────────────────────────────────────────────────────
   const wrap = (fn) => async (...args) => {
@@ -114,8 +152,8 @@ export function AppProvider({ children }) {
     return res
   }
 
-  const updateProducto = async (codigo, data) => {
-    const res = await wrap(api.updateProducto)(codigo, data)
+  const updateProducto = async (productoId, data) => {
+    const res = await wrap(api.updateProducto)(productoId, data)
     if (!res.error) setProductos(await api.getProductos())
     return res
   }
@@ -149,6 +187,7 @@ export function AppProvider({ children }) {
   const getDetalleVenta = async (ventaId) => wrap(api.getDetalleVenta)(ventaId)
 
   // ── Render ───────────────────────────────────────────────────────────────
+  if (!supabaseConfigured) return <SetupScreen />
   if (loading) return <LoadingScreen />
   if (error)   return <ErrorScreen message={error} onRetry={loadAll} />
 

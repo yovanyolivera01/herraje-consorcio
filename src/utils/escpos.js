@@ -1,0 +1,123 @@
+/**
+ * ESC/POS command builder para impresoras térmicas.
+ * Compatible con impresoras Epson TM, BIXOLON, RONGTA, POS-58, etc.
+ */
+
+const ESC = 0x1B
+const GS  = 0x1D
+
+const Cmd = {
+  INIT:        [ESC, 0x40],           // Inicializar impresora
+  ALIGN_L:     [ESC, 0x61, 0x00],     // Alinear izquierda
+  ALIGN_C:     [ESC, 0x61, 0x01],     // Centrar
+  ALIGN_R:     [ESC, 0x61, 0x02],     // Alinear derecha
+  BOLD_ON:     [ESC, 0x45, 0x01],     // Negrita activada
+  BOLD_OFF:    [ESC, 0x45, 0x00],     // Negrita desactivada
+  SIZE_NORMAL: [GS,  0x21, 0x00],     // Tamaño normal
+  SIZE_2X:     [GS,  0x21, 0x11],     // Doble ancho y alto
+  SIZE_2W:     [GS,  0x21, 0x10],     // Solo doble ancho
+  CODEPAGE:    [ESC, 0x74, 0x13],     // CP858 (Latin-1 + Euro)
+  LF:          [0x0A],
+  CUT:         [GS,  0x56, 0x42, 0x00], // Corte parcial con avance
+}
+
+/** Codifica un string a bytes Latin-1 mapeando caracteres españoles */
+function encode(str) {
+  const map = {
+    'á':0xE1,'é':0xE9,'í':0xED,'ó':0xF3,'ú':0xFA,
+    'Á':0xC1,'É':0xC9,'Í':0xCD,'Ó':0xD3,'Ú':0xDA,
+    'ñ':0xF1,'Ñ':0xD1,'ü':0xFC,'Ü':0xDC,
+    '¡':0xA1,'¿':0xBF,'€':0xD5,
+  }
+  const out = []
+  for (const ch of str) {
+    const code = ch.charCodeAt(0)
+    if (map[ch] !== undefined) out.push(map[ch])
+    else if (code < 128) out.push(code)
+    else out.push(0x3F) // '?' para caracteres no soportados
+  }
+  return out
+}
+
+/** Acumula bytes de arrays, números o strings */
+function push(buf, ...parts) {
+  for (const p of parts) {
+    if (Array.isArray(p)) buf.push(...p)
+    else if (typeof p === 'string') buf.push(...encode(p))
+    else buf.push(p)
+  }
+}
+
+/** Texto izquierda + texto derecha separados por espacios hasta `width` cols */
+function rowLR(left, right, width) {
+  const spaces = Math.max(1, width - left.length - right.length)
+  return left + ' '.repeat(spaces) + right
+}
+
+/**
+ * Construye los bytes ESC/POS para imprimir un ticket.
+ * @param {object} venta - objeto con folio, fecha, hora, total, partidas[]
+ * @param {number} cols  - columnas de la impresora (32 para 58mm, 42 para 80mm)
+ * @returns {Uint8Array}
+ */
+export function buildTicketEscPos(venta, cols = 42) {
+  const buf = []
+  const p = (...parts) => push(buf, ...parts)
+
+  // ── Inicializar ───────────────────────────────────────────────────────────
+  p(Cmd.INIT, Cmd.CODEPAGE)
+
+  // ── Encabezado ────────────────────────────────────────────────────────────
+  p(Cmd.ALIGN_C, Cmd.BOLD_ON, Cmd.SIZE_2X)
+  p('HERRAJES\n')
+  p(Cmd.SIZE_2W)
+  p('CONSORCIO\n')
+  p(Cmd.SIZE_NORMAL)
+  p('ARTE EN VIDRIO\n')
+  p(Cmd.BOLD_OFF, Cmd.ALIGN_L)
+  p('-'.repeat(cols) + '\n')
+
+  // ── Datos de la venta ────────────────────────────────────────────────────
+  p(rowLR('Folio:', venta.folio, cols) + '\n')
+  p(rowLR('Fecha:', venta.fecha, cols) + '\n')
+  p(rowLR('Hora:', venta.hora,  cols) + '\n')
+  p('-'.repeat(cols) + '\n')
+
+  // ── Cabecera de columnas ─────────────────────────────────────────────────
+  const subtotalW = 9   // "$9999.99"
+  const cantW     = 4   // "999 "
+  const descW     = cols - cantW - subtotalW - 2
+  p(Cmd.BOLD_ON)
+  p('CANT' + ' ' + 'DESCRIPCION'.padEnd(descW) + ' ' + 'IMPORTE'.padStart(subtotalW) + '\n')
+  p(Cmd.BOLD_OFF)
+  p('-'.repeat(cols) + '\n')
+
+  // ── Partidas ──────────────────────────────────────────────────────────────
+  for (const item of venta.partidas) {
+    const subtotalStr = ('$' + Number(item.subtotal).toFixed(2)).padStart(subtotalW)
+    const fullDesc = item.descripcion + (item.tono ? ' ' + item.tono : '')
+    const desc = fullDesc.substring(0, descW).padEnd(descW)
+    p(String(item.cantidad).padStart(3) + ' ' + desc + ' ' + subtotalStr + '\n')
+    p('     $' + Number(item.precioUnitario).toFixed(2) + '/u\n')
+  }
+
+  // ── Total ─────────────────────────────────────────────────────────────────
+  p('-'.repeat(cols) + '\n')
+  p(Cmd.BOLD_ON)
+  p(rowLR('TOTAL:', '$' + Number(venta.total).toFixed(2), cols) + '\n')
+  p(Cmd.BOLD_OFF)
+
+  // ── Pie ───────────────────────────────────────────────────────────────────
+  p('-'.repeat(cols) + '\n')
+  p(Cmd.ALIGN_C)
+  p('Gracias por su compra!\n\n')
+  p(Cmd.BOLD_ON)
+  p('POLITICAS DE DEVOLUCION\n')
+  p(Cmd.BOLD_OFF)
+  p('No se devuelve el dinero.\n')
+  p('Si se realiza cambio de producto.\n')
+  p('\n\n\n')
+  p(Cmd.CUT)
+
+  return new Uint8Array(buf)
+}

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import * as XLSX from 'xlsx'
 import { useApp } from '../../context/AppContext'
 import { printTicket } from '../../utils/ticket'
 
@@ -7,8 +8,8 @@ function TicketPreview({ venta }) {
   return (
     <div className="ticket-preview">
       <div className="ticket-header">
-        <h2>HERRAJE CONSORCIO</h2>
-        <p>Ferretería y Herrajes</p>
+        <h2>HERRAJES CONSORCIO</h2>
+        <p style={{ fontWeight: 700 }}>ARTE EN VIDRIO</p>
       </div>
       <hr className="ticket-divider" />
       <div className="ticket-row"><span>Folio:</span><strong>{venta.folio}</strong></div>
@@ -45,6 +46,12 @@ function TicketPreview({ venta }) {
       <hr className="ticket-divider" />
       <div style={{ textAlign: 'center', fontSize: 11, color: 'var(--text-muted)', marginTop: 8 }}>
         ¡Gracias por su compra!
+      </div>
+      <hr className="ticket-divider" />
+      <div style={{ textAlign: 'center', fontSize: 10.5, color: 'var(--text-muted)', lineHeight: 1.6 }}>
+        <strong>POLÍTICAS DE DEVOLUCIÓN</strong><br />
+        No se devuelve el dinero.<br />
+        Sí se realiza cambio de producto.
       </div>
     </div>
   )
@@ -131,6 +138,42 @@ export default function Historial() {
 
   const totalPeriodo = filtered.reduce((s, v) => s + v.total, 0)
 
+  const exportarExcel = () => {
+    const filas = filtered.map(v => ({
+      Folio:      v.folio,
+      Fecha:      v.fecha,
+      Hora:       v.hora,
+      Productos:  v.numPartidas,
+      Piezas:     v.totalPiezas,
+      Total:      Number(v.total),
+    }))
+
+    const totalesRow = {
+      Folio: 'TOTAL', Fecha: '', Hora: '',
+      Productos: filtered.reduce((s, v) => s + v.numPartidas, 0),
+      Piezas:    filtered.reduce((s, v) => s + v.totalPiezas,  0),
+      Total:     totalPeriodo,
+    }
+
+    const ws = XLSX.utils.json_to_sheet([...filas, totalesRow])
+
+    // Ancho de columnas
+    ws['!cols'] = [{ wch: 14 }, { wch: 14 }, { wch: 8 }, { wch: 12 }, { wch: 10 }, { wch: 14 }]
+
+    // Formato moneda en columna Total (F)
+    const range = XLSX.utils.decode_range(ws['!ref'])
+    for (let r = 1; r <= range.e.r; r++) {
+      const cell = ws[XLSX.utils.encode_cell({ r, c: 5 })]
+      if (cell) cell.z = '"$"#,##0.00'
+    }
+
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Ventas')
+
+    const fecha = new Date().toISOString().slice(0, 10)
+    XLSX.writeFile(wb, `ventas-${fecha}.xlsx`)
+  }
+
   return (
     <>
       <div className="page-header">
@@ -140,6 +183,13 @@ export default function Historial() {
             {ventas.length} venta{ventas.length !== 1 ? 's' : ''} registrada{ventas.length !== 1 ? 's' : ''}
           </div>
         </div>
+        <button
+          className="btn btn-outline"
+          onClick={exportarExcel}
+          disabled={filtered.length === 0}
+        >
+          📥 Exportar Excel
+        </button>
       </div>
 
       <div className="page-body">

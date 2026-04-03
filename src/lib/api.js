@@ -4,8 +4,8 @@ import { supabase } from './supabase'
 
 const mapProducto = (row) => ({
   id:               row.id,
-  codigo:           row.codigo,
-  codigoProveedor:  row.codigo_proveedor,
+  codigo:           row.codigo ?? '',
+  codigoProveedor:  row.codigo_proveedor ?? '',
   proveedorNombre:  row.proveedor_nombre,
   marca:            row.marca || '',
   tono:             row.tono  || '',
@@ -93,13 +93,14 @@ export const createProducto = async (formData) => {
   const { data, error } = await supabase
     .from('productos')
     .insert({
+      ...(formData.codigoProducto ? { codigo: formData.codigoProducto } : {}),
       proveedor_id: prov.id,
       marca:        formData.marca       || '',
       tono:         formData.tono        || '',
       descripcion:  formData.descripcion,
       espesor_mm:   Number(formData.espesor),
       precio:       Number(formData.precio),
-      imagen_url:   formData.imagen      || null,
+      imagen_url:   null,
     })
     .select()
     .single()
@@ -107,7 +108,7 @@ export const createProducto = async (formData) => {
   return data
 }
 
-export const updateProducto = async (codigo, formData) => {
+export const updateProducto = async (productoId, formData) => {
   // Resolve proveedor_id if proveedor changed
   const { data: prov, error: provErr } = await supabase
     .from('proveedores')
@@ -119,15 +120,16 @@ export const updateProducto = async (codigo, formData) => {
   const { data, error } = await supabase
     .from('productos')
     .update({
+      codigo:       formData.codigoProducto.trim(),
       proveedor_id: prov.id,
       marca:        formData.marca       || '',
       tono:         formData.tono        || '',
       descripcion:  formData.descripcion,
       espesor_mm:   Number(formData.espesor),
       precio:       Number(formData.precio),
-      imagen_url:   formData.imagen      || null,
+      imagen_url:   null,
     })
-    .eq('codigo', codigo)
+    .eq('id', productoId)
     .select()
     .single()
   if (error) throw error

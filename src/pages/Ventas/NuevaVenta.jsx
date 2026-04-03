@@ -1,6 +1,12 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useApp } from '../../context/AppContext'
 import { printTicket } from '../../utils/ticket'
+import {
+  isPrinterConnected,
+  connectPrinter,
+  disconnectPrinter,
+  printThermal,
+} from '../../utils/thermalPrinter'
 
 // ── Buscador de productos ─────────────────────────────────────────────────
 function BuscadorProducto({ productos, onAdd }) {
@@ -92,8 +98,8 @@ function TicketPreview({ venta }) {
   return (
     <div className="ticket-preview">
       <div className="ticket-header">
-        <h2>HERRAJE CONSORCIO</h2>
-        <p>Ferretería y Herrajes</p>
+        <h2>HERRAJES CONSORCIO</h2>
+        <p style={{ fontWeight: 700 }}>ARTE EN VIDRIO</p>
       </div>
       <hr className="ticket-divider" />
       <div className="ticket-row"><span>Folio:</span><strong>{venta.folio}</strong></div>
@@ -131,6 +137,12 @@ function TicketPreview({ venta }) {
       <div style={{ textAlign: 'center', fontSize: 11, color: 'var(--text-muted)', marginTop: 8 }}>
         ¡Gracias por su compra!
       </div>
+      <hr className="ticket-divider" />
+      <div style={{ textAlign: 'center', fontSize: 10.5, color: 'var(--text-muted)', lineHeight: 1.6 }}>
+        <strong>POLÍTICAS DE DEVOLUCIÓN</strong><br />
+        No se devuelve el dinero.<br />
+        Sí se realiza cambio de producto.
+      </div>
     </div>
   )
 }
@@ -140,6 +152,48 @@ export default function NuevaVenta() {
   const { productos, addVenta } = useApp()
   const [partidas, setPartidas] = useState([])
   const [ventaCreada, setVentaCreada] = useState(null)
+
+  // Estado impresora térmica
+  const [printerConnected, setPrinterConnected] = useState(() => isPrinterConnected())
+  const [printerBusy,      setPrinterBusy]      = useState(false)
+  const [printerError,     setPrinterError]     = useState(null)
+  const [paperCols,        setPaperCols]        = useState(42) // 42 = 80mm, 32 = 58mm
+
+  // Sincroniza estado al mostrar pantalla de ticket
+  useEffect(() => {
+    setPrinterConnected(isPrinterConnected())
+  }, [ventaCreada])
+
+  const handleConnectPrinter = async () => {
+    setPrinterBusy(true)
+    setPrinterError(null)
+    try {
+      if (printerConnected) {
+        await disconnectPrinter()
+        setPrinterConnected(false)
+      } else {
+        const ok = await connectPrinter({ baudRate: 9600 })
+        if (ok) setPrinterConnected(true)
+      }
+    } catch (err) {
+      setPrinterError(err.message)
+    } finally {
+      setPrinterBusy(false)
+    }
+  }
+
+  const handlePrintThermal = async () => {
+    setPrinterBusy(true)
+    setPrinterError(null)
+    try {
+      await printThermal(ventaCreada, { cols: paperCols })
+    } catch (err) {
+      setPrinterError(err.message)
+      setPrinterConnected(false)
+    } finally {
+      setPrinterBusy(false)
+    }
+  }
 
   const total = partidas.reduce((s, p) => s + p.subtotal, 0)
 
@@ -206,17 +260,45 @@ export default function NuevaVenta() {
             <div className="page-title">Venta registrada</div>
             <div className="page-subtitle">Folio {ventaCreada.folio} — {ventaCreada.fecha} {ventaCreada.hora}</div>
           </div>
-          <div style={{ display: 'flex', gap: 10 }}>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+
+            {/* ── Impresora Térmica ── */}
             <button
-              className="btn btn-outline"
-              onClick={() => printTicket(ventaCreada, '80mm')}
+              className={`btn ${printerConnected ? 'btn-outline' : 'btn-outline'}`}
+              onClick={handleConnectPrinter}
+              disabled={printerBusy}
+              title={printerConnected ? 'Haz clic para desconectar' : 'Conectar impresora de calor'}
+              style={{ borderColor: printerConnected ? '#22c55e' : undefined, color: printerConnected ? '#16a34a' : undefined }}
             >
+              {printerBusy ? '⏳' : printerConnected ? '🟢 Impresora conectada' : '🔌 Conectar impresora'}
+            </button>
+
+            {printerConnected && (
+              <>
+                <select
+                  value={paperCols}
+                  onChange={e => setPaperCols(Number(e.target.value))}
+                  style={{ padding: '6px 10px', borderRadius: 6, border: '1.5px solid var(--border)', fontSize: 13 }}
+                  title="Ancho del papel"
+                >
+                  <option value={42}>Papel 80 mm</option>
+                  <option value={32}>Papel 58 mm</option>
+                </select>
+                <button
+                  className="btn btn-accent"
+                  onClick={handlePrintThermal}
+                  disabled={printerBusy}
+                >
+                  🖨️ Imprimir térmica
+                </button>
+              </>
+            )}
+
+            {/* ── Impresión normal ── */}
+            <button className="btn btn-outline" onClick={() => printTicket(ventaCreada, '80mm')}>
               🖨️ Ticket 80 mm
             </button>
-            <button
-              className="btn btn-outline"
-              onClick={() => printTicket(ventaCreada, 'carta')}
-            >
+            <button className="btn btn-outline" onClick={() => printTicket(ventaCreada, 'carta')}>
               🖨️ Hoja carta
             </button>
             <button className="btn btn-primary" onClick={nuevaVenta}>
@@ -225,6 +307,9 @@ export default function NuevaVenta() {
           </div>
         </div>
         <div className="page-body">
+          {printerError && (
+            <div className="alert alert-error">⚠️ {printerError}</div>
+          )}
           <div className="alert alert-success">
             ✅ Venta registrada correctamente. Las existencias han sido actualizadas.
           </div>
@@ -257,7 +342,7 @@ export default function NuevaVenta() {
         {saveError && (
           <div className="alert alert-error">❌ {saveError}</div>
         )}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 24, alignItems: 'start' }}>
+        <div className="venta-grid">
 
           {/* Columna izquierda: búsqueda y partidas */}
           <div>

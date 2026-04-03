@@ -1,3 +1,7 @@
+/**
+ * Imprime un ticket usando un iframe oculto para evitar bloqueadores de ventanas emergentes.
+ * El diálogo de impresión del sistema sigue apareciendo normalmente.
+ */
 export function printTicket(venta, modo = '80mm') {
   const isCarta = modo === 'carta'
   const html = `<!DOCTYPE html>
@@ -6,7 +10,7 @@ export function printTicket(venta, modo = '80mm') {
   <meta charset="UTF-8">
   <title>Ticket ${venta.folio}</title>
   <style>
-    @page { margin: ${isCarta ? '15mm' : '4mm'}; }
+    @page { margin: ${isCarta ? '15mm' : '4mm'}; size: ${isCarta ? 'letter' : '80mm auto'}; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: ${isCarta ? "'Segoe UI', sans-serif" : "'Courier New', monospace"};
@@ -33,8 +37,8 @@ export function printTicket(venta, modo = '80mm') {
 </head>
 <body>
   <div class="header center">
-    <h1>HERRAJE CONSORCIO</h1>
-    <p>Ferretería y Herrajes</p>
+    <h1>HERRAJES CONSORCIO</h1>
+    <p class="bold">ARTE EN VIDRIO</p>
   </div>
   <hr class="divider">
   <div class="row"><span>Folio:</span><span class="bold">${venta.folio}</span></div>
@@ -69,12 +73,44 @@ export function printTicket(venta, modo = '80mm') {
   </div>
   <hr class="divider">
   <div class="footer center">¡Gracias por su compra!</div>
+  <hr class="divider">
+  <div class="footer center" style="font-size:10px;line-height:1.5">
+    <strong>POLÍTICAS DE DEVOLUCIÓN</strong><br>
+    No se devuelve el dinero.<br>
+    Sí se realiza cambio de producto.
+  </div>
 </body>
 </html>`
 
-  const win = window.open('', '_blank', 'width=480,height=640')
-  win.document.write(html)
-  win.document.close()
-  win.focus()
-  setTimeout(() => { win.print() }, 600)
+  // Usar iframe oculto para evitar bloqueadores de popups
+  let iframe = document.getElementById('__ticket_print_frame__')
+  if (!iframe) {
+    iframe = document.createElement('iframe')
+    iframe.id = '__ticket_print_frame__'
+    iframe.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;border:none;visibility:hidden'
+    document.body.appendChild(iframe)
+  }
+
+  iframe.contentDocument.open()
+  iframe.contentDocument.write(html)
+  iframe.contentDocument.close()
+
+  // Pequeño delay para que el navegador renderice el HTML
+  setTimeout(() => {
+    try {
+      iframe.contentWindow.focus()
+      iframe.contentWindow.print()
+    } catch {
+      // Fallback: ventana emergente (por si el navegador bloquea el iframe)
+      const win = window.open('', '_blank', 'width=480,height=640')
+      if (win) {
+        win.document.write(html)
+        win.document.close()
+        win.focus()
+        setTimeout(() => win.print(), 400)
+      } else {
+        alert('El navegador bloqueó la ventana de impresión. Permite ventanas emergentes para este sitio.')
+      }
+    }
+  }, 300)
 }
