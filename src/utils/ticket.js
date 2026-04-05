@@ -13,26 +13,28 @@ export function printTicket(venta, modo = '80mm') {
     @page { margin: ${isCarta ? '15mm' : '4mm'}; size: ${isCarta ? 'letter' : '80mm auto'}; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: ${isCarta ? "'Segoe UI', sans-serif" : "'Courier New', monospace"};
-      font-size: ${isCarta ? '13px' : '12px'};
+      font-family: ${isCarta ? "'Segoe UI', Arial, sans-serif" : "Arial, 'Helvetica Neue', sans-serif"};
+      font-size: ${isCarta ? '13px' : '13px'};
       width: ${isCarta ? '100%' : '72mm'};
       max-width: ${isCarta ? '700px' : '72mm'};
       margin: 0 auto;
       color: #000;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
     }
     .center { text-align: center; }
-    .bold { font-weight: bold; }
+    .bold { font-weight: 700; }
     .right { text-align: right; }
-    .divider { border: none; border-top: 1px dashed #000; margin: 8px 0; }
-    .row { display: flex; justify-content: space-between; margin-bottom: 3px; }
+    .divider { border: none; border-top: 1.5px solid #000; margin: 7px 0; }
+    .row { display: flex; justify-content: space-between; margin-bottom: 4px; }
     .header { margin-bottom: 10px; }
-    .header h1 { font-size: ${isCarta ? '20px' : '14px'}; }
-    .header p { font-size: ${isCarta ? '12px' : '10px'}; color: #555; }
+    .header h1 { font-size: ${isCarta ? '22px' : '16px'}; font-weight: 700; letter-spacing: 0.5px; }
+    .header p { font-size: ${isCarta ? '13px' : '12px'}; font-weight: 600; color: #000; }
     table { width: 100%; border-collapse: collapse; margin: 8px 0; }
-    th { border-bottom: 1px solid #000; padding: 4px 6px; font-size: ${isCarta ? '12px' : '10px'}; text-align: left; }
-    td { padding: 4px 6px; vertical-align: top; font-size: ${isCarta ? '12px' : '11px'}; }
-    .total-row { font-size: ${isCarta ? '16px' : '13px'}; font-weight: bold; }
-    .footer { margin-top: 12px; font-size: 11px; color: #555; }
+    th { border-bottom: 1.5px solid #000; padding: 4px 5px; font-size: ${isCarta ? '12px' : '11px'}; text-align: left; font-weight: 700; }
+    td { padding: 4px 5px; vertical-align: top; font-size: ${isCarta ? '12px' : '12px'}; }
+    .total-row { font-size: ${isCarta ? '17px' : '15px'}; font-weight: 700; }
+    .footer { margin-top: 10px; font-size: 12px; color: #000; }
   </style>
 </head>
 <body>

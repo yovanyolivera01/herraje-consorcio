@@ -220,10 +220,10 @@ export default function NuevaVenta() {
   }
 
   const actualizarCantidad = (codigo, nueva) => {
-    const n = Math.max(1, parseInt(nueva) || 1)
+    const n = nueva === '' ? '' : Math.max(1, parseInt(nueva) || 1)
     setPartidas(prev => prev.map(p =>
       p.codigoProducto === codigo
-        ? { ...p, cantidad: n, subtotal: n * p.precioUnitario }
+        ? { ...p, cantidad: n, subtotal: n === '' ? 0 : n * p.precioUnitario }
         : p
     ))
   }
@@ -375,18 +375,35 @@ export default function NuevaVenta() {
                         <button
                           className="stock-btn"
                           onClick={() => actualizarCantidad(p.codigoProducto, p.cantidad - 1)}
-                          disabled={p.cantidad <= 1}
+                          disabled={p.cantidad <= 1 || p.cantidad === ''}
                         >−</button>
                         <input
                           className="venta-qty-input"
                           type="number"
-                          min="1"
+                          min="0"
                           value={p.cantidad}
-                          onChange={e => actualizarCantidad(p.codigoProducto, e.target.value)}
+                          onChange={(e) => {
+                            const value = e.target.value
+                            if (value === '') {
+                              setPartidas(prev => prev.map(p =>
+                                p.codigoProducto === codigo
+                                  ? { ...p, cantidad: '', subtotal: 0 }
+                                  : p
+                              ))
+                            } else {
+                              actualizarCantidad(p.codigoProducto, value)
+                            }
+                          }}
+                          onBlur={(e) => {
+                            if (e.target.value === '') {
+                              actualizarCantidad(codigo, 1)
+                            }
+                          }}
                         />
                         <button
                           className="stock-btn"
                           onClick={() => actualizarCantidad(p.codigoProducto, p.cantidad + 1)}
+                          disabled={p.cantidad === ''}
                         >+</button>
                       </div>
                       <div className="venta-subtotal">${p.subtotal.toFixed(2)}</div>

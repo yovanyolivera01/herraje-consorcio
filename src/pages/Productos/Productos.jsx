@@ -16,11 +16,13 @@ function ProductoModal({ producto, onClose, onSave, proveedores }) {
 
   const set = (field) => (e) => setForm(f => ({ ...f, [field]: e.target.value }))
 
+
   const validate = () => {
     const e = {}
     if (!form.codigoProducto.trim()) e.codigoProducto = 'El código es obligatorio'
     if (!form.codigoProveedor) e.codigoProveedor = 'Selecciona un proveedor'
-    if (!form.descripcion.trim()) e.descripcion = 'La descripción es obligatoria'
+    if (!form.marca || !form.marca.trim()) e.marca = 'La marca es obligatoria'
+    if (!form.descripcion || !form.descripcion.trim()) e.descripcion = 'La descripción es obligatoria'
     if (form.precio === '' || isNaN(form.precio) || Number(form.precio) <= 0)
       e.precio = 'Ingresa un precio válido mayor a 0'
     if (!form.espesor || isNaN(form.espesor) || Number(form.espesor) <= 0)
@@ -36,7 +38,7 @@ function ProductoModal({ producto, onClose, onSave, proveedores }) {
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal modal-lg" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <h2 className="modal-title">
@@ -76,23 +78,27 @@ function ProductoModal({ producto, onClose, onSave, proveedores }) {
                 {errors.codigoProveedor && <div className="form-error">{errors.codigoProveedor}</div>}
               </div>
               <div className="form-group">
-                <label className="form-label">Marca</label>
+                <label className="form-label required">Marca</label>
                 <input
-                  className="form-input"
+                  className={`form-input${errors.marca ? ' error' : ''}`}
                   value={form.marca}
                   onChange={set('marca')}
                   placeholder="Marca del producto"
+                  required
                 />
+                {errors.marca && <div className="form-error">{errors.marca}</div>}
               </div>
             </div>
 
             <div className="form-group">
               <label className="form-label required">Descripción</label>
-              <input
+              <textarea
                 className={`form-input${errors.descripcion ? ' error' : ''}`}
                 value={form.descripcion}
                 onChange={set('descripcion')}
                 placeholder="Descripción del producto"
+                required
+                rows="3"
               />
               {errors.descripcion && <div className="form-error">{errors.descripcion}</div>}
             </div>
@@ -115,7 +121,10 @@ function ProductoModal({ producto, onClose, onSave, proveedores }) {
                   min="0"
                   step="0.1"
                   value={form.espesor}
-                  onChange={set('espesor')}
+                  onChange={(e) => {
+                    const value = e.target.value
+                    setForm(f => ({ ...f, espesor: value === '' ? '' : Number(value) }))
+                  }}
                   placeholder="Ej. 6"
                 />
                 {errors.espesor && <div className="form-error">{errors.espesor}</div>}
@@ -128,7 +137,10 @@ function ProductoModal({ producto, onClose, onSave, proveedores }) {
                   min="0.01"
                   step="0.01"
                   value={form.precio}
-                  onChange={set('precio')}
+                  onChange={(e) => {
+                    const value = e.target.value
+                    setForm(f => ({ ...f, precio: value === '' ? '' : Number(value) }))
+                  }}
                   placeholder="0.00"
                 />
                 {errors.precio && <div className="form-error">{errors.precio}</div>}
@@ -151,12 +163,13 @@ function ProductoModal({ producto, onClose, onSave, proveedores }) {
 // ── Modal de ajuste de existencias ────────────────────────────────────────
 function AjusteModal({ producto, onClose, onAjuste }) {
   const [cantidad, setCantidad] = useState(1)
-  const [tipo, setTipo] = useState('entrada')
+  const [tipo, setTipo]         = useState('entrada')
+  const [nota, setNota]         = useState('')
 
   const handleSubmit = (e) => {
     e.preventDefault()
     const delta = tipo === 'entrada' ? Number(cantidad) : -Number(cantidad)
-    onAjuste(producto.id, delta, tipo)
+    onAjuste(producto.id, delta, tipo, nota.trim() || null)
     onClose()
   }
 
@@ -164,7 +177,7 @@ function AjusteModal({ producto, onClose, onAjuste }) {
   const valido  = nuevas >= 0 && Number(cantidad) > 0
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <h2 className="modal-title">Ajustar existencias</h2>
@@ -222,6 +235,18 @@ function AjusteModal({ producto, onClose, onAjuste }) {
                 Las existencias no pueden quedar en negativo
               </div>
             )}
+
+            <div className="form-group" style={{ marginTop: 14 }}>
+              <label className="form-label">Nota <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(opcional)</span></label>
+              <textarea
+                className="form-input"
+                rows={2}
+                placeholder={tipo === 'entrada' ? 'Ej. Compra a proveedor, factura #123…' : 'Ej. Corrección de inventario físico…'}
+                value={nota}
+                onChange={e => setNota(e.target.value)}
+                style={{ resize: 'vertical' }}
+              />
+            </div>
           </div>
           <div className="modal-footer">
             <button type="button" className="btn btn-outline" onClick={onClose}>Cancelar</button>
@@ -238,7 +263,7 @@ function AjusteModal({ producto, onClose, onAjuste }) {
 // ── Modal de confirmación de eliminación ──────────────────────────────────
 function DeleteModal({ producto, onCancel, onConfirm }) {
   return (
-    <div className="modal-overlay" onClick={onCancel}>
+    <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onCancel()}>
       <div className="modal" onClick={e => e.stopPropagation()}>
         <div className="modal-body" style={{ textAlign: 'center', padding: '32px 24px' }}>
           <div style={{ fontSize: 44, marginBottom: 12 }}>⚠️</div>

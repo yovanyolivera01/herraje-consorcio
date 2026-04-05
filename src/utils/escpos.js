@@ -13,10 +13,9 @@ const Cmd = {
   ALIGN_R:     [ESC, 0x61, 0x02],     // Alinear derecha
   BOLD_ON:     [ESC, 0x45, 0x01],     // Negrita activada
   BOLD_OFF:    [ESC, 0x45, 0x00],     // Negrita desactivada
-  SIZE_NORMAL: [GS,  0x21, 0x00],     // Tamaño normal
-  SIZE_2X:     [GS,  0x21, 0x11],     // Doble ancho y alto
-  SIZE_2W:     [GS,  0x21, 0x10],     // Solo doble ancho
-  CODEPAGE:    [ESC, 0x74, 0x13],     // CP858 (Latin-1 + Euro)
+  HEIGHT_2X:   [GS,  0x21, 0x11],     // Doble altura y ancho
+  HEIGHT_1X:   [GS,  0x21, 0x00],     // Altura normal
+  CODEPAGE:    [ESC, 0x74, 0x00],     // CP437 multilingual
   LF:          [0x0A],
   CUT:         [GS,  0x56, 0x42, 0x00], // Corte parcial con avance
 }
@@ -65,14 +64,11 @@ export function buildTicketEscPos(venta, cols = 42) {
   const p = (...parts) => push(buf, ...parts)
 
   // ── Inicializar ───────────────────────────────────────────────────────────
-  p(Cmd.INIT, Cmd.CODEPAGE)
-
-  // ── Encabezado ────────────────────────────────────────────────────────────
-  p(Cmd.ALIGN_C, Cmd.BOLD_ON, Cmd.SIZE_2X)
+  p(Cmd.INIT)
+  p(Cmd.ALIGN_C, Cmd.BOLD_ON, Cmd.HEIGHT_2X)
   p('HERRAJES\n')
-  p(Cmd.SIZE_2W)
+  p(Cmd.HEIGHT_1X)
   p('CONSORCIO\n')
-  p(Cmd.SIZE_NORMAL)
   p('ARTE EN VIDRIO\n')
   p(Cmd.BOLD_OFF, Cmd.ALIGN_L)
   p('-'.repeat(cols) + '\n')
@@ -92,13 +88,43 @@ export function buildTicketEscPos(venta, cols = 42) {
   p(Cmd.BOLD_OFF)
   p('-'.repeat(cols) + '\n')
 
+  // ── Función para envolver texto ───────────────────────────────────────────
+  const wrapText = (text, width) => {
+    const words = text.split(' ')
+    const lines = []
+    let currentLine = ''
+    for (const word of words) {
+      if ((currentLine + ' ' + word).length <= width) {
+        currentLine = currentLine ? currentLine + ' ' + word : word
+      } else {
+        if (currentLine) lines.push(currentLine)
+        currentLine = word
+      }
+    }
+    if (currentLine) lines.push(currentLine)
+    return lines
+  }
+
   // ── Partidas ──────────────────────────────────────────────────────────────
   for (const item of venta.partidas) {
     const subtotalStr = ('$' + Number(item.subtotal).toFixed(2)).padStart(subtotalW)
-    const fullDesc = item.descripcion + (item.tono ? ' ' + item.tono : '')
-    const desc = fullDesc.substring(0, descW).padEnd(descW)
-    p(String(item.cantidad).padStart(3) + ' ' + desc + ' ' + subtotalStr + '\n')
-    p('     $' + Number(item.precioUnitario).toFixed(2) + '/u\n')
+    const fullDesc = item.descripcion + (item.tono ? ' - ' + item.tono : '')
+    const descLines = wrapText(fullDesc, descW)
+    
+    // Primera línea: Cantidad + Descripción completa envuelta + Subtotal
+    if (descLines.length > 0) {
+      const firstLine = descLines[0].padEnd(descW)
+      p(String(item.cantidad).padStart(3) + ' ' + firstLine + ' ' + subtotalStr + '\n')
+      
+      // Líneas adicionales de descripción (sin cantidad ni importe, solo descripción)
+      for (let i = 1; i < descLines.length; i++) {
+        const additionalLine = descLines[i].padEnd(descW)
+        p('    ' + additionalLine + '\n')
+      }
+      
+      // Precio unitario en línea separada
+      p('    $' + Number(item.precioUnitario).toFixed(2) + '/u\n')
+    }
   }
 
   // ── Total ─────────────────────────────────────────────────────────────────

@@ -73,7 +73,7 @@ function DetalleModal({ ventaResumen, onClose }) {
   }, [ventaResumen.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal modal-lg" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <div>

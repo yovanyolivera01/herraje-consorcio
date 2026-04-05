@@ -1,5 +1,35 @@
 import { supabase } from './supabase'
 
+// ── Helpers ───────────────────────────────────────────────────────────────
+
+/**
+ * Formatea una fecha ISO (UTC) a formato local amigable
+ * @param {string} isoString - Fecha en formato ISO (de Supabase)
+ * @returns {{fecha: string, hora: string}}
+ */
+function formatearFechaHora(isoString) {
+  const d = new Date(isoString)
+  
+  // Usar Intl para obtener formato confiable
+  const fechaFormatter = new Intl.DateTimeFormat('es-MX', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  })
+  
+  const horaFormatter = new Intl.DateTimeFormat('es-MX', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  })
+  
+  return {
+    fecha: fechaFormatter.format(d),
+    hora: horaFormatter.format(d).slice(0, 5), // HH:MM solo
+  }
+}
+
 // ── Mappers ───────────────────────────────────────────────────────────────
 
 const mapProducto = (row) => ({
@@ -18,12 +48,12 @@ const mapProducto = (row) => ({
 })
 
 const mapVentaResumen = (row) => {
-  const d = new Date(row.fecha_hora)
+  const { fecha, hora } = formatearFechaHora(row.fecha_hora)
   return {
     id:          row.id,
     folio:       row.folio,
-    fecha:       d.toLocaleDateString('es-MX'),
-    hora:        d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }),
+    fecha:       fecha,
+    hora:        hora,
     fechaISO:    row.fecha_hora,
     total:       Number(row.total),
     numPartidas: Number(row.num_partidas),
@@ -82,6 +112,14 @@ export const getProductos = async () => {
 }
 
 export const createProducto = async (formData) => {
+  // Validación de campos requeridos
+  if (!formData.descripcion || !formData.descripcion.trim()) {
+    throw new Error('La descripción es obligatoria')
+  }
+  if (!formData.marca || !formData.marca.trim()) {
+    throw new Error('La marca es obligatoria')
+  }
+  
   // Resolve proveedor_id from codigoProveedor
   const { data: prov, error: provErr } = await supabase
     .from('proveedores')
@@ -109,6 +147,14 @@ export const createProducto = async (formData) => {
 }
 
 export const updateProducto = async (productoId, formData) => {
+  // Validación de campos requeridos
+  if (!formData.descripcion || !formData.descripcion.trim()) {
+    throw new Error('La descripción es obligatoria')
+  }
+  if (!formData.marca || !formData.marca.trim()) {
+    throw new Error('La marca es obligatoria')
+  }
+  
   // Resolve proveedor_id if proveedor changed
   const { data: prov, error: provErr } = await supabase
     .from('proveedores')
@@ -215,12 +261,12 @@ export const createVenta = async (partidas) => {
     .single()
   if (finalErr) throw finalErr
 
-  const d = new Date(final.fecha_hora)
+  const { fecha, hora } = formatearFechaHora(final.fecha_hora)
   return {
     id:       final.id,
     folio:    final.folio,
-    fecha:    d.toLocaleDateString('es-MX'),
-    hora:     d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }),
+    fecha:    fecha,
+    hora:     hora,
     fechaISO: final.fecha_hora,
     total:    Number(final.total),
     // Conservar las partidas tal como las ingresó el usuario (para el ticket inmediato)
@@ -251,12 +297,12 @@ export const getDetalleVenta = async (ventaId) => {
   if (ventaRes.error) throw ventaRes.error
   if (detallesRes.error) throw detallesRes.error
 
-  const d = new Date(ventaRes.data.fecha_hora)
+  const { fecha, hora } = formatearFechaHora(ventaRes.data.fecha_hora)
   return {
     id:       ventaRes.data.id,
     folio:    ventaRes.data.folio,
-    fecha:    d.toLocaleDateString('es-MX'),
-    hora:     d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }),
+    fecha:    fecha,
+    hora:     hora,
     fechaISO: ventaRes.data.fecha_hora,
     total:    Number(ventaRes.data.total),
     partidas: (detallesRes.data ?? []).map(row => ({

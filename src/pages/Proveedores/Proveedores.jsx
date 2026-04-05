@@ -27,7 +27,7 @@ function ProveedorModal({ proveedor, onClose, onSave }) {
   const set = (field) => (e) => setForm(f => ({ ...f, [field]: e.target.value }))
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <h2 className="modal-title">
@@ -88,7 +88,7 @@ function ProveedorModal({ proveedor, onClose, onSave }) {
 // ── Modal de confirmación de eliminación ──────────────────────────────────
 function DeleteModal({ nombre, onCancel, onConfirm }) {
   return (
-    <div className="modal-overlay" onClick={onCancel}>
+    <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onCancel()}>
       <div className="modal" onClick={e => e.stopPropagation()}>
         <div className="modal-body" style={{ textAlign: 'center', padding: '32px 24px' }}>
           <div style={{ fontSize: 44, marginBottom: 12 }}>⚠️</div>
