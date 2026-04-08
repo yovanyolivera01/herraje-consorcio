@@ -250,7 +250,7 @@ export default function Historial() {
           </div>
         ) : (
           <div className="table-container">
-            <table className="table">
+            <table className="table table-mobile-cards">
               <thead>
                 <tr>
                   <th>Folio</th>
@@ -269,22 +269,22 @@ export default function Historial() {
                     style={{ cursor: 'pointer' }}
                     onClick={() => setVentaSeleccionada(venta)}
                   >
-                    <td>
+                    <td data-label="Folio">
                       <span className="badge badge-blue">{venta.folio}</span>
                     </td>
-                    <td>{venta.fecha}</td>
-                    <td style={{ color: 'var(--text-muted)' }}>{venta.hora}</td>
-                    <td>{venta.numPartidas}</td>
-                    <td>{venta.totalPiezas}</td>
-                    <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--primary)' }}>
+                    <td data-label="Fecha">{venta.fecha}</td>
+                    <td data-label="Hora" style={{ color: 'var(--text-muted)' }}>{venta.hora}</td>
+                    <td data-label="Productos">{venta.numPartidas}</td>
+                    <td data-label="Piezas">{venta.totalPiezas}</td>
+                    <td data-label="Total" style={{ fontWeight: 700, color: 'var(--primary)' }}>
                       ${Number(venta.total).toFixed(2)}
                     </td>
-                    <td>
+                    <td data-label="">
                       <button
                         className="btn btn-outline btn-sm"
                         onClick={e => { e.stopPropagation(); setVentaSeleccionada(venta) }}
                       >
-                        Ver
+                        Ver detalle
                       </button>
                     </td>
                   </tr>

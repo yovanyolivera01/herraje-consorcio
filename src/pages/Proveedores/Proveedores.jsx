@@ -120,8 +120,6 @@ export default function Proveedores() {
     setTimeout(() => setToast(null), 3500)
   }
 
-  const tieneProd = (codigo) => productos.some(p => p.codigoProveedor === codigo)
-
   const filtered = proveedores.filter(p =>
     p.nombre.toLowerCase().includes(search.toLowerCase()) ||
     p.codigo.toLowerCase().includes(search.toLowerCase())
@@ -196,7 +194,7 @@ export default function Proveedores() {
           </div>
         ) : (
           <div className="table-container">
-            <table className="table">
+            <table className="table table-mobile-cards">
               <thead>
                 <tr>
                   <th>Código</th>
@@ -212,17 +210,17 @@ export default function Proveedores() {
                   const bloqueado = cantProd > 0
                   return (
                     <tr key={prov.codigo}>
-                      <td>
+                      <td data-label="Código">
                         <span className="badge badge-blue">{prov.codigo}</span>
                       </td>
-                      <td style={{ fontWeight: 500 }}>{prov.nombre}</td>
-                      <td>{prov.telefono}</td>
-                      <td>
+                      <td data-label="Nombre" style={{ fontWeight: 500 }}>{prov.nombre}</td>
+                      <td data-label="Teléfono">{prov.telefono}</td>
+                      <td data-label="Productos">
                         <span className={`badge ${cantProd > 0 ? 'badge-orange' : 'badge-gray'}`}>
                           {cantProd} producto{cantProd !== 1 ? 's' : ''}
                         </span>
                       </td>
-                      <td>
+                      <td data-label="">
                         <div style={{ display: 'flex', gap: 2 }}>
                           <button
                             className="btn-icon"

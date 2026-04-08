@@ -15,7 +15,7 @@ function BuscadorProducto({ productos, onAdd }) {
   const resultados = query.trim()
     ? productos.filter(p =>
         p.descripcion.toLowerCase().includes(query.toLowerCase()) ||
-        p.codigo.toLowerCase().includes(query.toLowerCase())
+        (p.codigo ?? '').toLowerCase().includes(query.toLowerCase())
       ).slice(0, 6)
     : []
 
@@ -249,6 +249,7 @@ export default function NuevaVenta() {
   const nuevaVenta = () => {
     setVentaCreada(null)
     setPartidas([])
+    window.scrollTo({ top: 0, behavior: 'instant' })
   }
 
   // ── Pantalla de ticket confirmado ────────────────────────────────────────
@@ -385,10 +386,10 @@ export default function NuevaVenta() {
                           onChange={(e) => {
                             const value = e.target.value
                             if (value === '') {
-                              setPartidas(prev => prev.map(p =>
-                                p.codigoProducto === codigo
-                                  ? { ...p, cantidad: '', subtotal: 0 }
-                                  : p
+                              setPartidas(prev => prev.map(item =>
+                                item.codigoProducto === p.codigoProducto
+                                  ? { ...item, cantidad: '', subtotal: 0 }
+                                  : item
                               ))
                             } else {
                               actualizarCantidad(p.codigoProducto, value)
@@ -396,7 +397,7 @@ export default function NuevaVenta() {
                           }}
                           onBlur={(e) => {
                             if (e.target.value === '') {
-                              actualizarCantidad(codigo, 1)
+                              actualizarCantidad(p.codigoProducto, 1)
                             }
                           }}
                         />
@@ -429,8 +430,8 @@ export default function NuevaVenta() {
             )}
           </div>
 
-          {/* Columna derecha: resumen */}
-          <div style={{ position: 'sticky', top: 80 }}>
+          {/* Columna derecha: resumen (oculta en móvil) */}
+          <div className="venta-side-summary" style={{ position: 'sticky', top: 80 }}>
             <div className="card">
               <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 14 }}>Resumen</div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: 13 }}>
@@ -469,6 +470,28 @@ export default function NuevaVenta() {
 
         </div>
       </div>
+
+      {/* ── Barra inferior fija (solo móvil, cuando hay partidas) ─── */}
+      {partidas.length > 0 && (
+        <div className="venta-mobile-bar">
+          <div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              Total · {partidas.length} prod.
+            </div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--accent)', lineHeight: 1.1 }}>
+              ${total.toFixed(2)}
+            </div>
+          </div>
+          <button
+            className="btn btn-accent"
+            style={{ flex: 1, justifyContent: 'center' }}
+            onClick={confirmarVenta}
+            disabled={saving}
+          >
+            {saving ? 'Guardando…' : '✓ Confirmar venta'}
+          </button>
+        </div>
+      )}
     </>
   )
 }

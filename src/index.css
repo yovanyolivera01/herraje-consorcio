@@ -394,6 +394,9 @@ body {
   align-items: start;
 }
 
+/* ── Barra inferior fija en móvil ────────────────────────────────────────── */
+.venta-mobile-bar { display: none; }
+
 /* ── Topbar (hamburger — solo móvil) ─────────────────────────────────────── */
 .topbar {
   display: none;
@@ -514,14 +517,65 @@ body {
   .stats-row { grid-template-columns: repeat(2, 1fr); }
   .stat-value { font-size: 26px; }
 
-  /* Tabla scroll horizontal */
-  .table-container { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  /* Tablas como tarjetas en móvil */
+  .table-container { overflow-x: visible; border: none; background: transparent; box-shadow: none; }
+  .table-mobile-cards thead { display: none; }
+  .table-mobile-cards tbody tr {
+    display: block;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 10px;
+    padding: 4px 0;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  .table-mobile-cards tbody tr:hover { background: white; }
+  .table-mobile-cards td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--bg);
+    font-size: 15px;
+  }
+  .table-mobile-cards td:last-child { border-bottom: none; }
+  .table-mobile-cards td[data-label]::before {
+    content: attr(data-label);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    flex-shrink: 0;
+    margin-right: 10px;
+  }
+  .table-mobile-cards td[data-label=""]::before { display: none; }
+  .table-mobile-cards td[data-label=""] { justify-content: flex-end; }
+  .row-low-stock td { background: #fff5f5 !important; }
 
-  /* Venta grid en columna */
+  /* Venta grid en columna, ocultar resumen lateral */
   .venta-grid { grid-template-columns: 1fr; }
+  .venta-side-summary { display: none; }
 
   /* Barra de total en venta */
   .venta-total-bar strong { font-size: 18px; }
+
+  /* Barra inferior fija con total + confirmar */
+  .venta-mobile-bar {
+    display: flex;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: white;
+    border-top: 2px solid var(--border);
+    padding: 10px 16px;
+    gap: 12px;
+    align-items: center;
+    z-index: 80;
+    box-shadow: 0 -4px 16px rgba(0,0,0,0.1);
+  }
+
+  /* Espacio para que la barra no tape el contenido */
+  .page-body { padding-bottom: 90px; }
 
   /* Modal full-screen en móvil */
   .modal-overlay { padding: 0; align-items: flex-end; }
@@ -535,4 +589,82 @@ body {
   /* Buscador ocupa todo el ancho */
   .search-input-wrap { max-width: 100%; }
   .search-bar { flex-direction: column; align-items: stretch; }
+
+  /* ── Inventario: tarjeta estructurada en grid ───────────────────────────── */
+  .table-inventario tbody tr {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-areas:
+      "codigo  codigo  precio"
+      "desc    desc    desc"
+      "prov    tono    esp"
+      "stock   stock   acc";
+    padding: 0;
+    gap: 0;
+  }
+  .table-inventario td {
+    display: flex !important;
+    align-items: center;
+    border-bottom: none;
+    padding: 7px 14px;
+  }
+  .table-inventario td::before { display: none !important; }
+
+  /* Fila 1: código + precio */
+  .table-inventario td[data-label="Código"] {
+    grid-area: codigo;
+    padding: 12px 14px 6px;
+  }
+  .table-inventario td[data-label="Precio"] {
+    grid-area: precio;
+    justify-content: flex-end;
+    padding: 12px 14px 6px;
+    font-size: 17px !important;
+  }
+
+  /* Fila 2: descripción completa */
+  .table-inventario td[data-label="Descripción"] {
+    grid-area: desc;
+    display: block !important;
+    padding: 6px 14px 10px;
+    border-top: 1px solid var(--bg);
+    border-bottom: 1px solid var(--bg);
+  }
+
+  /* Fila 3: proveedor / tono / espesor con mini-etiqueta encima */
+  .table-inventario td[data-label="Proveedor"],
+  .table-inventario td[data-label="Tono"],
+  .table-inventario td[data-label="Espesor"] {
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px 14px;
+  }
+  .table-inventario td[data-label="Proveedor"]::before,
+  .table-inventario td[data-label="Tono"]::before,
+  .table-inventario td[data-label="Espesor"]::before {
+    display: block !important;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    content: attr(data-label);
+    margin-right: 0;
+  }
+  .table-inventario td[data-label="Proveedor"] { grid-area: prov; align-items: flex-start; }
+  .table-inventario td[data-label="Tono"]      { grid-area: tono; align-items: center; }
+  .table-inventario td[data-label="Espesor"]   { grid-area: esp;  align-items: flex-end; }
+
+  /* Fila 4: stock + acciones */
+  .table-inventario td[data-label="Stock"] {
+    grid-area: stock;
+    padding: 8px 14px 12px;
+    border-top: 1px solid var(--bg);
+  }
+  .table-inventario td[data-label=""] {
+    grid-area: acc;
+    justify-content: flex-end;
+    padding: 8px 14px 12px;
+    border-top: 1px solid var(--bg);
+  }
 }

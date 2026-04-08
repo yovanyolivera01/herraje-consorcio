@@ -22,6 +22,7 @@ function ProductoModal({ producto, onClose, onSave, proveedores }) {
     if (!form.codigoProducto.trim()) e.codigoProducto = 'El código es obligatorio'
     if (!form.codigoProveedor) e.codigoProveedor = 'Selecciona un proveedor'
     if (!form.marca || !form.marca.trim()) e.marca = 'La marca es obligatoria'
+    if (!form.tono || !form.tono.trim()) e.tono = 'El tono es obligatorio'
     if (!form.descripcion || !form.descripcion.trim()) e.descripcion = 'La descripción es obligatoria'
     if (form.precio === '' || isNaN(form.precio) || Number(form.precio) <= 0)
       e.precio = 'Ingresa un precio válido mayor a 0'
@@ -105,13 +106,14 @@ function ProductoModal({ producto, onClose, onSave, proveedores }) {
 
             <div className="form-row-3">
               <div className="form-group">
-                <label className="form-label">Tono</label>
+                <label className="form-label required">Tono</label>
                 <input
-                  className="form-input"
+                  className={`form-input${errors.tono ? ' error' : ''}`}
                   value={form.tono}
                   onChange={set('tono')}
                   placeholder="Ej. Natural, Café..."
                 />
+                {errors.tono && <div className="form-error">{errors.tono}</div>}
               </div>
               <div className="form-group">
                 <label className="form-label required">Espesor (mm)</label>
@@ -289,28 +291,28 @@ function ProductRow({ producto, proveedor, onEdit, onDelete, onAjuste }) {
 
   return (
     <tr className={low ? 'row-low-stock' : ''}>
-      <td>
+      <td data-label="Código" style={{ whiteSpace: 'nowrap' }}>
         <span className="badge badge-blue">{producto.codigo}</span>
       </td>
-      <td>
+      <td data-label="Descripción">
         <div style={{ fontWeight: 600, fontSize: 15 }}>{producto.descripcion}</div>
         {producto.marca && (
           <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>{producto.marca}</div>
         )}
       </td>
-      <td>{proveedor?.nombre ?? '—'}</td>
-      <td>
+      <td data-label="Proveedor">{proveedor?.nombre ?? '—'}</td>
+      <td data-label="Tono">
         {producto.tono
           ? <span className="badge badge-orange">{producto.tono}</span>
           : <span style={{ color: 'var(--text-muted)' }}>—</span>}
       </td>
-      <td style={{ textAlign: 'center' }}>
+      <td data-label="Espesor" style={{ textAlign: 'center' }}>
         {producto.espesor ? `${producto.espesor} mm` : '—'}
       </td>
-      <td style={{ fontWeight: 700, fontSize: 16, color: 'var(--accent)', whiteSpace: 'nowrap' }}>
+      <td data-label="Precio" style={{ fontWeight: 700, fontSize: 16, color: 'var(--accent)', whiteSpace: 'nowrap' }}>
         ${Number(producto.precio).toFixed(2)}
       </td>
-      <td>
+      <td data-label="Stock">
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span className={`stock-indicator ${low ? 'stock-low' : 'stock-ok'}`}>
             <span className="stock-dot" />
@@ -319,7 +321,7 @@ function ProductRow({ producto, proveedor, onEdit, onDelete, onAjuste }) {
           {low && <span className="badge badge-red" style={{ fontSize: 11 }}>Bajo</span>}
         </div>
       </td>
-      <td>
+      <td data-label="">
         <div style={{ display: 'flex', gap: 4 }}>
           <button
             className="btn btn-outline btn-sm"
@@ -461,7 +463,7 @@ export default function Productos() {
           </div>
         ) : (
           <div className="table-container" style={{ overflowX: 'auto' }}>
-            <table className="table" style={{ minWidth: 820 }}>
+            <table className="table table-mobile-cards table-inventario" style={{ minWidth: 820 }}>
               <thead>
                 <tr>
                   <th style={{ width: 120, whiteSpace: 'nowrap' }}>Código</th>
