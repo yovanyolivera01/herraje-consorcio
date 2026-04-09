@@ -20,7 +20,7 @@ function formatearFechaHora(isoString) {
 
 export const getTonos = async () => {
   const { data, error } = await supabase
-    .from('cot_tono')
+    .from('tono')
     .select('*')
     .order('nombre', { ascending: true })
   if (error) throw error
@@ -29,7 +29,7 @@ export const getTonos = async () => {
 
 export const createTono = async ({ nombre }) => {
   const { data, error } = await supabase
-    .from('cot_tono')
+    .from('tono')
     .insert({ nombre })
     .select()
     .single()
@@ -37,11 +37,11 @@ export const createTono = async ({ nombre }) => {
   return data
 }
 
-export const updateTono = async (id, campos) => {
+export const updateTono = async (id_tono, campos) => {
   const { data, error } = await supabase
-    .from('cot_tono')
+    .from('tono')
     .update(campos)
-    .eq('id', id)
+    .eq('id_tono', id_tono)
     .select()
     .single()
   if (error) throw error
@@ -52,7 +52,7 @@ export const updateTono = async (id, campos) => {
 
 export const getEspesores = async () => {
   const { data, error } = await supabase
-    .from('cot_espesor')
+    .from('espesor')
     .select('*')
     .order('valor_mm', { ascending: true })
   if (error) throw error
@@ -61,7 +61,7 @@ export const getEspesores = async () => {
 
 export const createEspesor = async ({ valor_mm, etiqueta }) => {
   const { data, error } = await supabase
-    .from('cot_espesor')
+    .from('espesor')
     .insert({ valor_mm: Number(valor_mm), etiqueta })
     .select()
     .single()
@@ -69,11 +69,11 @@ export const createEspesor = async ({ valor_mm, etiqueta }) => {
   return data
 }
 
-export const updateEspesor = async (id, campos) => {
+export const updateEspesor = async (id_espesor, campos) => {
   const { data, error } = await supabase
-    .from('cot_espesor')
+    .from('espesor')
     .update(campos)
-    .eq('id', id)
+    .eq('id_espesor', id_espesor)
     .select()
     .single()
   if (error) throw error
@@ -84,8 +84,8 @@ export const updateEspesor = async (id, campos) => {
 
 export const getTiposVidrio = async () => {
   const { data, error } = await supabase
-    .from('cot_tipo_vidrio')
-    .select('*, cot_tono(id, nombre), cot_espesor(id, valor_mm, etiqueta)')
+    .from('tipo_vidrio')
+    .select('*, tono(id_tono, nombre), espesor(id_espesor, valor_mm, etiqueta)')
     .order('clave', { ascending: true })
   if (error) throw error
   return data ?? []
@@ -93,20 +93,20 @@ export const getTiposVidrio = async () => {
 
 export const createTipoVidrio = async ({ id_tono, id_espesor, clave, descripcion, hoja_largo_cm, hoja_ancho_cm }) => {
   const { data, error } = await supabase
-    .from('cot_tipo_vidrio')
+    .from('tipo_vidrio')
     .insert({ id_tono, id_espesor, clave, descripcion, hoja_largo_cm: Number(hoja_largo_cm), hoja_ancho_cm: Number(hoja_ancho_cm) })
-    .select('*, cot_tono(id, nombre), cot_espesor(id, valor_mm, etiqueta)')
+    .select('*, tono(id_tono, nombre), espesor(id_espesor, valor_mm, etiqueta)')
     .single()
   if (error) throw error
   return data
 }
 
-export const updateTipoVidrio = async (id, campos) => {
+export const updateTipoVidrio = async (id_tipo_vidrio, campos) => {
   const { data, error } = await supabase
-    .from('cot_tipo_vidrio')
+    .from('tipo_vidrio')
     .update(campos)
-    .eq('id', id)
-    .select('*, cot_tono(id, nombre), cot_espesor(id, valor_mm, etiqueta)')
+    .eq('id_tipo_vidrio', id_tipo_vidrio)
+    .select('*, tono(id_tono, nombre), espesor(id_espesor, valor_mm, etiqueta)')
     .single()
   if (error) throw error
   return data
@@ -116,10 +116,10 @@ export const updateTipoVidrio = async (id, campos) => {
 
 export const getNivelesPrecio = async () => {
   const { data, error } = await supabase
-    .from('cot_nivel_precio')
+    .from('nivel_precio')
     .select('*')
     .eq('activo', true)
-    .order('id', { ascending: true })
+    .order('id_nivel_precio', { ascending: true })
   if (error) throw error
   return data ?? []
 }
@@ -128,7 +128,7 @@ export const getNivelesPrecio = async () => {
 
 export const getPreciosVidrio = async () => {
   const { data, error } = await supabase
-    .from('cot_precio_vidrio')
+    .from('precio_vidrio')
     .select('*')
   if (error) throw error
   return data ?? []
@@ -136,7 +136,7 @@ export const getPreciosVidrio = async () => {
 
 export const guardarPrecio = async ({ id_tipo_vidrio, id_nivel_precio, precio_m2 }) => {
   const { data, error } = await supabase
-    .from('cot_precio_vidrio')
+    .from('precio_vidrio')
     .upsert(
       { id_tipo_vidrio, id_nivel_precio, precio_m2: Number(precio_m2) },
       { onConflict: 'id_tipo_vidrio,id_nivel_precio' }
@@ -151,8 +151,8 @@ export const guardarPrecio = async ({ id_tipo_vidrio, id_nivel_precio, precio_m2
 
 export const getClientes = async () => {
   const { data, error } = await supabase
-    .from('cot_cliente')
-    .select('*, cot_nivel_precio(id, nombre)')
+    .from('cliente')
+    .select('*, nivel_precio(id_nivel_precio, nombre)')
     .order('nombre', { ascending: true })
   if (error) throw error
   return data ?? []
@@ -160,20 +160,20 @@ export const getClientes = async () => {
 
 export const createCliente = async ({ nombre, telefono, correo, id_nivel_precio }) => {
   const { data, error } = await supabase
-    .from('cot_cliente')
+    .from('cliente')
     .insert({ nombre, telefono: telefono || null, correo: correo || null, id_nivel_precio: id_nivel_precio || null })
-    .select('*, cot_nivel_precio(id, nombre)')
+    .select('*, nivel_precio(id_nivel_precio, nombre)')
     .single()
   if (error) throw error
   return data
 }
 
-export const updateCliente = async (id, campos) => {
+export const updateCliente = async (id_cliente, campos) => {
   const { data, error } = await supabase
-    .from('cot_cliente')
+    .from('cliente')
     .update(campos)
-    .eq('id', id)
-    .select('*, cot_nivel_precio(id, nombre)')
+    .eq('id_cliente', id_cliente)
+    .select('*, nivel_precio(id_nivel_precio, nombre)')
     .single()
   if (error) throw error
   return data
@@ -183,8 +183,8 @@ export const updateCliente = async (id, campos) => {
 
 export const getProcesos = async () => {
   const { data, error } = await supabase
-    .from('cot_proceso')
-    .select('*, cot_unidad_cobro(id, nombre, descripcion)')
+    .from('proceso')
+    .select('*, unidad_cobro(id_unidad_cobro, nombre, descripcion)')
     .order('nombre', { ascending: true })
   if (error) throw error
   return data ?? []
@@ -192,20 +192,20 @@ export const getProcesos = async () => {
 
 export const createProceso = async ({ nombre, id_unidad_cobro, precio_unitario }) => {
   const { data, error } = await supabase
-    .from('cot_proceso')
+    .from('proceso')
     .insert({ nombre, id_unidad_cobro, precio_unitario: Number(precio_unitario) })
-    .select('*, cot_unidad_cobro(id, nombre, descripcion)')
+    .select('*, unidad_cobro(id_unidad_cobro, nombre, descripcion)')
     .single()
   if (error) throw error
   return data
 }
 
-export const updateProceso = async (id, campos) => {
+export const updateProceso = async (id_proceso, campos) => {
   const { data, error } = await supabase
-    .from('cot_proceso')
+    .from('proceso')
     .update(campos)
-    .eq('id', id)
-    .select('*, cot_unidad_cobro(id, nombre, descripcion)')
+    .eq('id_proceso', id_proceso)
+    .select('*, unidad_cobro(id_unidad_cobro, nombre, descripcion)')
     .single()
   if (error) throw error
   return data
@@ -215,9 +215,9 @@ export const updateProceso = async (id, campos) => {
 
 export const getUnidadesCobro = async () => {
   const { data, error } = await supabase
-    .from('cot_unidad_cobro')
+    .from('unidad_cobro')
     .select('*')
-    .order('id', { ascending: true })
+    .order('id_unidad_cobro', { ascending: true })
   if (error) throw error
   return data ?? []
 }
@@ -225,11 +225,11 @@ export const getUnidadesCobro = async () => {
 // ── Cotizaciones ──────────────────────────────────────────────────────────
 
 export const iniciarCotizacion = async ({ id_nivel_precio, id_cliente = null, observaciones = null }) => {
-  // Insert con folio temporal; lo actualizamos luego usando el id generado
+  // Insertar con folio temporal
   const { data: cot, error: cotErr } = await supabase
-    .from('cot_cotizacion')
+    .from('cotizacion')
     .insert({
-      folio:          'COT-00000', // temporal, se reemplaza abajo
+      folio:          'COT-00000',
       id_nivel_precio,
       id_cliente:     id_cliente || null,
       observaciones:  observaciones || null,
@@ -239,11 +239,12 @@ export const iniciarCotizacion = async ({ id_nivel_precio, id_cliente = null, ob
     .single()
   if (cotErr) throw cotErr
 
-  const folio = `COT-${String(cot.id).padStart(5, '0')}`
+  // Actualizar folio usando el id generado
+  const folio = `COT-${String(cot.id_cotizacion).padStart(5, '0')}`
   const { data, error } = await supabase
-    .from('cot_cotizacion')
+    .from('cotizacion')
     .update({ folio })
-    .eq('id', cot.id)
+    .eq('id_cotizacion', cot.id_cotizacion)
     .select()
     .single()
   if (error) throw error
@@ -251,36 +252,37 @@ export const iniciarCotizacion = async ({ id_nivel_precio, id_cliente = null, ob
 }
 
 export const agregarPartida = async (id_cotizacion, partida) => {
-  // Insert partida
+  // metros2 ya incluye el número de piezas: piezas × (largo × ancho / 10000)
   const { data: p, error: pErr } = await supabase
-    .from('cot_partida')
+    .from('partida_cotizacion')
     .insert({
       id_cotizacion,
-      id_tipo_vidrio:       partida.id_tipo_vidrio,
-      piezas:               partida.piezas,
-      largo_cm:             partida.largo_cm,
-      ancho_cm:             partida.ancho_cm,
-      metros2:              partida.metros2,
-      precio_m2_aplicado:   partida.precio_m2_aplicado,
-      subtotal_vidrio:      partida.subtotal_vidrio,
-      subtotal_procesos:    partida.subtotal_procesos ?? 0,
-      subtotal_partida:     partida.subtotal_partida,
+      id_tipo_vidrio:     partida.id_tipo_vidrio,
+      largo_cm:           partida.largo_cm,
+      ancho_cm:           partida.ancho_cm,
+      metros2:            partida.metros2,           // total incluyendo piezas
+      precio_m2_aplicado: partida.precio_m2_aplicado,
+      subtotal_vidrio:    partida.subtotal_vidrio,
+      subtotal_procesos:  partida.subtotal_procesos ?? 0,
+      subtotal_partida:   partida.subtotal_partida,
+      es_hoja_completa:   partida.es_hoja_completa ?? false,
     })
     .select()
     .single()
   if (pErr) throw pErr
 
-  // Insert procesos por partida si los hay
+  // Insertar procesos si los hay
   if (partida.procesos && partida.procesos.length > 0) {
     const rows = partida.procesos.map(proc => ({
-      id_partida:      p.id,
+      id_partida:      p.id_partida,
       id_proceso:      proc.id_proceso,
+      id_unidad_cobro: proc.id_unidad_cobro,
       cantidad:        proc.cantidad,
       precio_unitario: proc.precio_unitario,
       subtotal:        proc.subtotal,
     }))
     const { error: prErr } = await supabase
-      .from('cot_partida_proceso')
+      .from('partida_proceso')
       .insert(rows)
     if (prErr) throw prErr
   }
@@ -290,9 +292,9 @@ export const agregarPartida = async (id_cotizacion, partida) => {
 
 export const finalizarCotizacion = async (id_cotizacion, total) => {
   const { data, error } = await supabase
-    .from('cot_cotizacion')
+    .from('cotizacion')
     .update({ total: Number(total), estatus: 'FINALIZADA' })
-    .eq('id', id_cotizacion)
+    .eq('id_cotizacion', id_cotizacion)
     .select()
     .single()
   if (error) throw error
@@ -301,9 +303,9 @@ export const finalizarCotizacion = async (id_cotizacion, total) => {
 
 export const cancelarCotizacion = async (id_cotizacion) => {
   const { data, error } = await supabase
-    .from('cot_cotizacion')
+    .from('cotizacion')
     .update({ estatus: 'CANCELADA' })
-    .eq('id', id_cotizacion)
+    .eq('id_cotizacion', id_cotizacion)
     .select()
     .single()
   if (error) throw error
@@ -312,20 +314,20 @@ export const cancelarCotizacion = async (id_cotizacion) => {
 
 export const getCotizaciones = async () => {
   const { data, error } = await supabase
-    .from('cot_cotizacion')
-    .select('*, cot_cliente(id, nombre), cot_nivel_precio(id, nombre)')
+    .from('cotizacion')
+    .select('*, cliente(id_cliente, nombre), nivel_precio(id_nivel_precio, nombre)')
     .order('fecha', { ascending: false })
   if (error) throw error
   return (data ?? []).map(row => {
     const { fecha, hora } = formatearFechaHora(row.fecha)
     return {
-      id:            row.id,
+      id:            row.id_cotizacion,
       folio:         row.folio,
-      fecha:         fecha,
-      hora:          hora,
+      fecha,
+      hora,
       fechaISO:      row.fecha,
-      clienteNombre: row.cot_cliente?.nombre ?? 'Mostrador',
-      nivelNombre:   row.cot_nivel_precio?.nombre ?? '',
+      clienteNombre: row.cliente?.nombre ?? 'Mostrador',
+      nivelNombre:   row.nivel_precio?.nombre ?? '',
       total:         Number(row.total),
       estatus:       row.estatus,
       observaciones: row.observaciones,
@@ -336,15 +338,15 @@ export const getCotizaciones = async () => {
 export const getDetalleCotizacion = async (id) => {
   const [cotRes, partidasRes] = await Promise.all([
     supabase
-      .from('cot_cotizacion')
-      .select('*, cot_cliente(id, nombre, telefono), cot_nivel_precio(id, nombre, es_hoja_completa)')
-      .eq('id', id)
+      .from('cotizacion')
+      .select('*, cliente(id_cliente, nombre, telefono), nivel_precio(id_nivel_precio, nombre, es_hoja_completa)')
+      .eq('id_cotizacion', id)
       .single(),
     supabase
-      .from('cot_partida')
-      .select('*, cot_tipo_vidrio(id, clave, descripcion, hoja_largo_cm, hoja_ancho_cm), cot_partida_proceso(*, cot_proceso(id, nombre, cot_unidad_cobro(nombre)))')
+      .from('partida_cotizacion')
+      .select('*, tipo_vidrio(id_tipo_vidrio, clave, descripcion, hoja_largo_cm, hoja_ancho_cm), partida_proceso(*, proceso(id_proceso, nombre, unidad_cobro(nombre)))')
       .eq('id_cotizacion', id)
-      .order('id', { ascending: true }),
+      .order('id_partida', { ascending: true }),
   ])
   if (cotRes.error) throw cotRes.error
   if (partidasRes.error) throw partidasRes.error
@@ -352,20 +354,19 @@ export const getDetalleCotizacion = async (id) => {
   const row = cotRes.data
   const { fecha, hora } = formatearFechaHora(row.fecha)
   return {
-    id:            row.id,
+    id:            row.id_cotizacion,
     folio:         row.folio,
-    fecha:         fecha,
-    hora:          hora,
+    fecha,
+    hora,
     fechaISO:      row.fecha,
-    cliente:       row.cot_cliente,
-    nivel:         row.cot_nivel_precio,
+    cliente:       row.cliente,
+    nivel:         row.nivel_precio,
     total:         Number(row.total),
     estatus:       row.estatus,
     observaciones: row.observaciones,
-    partidas:      (partidasRes.data ?? []).map(p => ({
-      id:                 p.id,
-      tipoVidrio:         p.cot_tipo_vidrio,
-      piezas:             p.piezas,
+    partidas: (partidasRes.data ?? []).map(p => ({
+      id:                 p.id_partida,
+      tipoVidrio:         p.tipo_vidrio,
       largo_cm:           Number(p.largo_cm),
       ancho_cm:           Number(p.ancho_cm),
       metros2:            Number(p.metros2),
@@ -373,10 +374,11 @@ export const getDetalleCotizacion = async (id) => {
       subtotal_vidrio:    Number(p.subtotal_vidrio),
       subtotal_procesos:  Number(p.subtotal_procesos),
       subtotal_partida:   Number(p.subtotal_partida),
-      procesos:           (p.cot_partida_proceso ?? []).map(pp => ({
-        id:              pp.id,
-        nombre:          pp.cot_proceso?.nombre ?? '',
-        unidad:          pp.cot_proceso?.cot_unidad_cobro?.nombre ?? '',
+      es_hoja_completa:   p.es_hoja_completa,
+      procesos: (p.partida_proceso ?? []).map(pp => ({
+        id:              pp.id_partida_proceso,
+        nombre:          pp.proceso?.nombre ?? '',
+        unidad:          pp.proceso?.unidad_cobro?.nombre ?? '',
         cantidad:        Number(pp.cantidad),
         precio_unitario: Number(pp.precio_unitario),
         subtotal:        Number(pp.subtotal),

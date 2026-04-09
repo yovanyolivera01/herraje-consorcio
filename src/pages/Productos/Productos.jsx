@@ -164,7 +164,7 @@ function ProductoModal({ producto, onClose, onSave, proveedores }) {
 
 // ── Modal de ajuste de existencias ────────────────────────────────────────
 function AjusteModal({ producto, onClose, onAjuste }) {
-  const [cantidad, setCantidad] = useState(1)
+  const [cantidad, setCantidad] = useState(0)
   const [tipo, setTipo]         = useState('entrada')
   const [nota, setNota]         = useState('')
 

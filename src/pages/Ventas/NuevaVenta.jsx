@@ -203,7 +203,7 @@ export default function NuevaVenta() {
       if (existe) {
         return prev.map(p =>
           p.codigoProducto === prod.codigo
-            ? { ...p, cantidad: p.cantidad + 1, subtotal: (p.cantidad + 1) * p.precioUnitario }
+            ? { ...p, cantidad: (Number(p.cantidad) || 0) + 1, subtotal: ((Number(p.cantidad) || 0) + 1) * p.precioUnitario }
             : p
         )
       }
@@ -441,7 +441,7 @@ export default function NuevaVenta() {
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: 13 }}>
                 <span style={{ color: 'var(--text-muted)' }}>Total de piezas</span>
                 <span style={{ fontWeight: 600 }}>
-                  {partidas.reduce((s, p) => s + p.cantidad, 0)}
+                  {partidas.reduce((s, p) => s + (Number(p.cantidad) || 0), 0)}
                 </span>
               </div>
               <div className="divider" />

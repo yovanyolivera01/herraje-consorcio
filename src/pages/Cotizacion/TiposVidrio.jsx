@@ -185,7 +185,7 @@ function TipoVidrioModal({ tipo, onClose, onSave }) {
                   >
                     <option value="">-- Seleccionar tono --</option>
                     {activeTonos.map(t => (
-                      <option key={t.id} value={t.id}>{t.nombre}</option>
+                      <option key={t.id_tono} value={t.id_tono}>{t.nombre}</option>
                     ))}
                   </select>
                   <button
@@ -211,7 +211,7 @@ function TipoVidrioModal({ tipo, onClose, onSave }) {
                   >
                     <option value="">-- Seleccionar espesor --</option>
                     {activeEspesores.map(e => (
-                      <option key={e.id} value={e.id}>{e.etiqueta} ({e.valor_mm} mm)</option>
+                      <option key={e.id_espesor} value={e.id_espesor}>{e.etiqueta} ({e.valor_mm} mm)</option>
                     ))}
                   </select>
                   <button
@@ -232,9 +232,8 @@ function TipoVidrioModal({ tipo, onClose, onSave }) {
                 <input
                   className={`form-input${errors.clave ? ' error' : ''}`}
                   value={form.clave}
-                  onChange={set('clave')}
+                  onChange={e => setForm(f => ({ ...f, clave: e.target.value.toUpperCase() }))}
                   placeholder="Ej. CLARO-6MM"
-                  style={{ textTransform: 'uppercase' }}
                 />
                 {errors.clave && <div className="form-error">{errors.clave}</div>}
               </div>
@@ -294,13 +293,13 @@ function TipoVidrioModal({ tipo, onClose, onSave }) {
       {innerModal === 'tono' && (
         <TonoInlineModal
           onClose={() => setInnerModal(null)}
-          onCreated={(tono) => setForm(f => ({ ...f, id_tono: tono.id }))}
+          onCreated={(tono) => setForm(f => ({ ...f, id_tono: tono.id_tono }))}
         />
       )}
       {innerModal === 'espesor' && (
         <EspesorInlineModal
           onClose={() => setInnerModal(null)}
-          onCreated={(esp) => setForm(f => ({ ...f, id_espesor: esp.id }))}
+          onCreated={(esp) => setForm(f => ({ ...f, id_espesor: esp.id_espesor }))}
         />
       )}
     </>
@@ -322,14 +321,14 @@ export default function TiposVidrio() {
   const handleSave = async (form) => {
     const { error } = modal.type === 'create'
       ? await addTipoVidrio(form)
-      : await editTipoVidrio(modal.data.id, form)
+      : await editTipoVidrio(modal.data.id_tipo_vidrio, form)
     if (error) { showToast(error, 'error'); return }
     showToast(modal.type === 'create' ? 'Tipo de vidrio creado ✅' : 'Tipo de vidrio actualizado ✅')
     setModal(null)
   }
 
   const handleToggleActivo = async (tipo) => {
-    const { error } = await editTipoVidrio(tipo.id, { activo: !tipo.activo })
+    const { error } = await editTipoVidrio(tipo.id_tipo_vidrio, { activo: !tipo.activo })
     if (error) showToast(error, 'error')
     else showToast(tipo.activo ? 'Tipo desactivado' : 'Tipo activado ✅')
   }
@@ -337,7 +336,7 @@ export default function TiposVidrio() {
   const filtered = tiposVidrio.filter(t =>
     t.clave.toLowerCase().includes(search.toLowerCase()) ||
     (t.descripcion || '').toLowerCase().includes(search.toLowerCase()) ||
-    (t.cot_tono?.nombre || '').toLowerCase().includes(search.toLowerCase())
+    (t.tono?.nombre || '').toLowerCase().includes(search.toLowerCase())
   )
 
   return (
@@ -392,12 +391,12 @@ export default function TiposVidrio() {
               </thead>
               <tbody>
                 {filtered.map(tipo => (
-                  <tr key={tipo.id}>
+                  <tr key={tipo.id_tipo_vidrio}>
                     <td data-label="Clave">
                       <span className="badge badge-blue">{tipo.clave}</span>
                     </td>
-                    <td data-label="Tono">{tipo.cot_tono?.nombre ?? '—'}</td>
-                    <td data-label="Espesor">{tipo.cot_espesor?.etiqueta ?? '—'}</td>
+                    <td data-label="Tono">{tipo.tono?.nombre ?? '—'}</td>
+                    <td data-label="Espesor">{tipo.espesor?.etiqueta ?? '—'}</td>
                     <td data-label="Dimension hoja" style={{ color: 'var(--text-muted)', fontSize: 15 }}>
                       {tipo.hoja_largo_cm} × {tipo.hoja_ancho_cm} cm
                     </td>

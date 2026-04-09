@@ -382,6 +382,82 @@ body {
 /* ── Divider ─────────────────────────────────────────────────────────────── */
 .divider { height: 1px; background: var(--border); margin: 16px 0; }
 
+/* ══════════════════════════════════════════════════════════════════════════ */
+/* COTIZACION DE VIDRIO — clases especificas                                  */
+/* ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Selector de sistema (bottom del sidebar) ───────────────────────────── */
+.system-switcher {
+  padding: 12px 10px 16px;
+  border-top: 1px solid var(--border);
+  margin-top: auto;
+}
+.system-switcher-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-bottom: 8px;
+  padding-left: 4px;
+}
+.system-switcher-btns {
+  display: flex;
+  gap: 6px;
+}
+.system-btn {
+  flex: 1;
+  padding: 7px 6px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  background: white;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  color: var(--text-muted);
+  font-family: inherit;
+  white-space: nowrap;
+}
+.system-btn:hover { background: var(--bg); color: var(--text); }
+.system-btn-active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+.system-btn-active:hover { background: var(--accent-hover); }
+
+/* ── Input grande de notacion de medidas ────────────────────────────────── */
+.cot-calc-input {
+  font-size: 22px !important;
+  font-weight: 600;
+  letter-spacing: 1px;
+  padding: 12px 16px !important;
+}
+
+/* ── Preview en vivo de calculo ─────────────────────────────────────────── */
+.cot-preview-row {
+  background: #f0f4f8;
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-top: 4px;
+  margin-bottom: 4px;
+  border: 1px solid var(--border);
+}
+
+/* ── Partida item en la lista ───────────────────────────────────────────── */
+.cot-partida-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+
 /* ── Stock bajo en tabla ─────────────────────────────────────────────────── */
 .row-low-stock td { background: #fff5f5 !important; }
 .row-low-stock:hover td { background: #fee2e2 !important; }
@@ -465,6 +541,11 @@ body {
     margin: 2px 6px;
   }
   .nav-icon { font-size: 22px; width: auto; }
+  /* Switcher compacto en tablet */
+  .system-switcher { padding: 8px 4px 12px; }
+  .system-switcher-label { display: none; }
+  .system-btn { font-size: 11px; padding: 6px 2px; }
+  .system-switcher-btns { flex-direction: column; gap: 4px; }
 
   /* Contenido */
   .page-header  { padding: 14px 18px; flex-wrap: wrap; gap: 10px; }

@@ -99,7 +99,7 @@ export default function Precios() {
     .filter(t =>
       t.clave.toLowerCase().includes(search.toLowerCase()) ||
       (t.descripcion || '').toLowerCase().includes(search.toLowerCase()) ||
-      (t.cot_tono?.nombre || '').toLowerCase().includes(search.toLowerCase())
+      (t.tono?.nombre || '').toLowerCase().includes(search.toLowerCase())
     )
 
   return (
@@ -149,7 +149,7 @@ export default function Precios() {
                     <th style={{ minWidth: 140 }}>Tipo de Vidrio</th>
                     <th style={{ minWidth: 120, fontStyle: 'italic', color: 'var(--text-muted)' }}>Tono / Espesor</th>
                     {nivelesPrecio.map(n => (
-                      <th key={n.id} style={{ textAlign: 'right', minWidth: 110 }}>
+                      <th key={n.id_nivel_precio} style={{ textAlign: 'right', minWidth: 110 }}>
                         {n.nombre}
                         {n.es_hoja_completa && (
                           <span style={{ display: 'block', fontSize: 11, fontWeight: 400, color: 'var(--text-muted)' }}>
@@ -162,19 +162,19 @@ export default function Precios() {
                 </thead>
                 <tbody>
                   {tipos.map(tipo => (
-                    <tr key={tipo.id}>
+                    <tr key={tipo.id_tipo_vidrio}>
                       <td style={{ fontWeight: 600 }}>
                         <span className="badge badge-blue">{tipo.clave}</span>
                       </td>
                       <td style={{ fontSize: 14, color: 'var(--text-muted)' }}>
-                        {tipo.cot_tono?.nombre} / {tipo.cot_espesor?.etiqueta}
+                        {tipo.tono?.nombre} / {tipo.espesor?.etiqueta}
                       </td>
                       {nivelesPrecio.map(n => (
                         <PrecioCell
-                          key={n.id}
-                          idTipoVidrio={tipo.id}
-                          idNivel={n.id}
-                          precioActual={getPrecio(tipo.id, n.id)}
+                          key={n.id_nivel_precio}
+                          idTipoVidrio={tipo.id_tipo_vidrio}
+                          idNivel={n.id_nivel_precio}
+                          precioActual={getPrecio(tipo.id_tipo_vidrio, n.id_nivel_precio)}
                           onSave={handleSave}
                         />
                       ))}
