@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useCotizacion } from '../../context/CotizacionContext'
+import { convertirCotizacionAPedido, getDetallePedido } from '../../lib/pedidosApi'
 
 // ── Parser de notacion {piezas}-{largo}x{ancho} ───────────────────────────
 function parseNotacion(texto) {
@@ -75,11 +76,78 @@ function TicketCotizacion({ cotizacion }) {
   )
 }
 
+// ── Ticket de pedido (post-conversión) ───────────────────────────────────
+function TicketPedidoRapido({ detalle }) {
+  return (
+    <div className="ticket-preview">
+      <div className="ticket-header">
+        <h2>HERRAJES CONSORCIO</h2>
+        <p style={{ fontWeight: 700 }}>PEDIDO DE VIDRIO</p>
+      </div>
+      <hr className="ticket-divider" />
+      <div className="ticket-row"><span>Pedido:</span><strong>{detalle.folio}</strong></div>
+      <div className="ticket-row"><span>Cotizacion:</span><span>COT-{String(detalle.id_cotizacion).padStart(5,'0')}</span></div>
+      <div className="ticket-row"><span>Fecha:</span><span>{detalle.fecha}</span></div>
+      <div className="ticket-row"><span>Cliente:</span><span>{detalle.cliente?.nombre ?? 'Mostrador'}</span></div>
+      {detalle.observaciones && (
+        <div className="ticket-row" style={{ flexDirection:'column', gap:2 }}>
+          <span style={{ fontSize:11 }}>Obs:</span>
+          <span style={{ fontSize:12 }}>{detalle.observaciones}</span>
+        </div>
+      )}
+      <hr className="ticket-divider" />
+      {detalle.partidas.map((p, i) => (
+        <div key={p.id} style={{ marginBottom: 8 }}>
+          <div style={{ fontWeight:600, fontSize:12 }}>
+            {i+1}. {p.clave_vidrio} — {p.largo_cm}×{p.ancho_cm} cm · {p.metros2.toFixed(4)} m²
+          </div>
+          <div className="ticket-row" style={{ fontSize:11, color:'var(--text-muted)' }}>
+            <span>${p.precio_m2_aplicado.toFixed(2)}/m²</span>
+            <span>${p.subtotal_vidrio.toFixed(2)}</span>
+          </div>
+          {p.procesos.map((pr, j) => (
+            <div key={j} className="ticket-row" style={{ fontSize:11, paddingLeft:10 }}>
+              <span>+ {pr.nombre}</span>
+              <span>${pr.subtotal.toFixed(2)}</span>
+            </div>
+          ))}
+          <div className="ticket-row" style={{ fontWeight:600, fontSize:12 }}>
+            <span>Subtotal</span>
+            <span>${p.subtotal_partida.toFixed(2)}</span>
+          </div>
+        </div>
+      ))}
+      <hr className="ticket-divider" />
+      <div className="ticket-total"><span>TOTAL</span><span>${detalle.total.toFixed(2)}</span></div>
+      <div className="ticket-row" style={{ marginTop:6 }}>
+        <span>Forma de pago:</span>
+        <span>{detalle.forma_pago === 'LIQUIDADO' ? 'Liquidado' : 'Anticipo'}</span>
+      </div>
+      {detalle.forma_pago === 'ANTICIPO' && (
+        <>
+          <div className="ticket-row">
+            <span>Anticipo:</span>
+            <span style={{ fontWeight:600 }}>${detalle.anticipo.toFixed(2)}</span>
+          </div>
+          <div className="ticket-row">
+            <span>Saldo pendiente:</span>
+            <span style={{ fontWeight:700, color:'var(--danger)' }}>${detalle.saldo.toFixed(2)}</span>
+          </div>
+        </>
+      )}
+      <hr className="ticket-divider" />
+      <div style={{ textAlign:'center', fontSize:11, color:'var(--text-muted)', marginTop:8 }}>
+        {detalle.estado === 'ENTREGADO' ? '¡Gracias por su compra!' : 'Pedido pendiente de entrega.'}
+      </div>
+    </div>
+  )
+}
+
 // ── Pagina Nueva Cotizacion ───────────────────────────────────────────────
 export default function NuevaCotizacion() {
   const {
     tiposVidrio, nivelesPrecio, clientes, procesos,
-    getPrecioVidrio,
+    getPrecioVidrio, getPrecioProceso,
     iniciarCotizacion, agregarPartida, finalizarCotizacion,
   } = useCotizacion()
 
@@ -99,6 +167,20 @@ export default function NuevaCotizacion() {
 
   // ── Resultado final ──────────────────────────────────────────────────────
   const [cotCreada,    setCotCreada]    = useState(null)
+
+  // ── Conversion rápida a pedido (post-cotización) ─────────────────────────
+  const [formaPago,       setFormaPago]       = useState('LIQUIDADO')
+  const [anticipoStr,     setAnticipoStr]     = useState('')
+  const [convertiendo,    setConvertiendo]    = useState(false)
+  const [errorConversion, setErrorConversion] = useState(null)
+  const [pedidoCreado,    setPedidoCreado]    = useState(null)
+
+  // ── Modal "cotizar + convertir" directo ───────────────────────────────────
+  const [showPedidoModal,     setShowPedidoModal]     = useState(false)
+  const [modalFormaPago,      setModalFormaPago]      = useState('LIQUIDADO')
+  const [modalAnticipoStr,    setModalAnticipoStr]    = useState('')
+  const [modalError,          setModalError]          = useState(null)
+  const [modalConvertiendo,   setModalConvertiendo]   = useState(false)
 
   // ── UI ──────────────────────────────────────────────────────────────────
   const [saving,       setSaving]       = useState(false)
@@ -141,16 +223,21 @@ export default function NuevaCotizacion() {
       const proc = procesosActivos.find(p => p.id_proceso === sp.id_proceso)
       if (!proc) return null
       const unidad = proc.unidad_cobro?.nombre ?? ''
+      const unidadLow = unidad.toLowerCase()
       let cantidad
-      if (unidad === 'm2') {
+      if (unidadLow === 'm2' || unidadLow === 'm²' || unidadLow.includes('cuadrado')) {
+        // Cobrar por metro cuadrado
         cantidad = metros2_total
       } else {
-        // ml: perimetro = (largo + ancho) * 2 / 100 metros por pieza * piezas
+        // Cobrar por metro lineal: perímetro (largo + ancho) × 2, convertido de cm a metros, × piezas
         cantidad = ((largo + ancho) * 2 / 100) * parsed.piezas
       }
-      const subtotal = cantidad * Number(proc.precio_unitario)
+      // Precio por nivel+espesor primero; si no hay, usa el precio base del proceso
+      const precioNivel = getPrecioProceso(proc.id_proceso, Number(nivelId), tipo?.espesor?.id_espesor ?? null)
+      const precio_unitario = precioNivel !== null ? precioNivel : Number(proc.precio_unitario)
+      const subtotal = cantidad * precio_unitario
       subtotal_procesos += subtotal
-      return { id_proceso: proc.id_proceso, id_unidad_cobro: proc.id_unidad_cobro, nombre: proc.nombre, unidad, cantidad, precio_unitario: Number(proc.precio_unitario), subtotal }
+      return { id_proceso: proc.id_proceso, id_unidad_cobro: proc.id_unidad_cobro, nombre: proc.nombre, unidad, cantidad, precio_unitario, subtotal }
     }).filter(Boolean)
 
     return {
@@ -165,7 +252,7 @@ export default function NuevaCotizacion() {
       esHojaCompleta,
       procesosCalc,
     }
-  }, [notacion, tipoVidrioId, nivelId, procesosSeleccionados, tiposVidrio, nivelesPrecio, procesosActivos, getPrecioVidrio])
+  }, [notacion, tipoVidrioId, nivelId, procesosSeleccionados, tiposVidrio, nivelesPrecio, procesosActivos, getPrecioVidrio, getPrecioProceso])
 
   // ── Manejo de cambio de cliente ───────────────────────────────────────────
   const handleClienteChange = (e) => {
@@ -203,6 +290,7 @@ export default function NuevaCotizacion() {
       subtotal_vidrio:   preview.subtotal_vidrio,
       subtotal_procesos: preview.subtotal_procesos,
       subtotal_partida:  preview.subtotal_total,
+      es_hoja_completa:  preview.esHojaCompleta,
       procesos:          preview.procesosCalc,
     }
 
@@ -255,6 +343,7 @@ export default function NuevaCotizacion() {
 
     setSaving(false)
     setCotCreada({
+      id:            cot.id_cotizacion,
       folio:         cot.folio,
       clienteNombre: clienteSeleccionado?.nombre ?? null,
       nivelNombre:   nivelSeleccionado?.nombre ?? '',
@@ -264,8 +353,79 @@ export default function NuevaCotizacion() {
     })
   }
 
+  const handleConvertirPedido = async () => {
+    if (formaPago === 'ANTICIPO') {
+      const n = parseFloat(anticipoStr)
+      if (isNaN(n) || n <= 0)       { setErrorConversion('Ingresa un monto de anticipo valido'); return }
+      if (n >= cotCreada.total)     { setErrorConversion('El anticipo debe ser menor al total'); return }
+    }
+    setConvertiendo(true)
+    setErrorConversion(null)
+    try {
+      const monto    = formaPago === 'LIQUIDADO' ? cotCreada.total : parseFloat(anticipoStr)
+      const idPedido = await convertirCotizacionAPedido(cotCreada.id, formaPago, monto)
+      const detalle  = await getDetallePedido(idPedido)
+      setPedidoCreado(detalle)
+    } catch (err) {
+      setErrorConversion(err.message || 'Error al convertir el pedido')
+    } finally {
+      setConvertiendo(false)
+    }
+  }
+
+  // Guarda cotización Y convierte a pedido en un solo paso
+  const handleCotizarYConvertir = async () => {
+    const antN = parseFloat(modalAnticipoStr) || 0
+    if (!nivelId)         { setModalError('Selecciona un nivel de precio'); return }
+    if (!partidas.length) { setModalError('Agrega al menos una partida'); return }
+    if (modalFormaPago === 'ANTICIPO') {
+      if (antN <= 0)              { setModalError('Ingresa un monto de anticipo valido'); return }
+      if (antN >= totalGeneral)   { setModalError('El anticipo debe ser menor al total'); return }
+    }
+    setModalConvertiendo(true)
+    setModalError(null)
+    try {
+      // 1. Crear cotización
+      const { data: cot, error: cotErr } = await iniciarCotizacion({
+        id_nivel_precio: Number(nivelId),
+        id_cliente:      clienteId ? Number(clienteId) : null,
+        observaciones:   observaciones.trim() || null,
+      })
+      if (cotErr) throw new Error(cotErr)
+      for (const p of partidas) {
+        const { error: pErr } = await agregarPartida(cot.id_cotizacion, p)
+        if (pErr) throw new Error(pErr)
+      }
+      const { error: finErr } = await finalizarCotizacion(cot.id_cotizacion, totalGeneral)
+      if (finErr) throw new Error(finErr)
+
+      // 2. Convertir a pedido
+      const monto    = modalFormaPago === 'LIQUIDADO' ? totalGeneral : antN
+      const idPedido = await convertirCotizacionAPedido(cot.id_cotizacion, modalFormaPago, monto)
+      const detalle  = await getDetallePedido(idPedido)
+
+      setShowPedidoModal(false)
+      setPedidoCreado(detalle)
+      setCotCreada({
+        id: cot.id_cotizacion, folio: cot.folio,
+        clienteNombre: clienteSeleccionado?.nombre ?? null,
+        nivelNombre: nivelSeleccionado?.nombre ?? '',
+        observaciones: observaciones.trim() || null,
+        partidas, total: totalGeneral,
+      })
+    } catch (err) {
+      setModalError(err.message || 'Error al crear el pedido')
+    } finally {
+      setModalConvertiendo(false)
+    }
+  }
+
   const nuevaCotizacion = () => {
     setCotCreada(null)
+    setPedidoCreado(null)
+    setFormaPago('LIQUIDADO')
+    setAnticipoStr('')
+    setErrorConversion(null)
     setPartidas([])
     setNivelId('')
     setClienteId('')
@@ -278,6 +438,34 @@ export default function NuevaCotizacion() {
 
   // ── Pantalla de ticket ────────────────────────────────────────────────────
   if (cotCreada) {
+    // Si ya se convirtió, mostrar ticket de pedido
+    if (pedidoCreado) {
+      return (
+        <>
+          <div className="page-header">
+            <div>
+              <div className="page-title">Pedido creado — {pedidoCreado.folio}</div>
+              <div className="page-subtitle" style={{ color: pedidoCreado.estado === 'ENTREGADO' ? 'var(--success)' : 'var(--warning)' }}>
+                {pedidoCreado.estado === 'ENTREGADO' ? 'Liquidado · Entregado al momento' : 'Pendiente de entrega'}
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button className="btn btn-outline" onClick={() => window.print()}>🖨️ Imprimir</button>
+              <button className="btn btn-primary" onClick={nuevaCotizacion}>+ Nueva cotizacion</button>
+            </div>
+          </div>
+          <div className="page-body">
+            <div className="alert alert-success">
+              ✅ Pedido <strong>{pedidoCreado.folio}</strong> creado desde cotizacion <strong>{cotCreada.folio}</strong>.
+            </div>
+            <TicketPedidoRapido detalle={pedidoCreado} />
+          </div>
+        </>
+      )
+    }
+
+    // Ticket de cotización + bloque de conversión rápida
+    const antNum = parseFloat(anticipoStr) || 0
     return (
       <>
         <div className="page-header">
@@ -286,18 +474,89 @@ export default function NuevaCotizacion() {
             <div className="page-subtitle">Folio {cotCreada.folio}</div>
           </div>
           <div style={{ display: 'flex', gap: 10 }}>
-            <button className="btn btn-outline" onClick={() => window.print()}>
-              🖨️ Imprimir
-            </button>
-            <button className="btn btn-primary" onClick={nuevaCotizacion}>
-              + Nueva cotizacion
-            </button>
+            <button className="btn btn-outline" onClick={() => window.print()}>🖨️ Imprimir</button>
+            <button className="btn btn-primary" onClick={nuevaCotizacion}>+ Nueva cotizacion</button>
           </div>
         </div>
         <div className="page-body">
           <div className="alert alert-success">
             ✅ Cotizacion guardada correctamente con folio {cotCreada.folio}.
           </div>
+
+          {/* ── Convertir a pedido (inline) ── */}
+          <div className="card" style={{ marginBottom: 16, border: '2px solid var(--accent)' }}>
+            <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 14, color: 'var(--accent)' }}>
+              Convertir a pedido
+            </div>
+
+            {/* Selector de forma de pago */}
+            <div style={{ display: 'flex', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
+              {[['LIQUIDADO','✅ Liquidado','Pago completo · entrega inmediata'],['ANTICIPO','💰 Con anticipo','Pago parcial · queda pendiente']].map(([val, titulo, desc]) => (
+                <label
+                  key={val}
+                  style={{
+                    flex: 1, minWidth: 160, display: 'flex', alignItems: 'center', gap: 10,
+                    padding: '10px 14px', borderRadius: 8, cursor: 'pointer',
+                    border: `2px solid ${formaPago === val ? 'var(--accent)' : 'var(--border)'}`,
+                    background: formaPago === val ? '#ede9fe' : 'white',
+                    transition: 'all 0.15s',
+                  }}
+                  onClick={() => { setFormaPago(val); setErrorConversion(null) }}
+                >
+                  <input
+                    type="radio" name="fpCot" value={val}
+                    checked={formaPago === val}
+                    onChange={() => { setFormaPago(val); setErrorConversion(null) }}
+                    style={{ display: 'none' }}
+                  />
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: 14 }}>{titulo}</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{desc}</div>
+                  </div>
+                </label>
+              ))}
+            </div>
+
+            {/* Input anticipo */}
+            {formaPago === 'ANTICIPO' && (
+              <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', marginBottom: 14, flexWrap: 'wrap' }}>
+                <div className="form-group" style={{ flex: 1, minWidth: 160, marginBottom: 0 }}>
+                  <label className="form-label required">Monto del anticipo ($)</label>
+                  <input
+                    className="form-input"
+                    type="number" min="0" step="0.01"
+                    value={anticipoStr}
+                    onChange={e => { setAnticipoStr(e.target.value); setErrorConversion(null) }}
+                    placeholder="0.00"
+                    autoFocus
+                  />
+                </div>
+                {antNum > 0 && antNum < cotCreada.total && (
+                  <div style={{ fontSize: 13, color: 'var(--text-muted)', paddingBottom: 6 }}>
+                    Saldo: <strong style={{ color: 'var(--danger)' }}>${(cotCreada.total - antNum).toFixed(2)}</strong>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {errorConversion && (
+              <div className="alert alert-error" style={{ marginBottom: 10 }}>❌ {errorConversion}</div>
+            )}
+
+            <button
+              className="btn btn-accent"
+              style={{ width: '100%', justifyContent: 'center', fontSize: 15 }}
+              onClick={handleConvertirPedido}
+              disabled={convertiendo}
+            >
+              {convertiendo
+                ? 'Creando pedido...'
+                : formaPago === 'LIQUIDADO'
+                ? '✅ Convertir y entregar — $' + cotCreada.total.toFixed(2)
+                : '📦 Crear pedido con anticipo'}
+            </button>
+          </div>
+
           <TicketCotizacion cotizacion={cotCreada} />
         </div>
       </>
@@ -313,13 +572,22 @@ export default function NuevaCotizacion() {
           <div className="page-subtitle">Agrega partidas y finaliza la cotizacion</div>
         </div>
         {partidas.length > 0 && (
-          <button
-            className="btn btn-accent"
-            onClick={handleFinalizar}
-            disabled={saving || !nivelId}
-          >
-            {saving ? 'Guardando...' : `✓ Finalizar — $${totalGeneral.toFixed(2)}`}
-          </button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              className="btn btn-outline"
+              onClick={handleFinalizar}
+              disabled={saving || !nivelId}
+            >
+              {saving ? 'Guardando...' : `✓ Cotizar — $${totalGeneral.toFixed(2)}`}
+            </button>
+            <button
+              className="btn btn-accent"
+              onClick={() => { setShowPedidoModal(true); setModalError(null) }}
+              disabled={saving || !nivelId}
+            >
+              📦 Convertir a pedido
+            </button>
+          </div>
         )}
       </div>
 
@@ -603,10 +871,18 @@ export default function NuevaCotizacion() {
               <button
                 className="btn btn-accent"
                 style={{ width: '100%', marginTop: 16, justifyContent: 'center' }}
+                onClick={() => { setShowPedidoModal(true); setModalError(null) }}
+                disabled={partidas.length === 0 || !nivelId || saving}
+              >
+                📦 Convertir a pedido
+              </button>
+              <button
+                className="btn btn-outline"
+                style={{ width: '100%', marginTop: 8, justifyContent: 'center' }}
                 onClick={handleFinalizar}
                 disabled={partidas.length === 0 || !nivelId || saving}
               >
-                {saving ? 'Guardando...' : '✓ Finalizar cotizacion'}
+                {saving ? 'Guardando...' : '✓ Solo cotizar'}
               </button>
               <button
                 className="btn btn-outline"
@@ -621,6 +897,83 @@ export default function NuevaCotizacion() {
         </div>
       </div>
 
+      {/* ── Modal: cotizar + convertir a pedido ── */}
+      {showPedidoModal && (() => {
+        const antN = parseFloat(modalAnticipoStr) || 0
+        return (
+          <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowPedidoModal(false)}>
+            <div className="modal" onClick={e => e.stopPropagation()}>
+              <div className="modal-header">
+                <div>
+                  <div className="modal-title">Convertir a pedido</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+                    Total: ${totalGeneral.toFixed(2)}
+                  </div>
+                </div>
+                <button className="btn-icon" onClick={() => setShowPedidoModal(false)}>✕</button>
+              </div>
+
+              <div className="modal-body">
+                <div className="form-group">
+                  <label className="form-label required">Forma de pago</label>
+                  <div style={{ display: 'flex', gap: 10, marginTop: 6, flexWrap: 'wrap' }}>
+                    {[['LIQUIDADO', 'Liquidado', 'Pago completo · entrega inmediata'],
+                      ['ANTICIPO',  'Anticipo',  'Pago parcial · queda pendiente']].map(([val, label, desc]) => (
+                      <label
+                        key={val}
+                        style={{
+                          flex: 1, minWidth: 140, display: 'flex', flexDirection: 'column', gap: 3,
+                          padding: '10px 12px', borderRadius: 8, cursor: 'pointer',
+                          border: `2px solid ${modalFormaPago === val ? 'var(--accent)' : 'var(--border)'}`,
+                          background: modalFormaPago === val ? 'var(--accent-subtle, #ede9fe)' : 'white',
+                        }}
+                        onClick={() => { setModalFormaPago(val); setModalAnticipoStr(''); setModalError(null) }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <input type="radio" name="modalFP" value={val} checked={modalFormaPago === val} onChange={() => {}} />
+                          <span style={{ fontWeight: 600, fontSize: 14 }}>{label}</span>
+                        </div>
+                        <span style={{ fontSize: 11, color: 'var(--text-muted)', paddingLeft: 20 }}>{desc}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {modalFormaPago === 'ANTICIPO' && (
+                  <div className="form-group">
+                    <label className="form-label required">Monto del anticipo ($)</label>
+                    <input
+                      className="form-input"
+                      type="number" min="0" step="0.01"
+                      value={modalAnticipoStr}
+                      onChange={e => { setModalAnticipoStr(e.target.value); setModalError(null) }}
+                      placeholder="0.00"
+                      autoFocus
+                    />
+                    {antN > 0 && antN < totalGeneral && (
+                      <div className="form-hint">
+                        Saldo pendiente: <strong>${(totalGeneral - antN).toFixed(2)}</strong>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {modalError && <div className="alert alert-error">❌ {modalError}</div>}
+              </div>
+
+              <div className="modal-footer">
+                <button className="btn btn-outline" onClick={() => setShowPedidoModal(false)} disabled={modalConvertiendo}>
+                  Cancelar
+                </button>
+                <button className="btn btn-primary" onClick={handleCotizarYConvertir} disabled={modalConvertiendo}>
+                  {modalConvertiendo ? 'Creando pedido...' : '📦 Confirmar pedido'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
       {/* ── Barra inferior movil ── */}
       {partidas.length > 0 && (
         <div className="venta-mobile-bar">
@@ -633,12 +986,20 @@ export default function NuevaCotizacion() {
             </div>
           </div>
           <button
-            className="btn btn-accent"
-            style={{ flex: 1, justifyContent: 'center' }}
+            className="btn btn-outline"
+            style={{ justifyContent: 'center' }}
             onClick={handleFinalizar}
             disabled={saving || !nivelId}
           >
-            {saving ? 'Guardando...' : '✓ Finalizar'}
+            {saving ? '...' : '✓ Cotizar'}
+          </button>
+          <button
+            className="btn btn-accent"
+            style={{ flex: 1, justifyContent: 'center' }}
+            onClick={() => { setShowPedidoModal(true); setModalError(null) }}
+            disabled={saving || !nivelId}
+          >
+            📦 Pedido
           </button>
         </div>
       )}

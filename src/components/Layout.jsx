@@ -20,8 +20,23 @@ const cotNavItems = [
     { to: '/cot/precios',      icon: '💲', label: 'Precios' },
   ]},
   { section: 'Cotizaciones', links: [
-    { to: '/cot/nueva',     icon: '📋', label: 'Nueva cotizacion' },
-    { to: '/cot/historial', icon: '📊', label: 'Historial' },
+    { to: '/cot/nueva',              icon: '📋', label: 'Nueva cotizacion' },
+    { to: '/cot/historial',          icon: '📊', label: 'Historial' },
+  ]},
+  { section: 'Pedidos', links: [
+    { to: '/cot/pedidos-pendientes', icon: '⏳', label: 'Pendientes' },
+    { to: '/cot/ventas',             icon: '✅', label: 'Historial de ventas' },
+  ]},
+]
+
+// ── Navegacion del módulo de Personal ────────────────────────────────────
+const personalNavItems = [
+  { section: 'Empleados', links: [
+    { to: '/personal/empleados', icon: '👷', label: 'Empleados' },
+  ]},
+  { section: 'Asistencia', links: [
+    { to: '/personal/registro', icon: '🕐', label: 'Registro Semanal' },
+    { to: '/personal/resumen',  icon: '📊', label: 'Resumen Semanal' },
   ]},
 ]
 
@@ -30,14 +45,26 @@ export default function Layout() {
   const location = useLocation()
   const navigate = useNavigate()
 
-  const isCot       = location.pathname.startsWith('/cot')
-  const navItems    = isCot ? cotNavItems : herrajeNavItems
-  const topbarTitle = isCot ? 'Cotizacion de Vidrio' : 'Herraje Consorcio'
+  const isCot      = location.pathname.startsWith('/cot')
+  const isPersonal = location.pathname.startsWith('/personal')
+
+  const navItems = isPersonal ? personalNavItems : isCot ? cotNavItems : herrajeNavItems
+
+  const topbarTitle = isPersonal
+    ? 'Gestión de Personal'
+    : isCot
+    ? 'Cotizacion de Vidrio'
+    : 'Herraje Consorcio'
+
+  const logoIcon = isPersonal ? '👷' : isCot ? '🔩' : '🔧'
+  const logoH1   = isPersonal ? 'Personal' : isCot ? 'Cotizacion' : 'Herraje'
+  const logoP    = isPersonal ? 'Asistencia' : isCot ? 'de Vidrio' : 'Consorcio'
 
   const closeDrawer = () => setDrawerOpen(false)
 
-  const switchToHeraje = () => { navigate('/proveedores'); closeDrawer() }
-  const switchToVidrio = () => { navigate('/cot/nueva');   closeDrawer() }
+  const switchToHeraje   = () => { navigate('/proveedores');        closeDrawer() }
+  const switchToVidrio   = () => { navigate('/cot/nueva');          closeDrawer() }
+  const switchToPersonal = () => { navigate('/personal/registro');  closeDrawer() }
 
   return (
     <div className="layout">
@@ -46,10 +73,10 @@ export default function Layout() {
       <aside className={`sidebar${drawerOpen ? ' sidebar-open' : ''}`}>
         {/* Logo */}
         <div className="sidebar-logo">
-          <span className="sidebar-logo-icon">{isCot ? '🔩' : '🔧'}</span>
+          <span className="sidebar-logo-icon">{logoIcon}</span>
           <div className="sidebar-logo-text">
-            <h1>{isCot ? 'Cotizacion' : 'Herraje'}</h1>
-            <p>{isCot ? 'de Vidrio' : 'Consorcio'}</p>
+            <h1>{logoH1}</h1>
+            <p>{logoP}</p>
           </div>
         </div>
 
@@ -78,7 +105,7 @@ export default function Layout() {
           <div className="system-switcher-label">Sistema activo</div>
           <div className="system-switcher-btns">
             <button
-              className={`system-btn${!isCot ? ' system-btn-active' : ''}`}
+              className={`system-btn${!isCot && !isPersonal ? ' system-btn-active' : ''}`}
               onClick={switchToHeraje}
               title="Ir a Herraje Consorcio"
             >
@@ -90,6 +117,13 @@ export default function Layout() {
               title="Ir a Cotizacion de Vidrio"
             >
               🔩 Vidrio
+            </button>
+            <button
+              className={`system-btn${isPersonal ? ' system-btn-active' : ''}`}
+              onClick={switchToPersonal}
+              title="Ir a Gestión de Personal"
+            >
+              👷 Personal
             </button>
           </div>
         </div>
