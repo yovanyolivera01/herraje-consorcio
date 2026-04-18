@@ -749,3 +749,39 @@ body {
     border-top: 1px solid var(--bg);
   }
 }
+
+/* ── Personal: tabs de empleados ────────────────────────────────────────── */
+.p-emp-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 16px;
+}
+
+.p-emp-tab {
+  padding: 7px 16px;
+  font-size: 15px;
+  font-weight: 500;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  background: white;
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.p-emp-tab:hover {
+  background: var(--bg);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.p-emp-tab.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+  font-weight: 600;
+}
