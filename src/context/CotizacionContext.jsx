@@ -149,6 +149,9 @@ export function CotizacionProvider({ children }) {
     return found ? Number(found.precio_m2) : null
   }
 
+  // Retorna null → NuevaCotizacion usa precio_unitario base del proceso como fallback
+  const getPrecioProceso = (_id_proceso, _id_nivel, _id_espesor) => null
+
   if (loading) return (
     <div style={{
       display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -189,7 +192,7 @@ export function CotizacionProvider({ children }) {
       addProceso,   editProceso,
       iniciarCotizacion, agregarPartida, finalizarCotizacion, cancelarCotizacion,
       getCotizaciones, getDetalleCotizacion,
-      getPrecioVidrio,
+      getPrecioVidrio, getPrecioProceso,
       recargar: loadAll,
     }}>
       {children}
