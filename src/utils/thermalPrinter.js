@@ -10,7 +10,7 @@
  *   import { connectPrinter, printThermal, isPrinterConnected, disconnectPrinter } from './thermalPrinter'
  */
 
-import { buildTicketEscPos } from './escpos.js'
+import { buildTicketEscPos, buildTicketVidrio } from './escpos.js'
 
 // Estado de módulo — persiste entre renders y navegaciones
 let _port   = null
@@ -80,7 +80,29 @@ export async function printThermal(venta, { cols = 42 } = {}) {
     const bytes = buildTicketEscPos(venta, cols)
     await _writer.write(bytes)
   } catch (err) {
-    // Si el puerto fue desconectado físicamente, limpiamos estado
+    if (err.name === 'InvalidStateError' || err.message?.includes('closed')) {
+      _writer = null
+      _port   = null
+      throw new Error('La impresora fue desconectada. Vuelve a conectarla.')
+    }
+    throw err
+  }
+}
+
+/**
+ * Imprime un ticket de vidrio (cotización o pedido) en la impresora térmica.
+ * @param {object} detalle - datos normalizados del ticket de vidrio
+ * @param {object} options
+ * @param {number} options.cols - columnas de la impresora (42 para 80mm)
+ */
+export async function printThermalVidrio(detalle, { cols = 42 } = {}) {
+  if (!isPrinterConnected()) {
+    throw new Error('No hay impresora conectada. Usa el botón "Conectar impresora".')
+  }
+  try {
+    const bytes = buildTicketVidrio(detalle, cols)
+    await _writer.write(bytes)
+  } catch (err) {
     if (err.name === 'InvalidStateError' || err.message?.includes('closed')) {
       _writer = null
       _port   = null

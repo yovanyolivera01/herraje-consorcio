@@ -3,11 +3,21 @@ import { useCotizacion } from '../../context/CotizacionContext'
 
 // ── Modal Crear/Editar Proceso ────────────────────────────────────────────
 function ProcesoModal({ proceso, onClose, onSave }) {
-  const { unidades } = useCotizacion()
+  const { unidades, nivelesPrecio, espesores, preciosProceso } = useCotizacion()
   const [form, setForm] = useState({
     nombre:          proceso?.nombre          ?? '',
     id_unidad_cobro: proceso?.id_unidad_cobro ?? '',
     precio_unitario: proceso?.precio_unitario ?? '',
+  })
+  // clave: `${id_espesor}_${id_nivel_precio}`
+  const [preciosGrid, setPreciosGrid] = useState(() => {
+    const map = {}
+    if (proceso?.id_proceso) {
+      preciosProceso
+        .filter(p => p.id_proceso === proceso.id_proceso)
+        .forEach(p => { map[`${p.id_espesor}_${p.id_nivel_precio}`] = String(p.precio_unitario) })
+    }
+    return map
   })
   const [errors, setErrors] = useState({})
   const [saving, setSaving] = useState(false)
@@ -28,17 +38,27 @@ function ProcesoModal({ proceso, onClose, onSave }) {
     const errs = validate()
     if (Object.keys(errs).length) { setErrors(errs); return }
     setSaving(true)
+    const preciosArray = Object.entries(preciosGrid)
+      .filter(([, v]) => v !== '' && !isNaN(Number(v)) && Number(v) >= 0)
+      .map(([key, precio]) => {
+        const [id_espesor, id_nivel_precio] = key.split('_').map(Number)
+        return { id_espesor, id_nivel_precio, precio_unitario: Number(precio) }
+      })
     await onSave({
       nombre:          form.nombre.trim(),
       id_unidad_cobro: Number(form.id_unidad_cobro),
       precio_unitario: Number(form.precio_unitario),
+      preciosNivel:    preciosArray,
     })
     setSaving(false)
   }
 
+  const nivelesActivos   = nivelesPrecio.filter(n => n.activo !== false && !n.es_hoja_completa)
+  const espesoresActivos = espesores.filter(e => e.activo !== false)
+
   return (
     <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal" onClick={e => e.stopPropagation()}>
+      <div className="modal modal-lg" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <h2 className="modal-title">{proceso ? 'Editar proceso' : 'Nuevo proceso'}</h2>
           <button className="btn-icon" onClick={onClose}>✕</button>
@@ -72,7 +92,7 @@ function ProcesoModal({ proceso, onClose, onSave }) {
                 {errors.id_unidad_cobro && <div className="form-error">{errors.id_unidad_cobro}</div>}
               </div>
               <div className="form-group">
-                <label className="form-label required">Precio unitario ($)</label>
+                <label className="form-label required">Precio base ($)</label>
                 <input
                   className={`form-input${errors.precio_unitario ? ' error' : ''}`}
                   type="number"
@@ -85,7 +105,61 @@ function ProcesoModal({ proceso, onClose, onSave }) {
                 {errors.precio_unitario && <div className="form-error">{errors.precio_unitario}</div>}
               </div>
             </div>
-            <div className="alert alert-warning" style={{ marginTop: 8 }}>
+
+            {nivelesActivos.length > 0 && espesoresActivos.length > 0 && (
+              <div style={{ marginTop: 16 }}>
+                <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 6 }}>
+                  Precios por nivel de cliente y espesor ($)
+                </div>
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+                    <thead>
+                      <tr>
+                        <th style={{ textAlign: 'left', padding: '6px 10px', borderBottom: '2px solid var(--border)', color: 'var(--text-muted)', fontWeight: 600, fontSize: 13 }}>
+                          Espesor
+                        </th>
+                        {nivelesActivos.map(n => (
+                          <th key={n.id_nivel_precio} style={{ textAlign: 'center', padding: '6px 10px', borderBottom: '2px solid var(--border)', fontWeight: 600, fontSize: 13 }}>
+                            {n.nombre}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {espesoresActivos.map((esp, i) => (
+                        <tr key={esp.id_espesor} style={{ background: i % 2 === 0 ? 'transparent' : 'var(--bg)' }}>
+                          <td style={{ padding: '6px 10px', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                            {esp.etiqueta}
+                          </td>
+                          {nivelesActivos.map(n => {
+                            const key = `${esp.id_espesor}_${n.id_nivel_precio}`
+                            return (
+                              <td key={n.id_nivel_precio} style={{ padding: '4px 6px' }}>
+                                <input
+                                  className="form-input"
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  style={{ textAlign: 'right', padding: '5px 8px', fontSize: 14, minWidth: 80 }}
+                                  value={preciosGrid[key] ?? ''}
+                                  onChange={e => setPreciosGrid(prev => ({ ...prev, [key]: e.target.value }))}
+                                  placeholder="0.00"
+                                />
+                              </td>
+                            )
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="form-hint" style={{ marginTop: 6 }}>
+                  Deja vacío los espesores que no apliquen. Si hay precio configurado, se usará en la cotización en lugar del precio base.
+                </div>
+              </div>
+            )}
+
+            <div className="alert alert-warning" style={{ marginTop: 12 }}>
               💡 Para procesos por <strong>m²</strong>: se multiplica por los metros cuadrados de la partida.<br />
               Para procesos por <strong>ml</strong>: se multiplica por el perimetro (largo + ancho) × 2 ÷ 100.
             </div>
@@ -104,7 +178,7 @@ function ProcesoModal({ proceso, onClose, onSave }) {
 
 // ── Pagina Procesos ───────────────────────────────────────────────────────
 export default function Procesos() {
-  const { procesos, addProceso, editProceso } = useCotizacion()
+  const { procesos, addProceso, editProceso, guardarPreciosProceso } = useCotizacion()
   const [modal, setModal]   = useState(null)
   const [toast, setToast]   = useState(null)
   const [search, setSearch] = useState('')
@@ -115,10 +189,16 @@ export default function Procesos() {
   }
 
   const handleSave = async (form) => {
-    const { error } = modal.type === 'create'
-      ? await addProceso(form)
-      : await editProceso(modal.data.id_proceso, form)
-    if (error) { showToast(error, 'error'); return }
+    const { preciosNivel = [], ...procesoData } = form
+    const res = modal.type === 'create'
+      ? await addProceso(procesoData)
+      : await editProceso(modal.data.id_proceso, procesoData)
+    if (res.error) { showToast(res.error, 'error'); return }
+    if (preciosNivel.length > 0) {
+      const id = modal.type === 'create' ? res.data.id_proceso : modal.data.id_proceso
+      const { error: pErr } = await guardarPreciosProceso(id, preciosNivel)
+      if (pErr) { showToast(pErr, 'error'); return }
+    }
     showToast(modal.type === 'create' ? 'Proceso creado ✅' : 'Proceso actualizado ✅')
     setModal(null)
   }

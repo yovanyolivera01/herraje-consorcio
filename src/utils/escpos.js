@@ -54,6 +54,100 @@ function rowLR(left, right, width) {
 }
 
 /**
+ * Construye los bytes ESC/POS para ticket de vidrio (cotización o pedido).
+ * @param {object} detalle - folio, fecha, hora, clienteNombre, nivelNombre,
+ *   tipo ('cotizacion'|'pedido'), formaPago, anticipo, saldo, saldo_cobrado,
+ *   esEntregado, partidas[{piezas, clave, largo_cm, ancho_cm, subtotal_vidrio,
+ *   procesos[{nombre, subtotal}], subtotal_partida}], total
+ * @param {number} cols - 42 para 80mm, 32 para 58mm
+ * @returns {Uint8Array}
+ */
+export function buildTicketVidrio(detalle, cols = 42) {
+  const buf = []
+  const p = (...parts) => push(buf, ...parts)
+  const amtW = 9 // "$9999.99"
+
+  // ── Encabezado ────────────────────────────────────────────────────────────
+  p(Cmd.INIT)
+  p(Cmd.ALIGN_C, Cmd.BOLD_ON, Cmd.HEIGHT_2X)
+  p('TEMPLADOS\n')
+  p(Cmd.HEIGHT_1X)
+  p('CONSORCIO\n')
+  p('ARTE EN VIDRIO\n')
+  p(detalle.tipo === 'pedido' ? 'Pedido vidrio\n' : 'Cotizacion vidrio\n')
+  p(Cmd.BOLD_OFF, Cmd.ALIGN_L)
+  p('-'.repeat(cols) + '\n')
+
+  // ── Datos cabecera ────────────────────────────────────────────────────────
+  if (detalle.tipo === 'pedido') {
+    p(rowLR('Pedido:', detalle.folio, cols) + '\n')
+    if (detalle.foliosCot) p(rowLR('Cotizacion:', detalle.foliosCot, cols) + '\n')
+  } else {
+    p(rowLR('Folio:', detalle.folio, cols) + '\n')
+  }
+  p(rowLR('Fecha:', detalle.fecha, cols) + '\n')
+  p(rowLR('Hora:', detalle.hora ?? '', cols) + '\n')
+  p(rowLR('Cliente:', detalle.clienteNombre ?? 'Mostrador', cols) + '\n')
+  p(rowLR('Nivel:', detalle.nivelNombre ?? '', cols) + '\n')
+  p('-'.repeat(cols) + '\n')
+
+  // ── Partidas ──────────────────────────────────────────────────────────────
+  for (const it of detalle.partidas) {
+    const pzas     = it.piezas ?? 1
+    const clave    = it.clave ?? '?'
+    const medida   = `${it.largo_cm}x${it.ancho_cm}`
+    const descLine = `${pzas} pza${pzas > 1 ? 's' : ''} - ${clave} ${medida}`
+    const amt      = ('$' + Number(it.subtotal_vidrio).toFixed(2)).padStart(amtW)
+    const pad      = Math.max(1, cols - descLine.length - amtW)
+    p(Cmd.BOLD_ON)
+    p(descLine + ' '.repeat(pad) + amt + '\n')
+    p(Cmd.BOLD_OFF)
+
+    for (const pr of (it.procesos ?? [])) {
+      const prAmt = ('$' + Number(pr.subtotal).toFixed(2)).padStart(amtW)
+      const prDesc = '+ ' + pr.nombre
+      const prPad = Math.max(1, cols - prDesc.length - amtW)
+      p(prDesc + ' '.repeat(prPad) + prAmt + '\n')
+    }
+
+    if (it.procesos?.length > 0) {
+      const subAmt = ('$' + Number(it.subtotal_partida).toFixed(2)).padStart(amtW)
+      p(rowLR('Subtotal', subAmt, cols) + '\n')
+    }
+    p('\n')
+  }
+
+  // ── Total ─────────────────────────────────────────────────────────────────
+  p('-'.repeat(cols) + '\n')
+  p(Cmd.BOLD_ON)
+  p(rowLR('TOTAL:', '$' + Number(detalle.total).toFixed(2), cols) + '\n')
+  p(Cmd.BOLD_OFF)
+
+  // ── Forma de pago (solo pedido) ───────────────────────────────────────────
+  if (detalle.tipo === 'pedido') {
+    p('-'.repeat(cols) + '\n')
+    p(rowLR('Forma de pago:', detalle.formaPago === 'LIQUIDADO' ? 'Liquidado' : 'Anticipo', cols) + '\n')
+    if (detalle.formaPago === 'ANTICIPO') {
+      p(rowLR('Anticipo:', '$' + Number(detalle.anticipo).toFixed(2), cols) + '\n')
+      if (!detalle.esEntregado) {
+        p(rowLR('Saldo pendiente:', '$' + Number(detalle.saldo).toFixed(2), cols) + '\n')
+      } else if (detalle.saldo_cobrado != null) {
+        p(rowLR('Saldo cobrado:', '$' + Number(detalle.saldo_cobrado).toFixed(2), cols) + '\n')
+      }
+    }
+  }
+
+  // ── Pie ───────────────────────────────────────────────────────────────────
+  p('-'.repeat(cols) + '\n')
+  p(Cmd.ALIGN_C)
+  p(detalle.esEntregado ? 'Gracias por su compra!\n' : 'Pedido pendiente de entrega.\n')
+  p('\n\n\n')
+  p(Cmd.CUT)
+
+  return new Uint8Array(buf)
+}
+
+/**
  * Construye los bytes ESC/POS para imprimir un ticket.
  * @param {object} venta - objeto con folio, fecha, hora, total, partidas[]
  * @param {number} cols  - columnas de la impresora (32 para 58mm, 42 para 80mm)
@@ -70,6 +164,7 @@ export function buildTicketEscPos(venta, cols = 42) {
   p(Cmd.HEIGHT_1X)
   p('CONSORCIO\n')
   p('ARTE EN VIDRIO\n')
+  p('Pedido herraje\n')
   p(Cmd.BOLD_OFF, Cmd.ALIGN_L)
   p('-'.repeat(cols) + '\n')
 

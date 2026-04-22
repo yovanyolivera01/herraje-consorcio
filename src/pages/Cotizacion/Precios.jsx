@@ -150,12 +150,7 @@ export default function Precios() {
                     <th style={{ minWidth: 120, fontStyle: 'italic', color: 'var(--text-muted)' }}>Tono / Espesor</th>
                     {nivelesPrecio.map(n => (
                       <th key={n.id_nivel_precio} style={{ textAlign: 'right', minWidth: 110 }}>
-                        {n.nombre}
-                        {n.es_hoja_completa && (
-                          <span style={{ display: 'block', fontSize: 11, fontWeight: 400, color: 'var(--text-muted)' }}>
-                            (hoja completa)
-                          </span>
-                        )}
+                        {n.es_hoja_completa ? 'POR HOJA' : n.nombre}
                       </th>
                     ))}
                   </tr>

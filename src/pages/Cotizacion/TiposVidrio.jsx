@@ -3,7 +3,7 @@ import { useCotizacion } from '../../context/CotizacionContext'
 
 // ── Modal para crear/editar Tono inline ──────────────────────────────────
 function TonoInlineModal({ onClose, onCreated }) {
-  const { addTono } = useCotizacion()
+  const { addTono, tonos } = useCotizacion()
   const [nombre, setNombre] = useState('')
   const [err, setErr] = useState('')
   const [saving, setSaving] = useState(false)
@@ -11,6 +11,8 @@ function TonoInlineModal({ onClose, onCreated }) {
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!nombre.trim()) { setErr('El nombre es obligatorio'); return }
+    const existe = tonos.some(t => t.nombre.toLowerCase() === nombre.trim().toLowerCase())
+    if (existe) { setErr('Ya existe un tono con ese nombre'); return }
     setSaving(true)
     const { data, error } = await addTono({ nombre: nombre.trim() })
     setSaving(false)
@@ -54,17 +56,22 @@ function TonoInlineModal({ onClose, onCreated }) {
 
 // ── Modal para crear/editar Espesor inline ───────────────────────────────
 function EspesorInlineModal({ onClose, onCreated }) {
-  const { addEspesor } = useCotizacion()
-  const [form, setForm] = useState({ valor_mm: '', etiqueta: '' })
+  const { addEspesor, espesores } = useCotizacion()
+  const [valor_mm, setValor] = useState('')
   const [err, setErr] = useState('')
   const [saving, setSaving] = useState(false)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!form.valor_mm || isNaN(Number(form.valor_mm))) { setErr('El valor en mm es obligatorio'); return }
-    if (!form.etiqueta.trim()) { setErr('La etiqueta es obligatoria'); return }
+    if (!valor_mm || isNaN(Number(valor_mm))) { setErr('El valor en mm es obligatorio'); return }
+    const mm = Number(valor_mm)
+    if (mm <= 0) { setErr('El valor debe ser mayor a 0'); return }
+    if (espesores.some(e => Number(e.valor_mm) === mm)) {
+      setErr(`Ya existe un espesor de ${mm} mm`); return
+    }
+    const etiqueta = `${mm}MM`
     setSaving(true)
-    const { data, error } = await addEspesor({ valor_mm: Number(form.valor_mm), etiqueta: form.etiqueta.trim() })
+    const { data, error } = await addEspesor({ valor_mm: mm, etiqueta })
     setSaving(false)
     if (error) { setErr(error); return }
     onCreated(data)
@@ -73,7 +80,7 @@ function EspesorInlineModal({ onClose, onCreated }) {
 
   return (
     <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal" style={{ maxWidth: 380 }} onClick={e => e.stopPropagation()}>
+      <div className="modal" style={{ maxWidth: 320 }} onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <h2 className="modal-title">Nuevo espesor</h2>
           <button className="btn-icon" onClick={onClose}>✕</button>
@@ -81,29 +88,21 @@ function EspesorInlineModal({ onClose, onCreated }) {
         <form onSubmit={handleSubmit}>
           <div className="modal-body">
             {err && <div className="alert alert-error">{err}</div>}
-            <div className="form-row">
-              <div className="form-group">
-                <label className="form-label required">Valor (mm)</label>
-                <input
-                  className="form-input"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={form.valor_mm}
-                  onChange={e => { setForm(f => ({ ...f, valor_mm: e.target.value })); setErr('') }}
-                  placeholder="6"
-                  autoFocus
-                />
-              </div>
-              <div className="form-group">
-                <label className="form-label required">Etiqueta</label>
-                <input
-                  className="form-input"
-                  value={form.etiqueta}
-                  onChange={e => { setForm(f => ({ ...f, etiqueta: e.target.value })); setErr('') }}
-                  placeholder="6MM"
-                />
-              </div>
+            <div className="form-group">
+              <label className="form-label required">Milímetros (mm)</label>
+              <input
+                className="form-input"
+                type="number"
+                step="0.01"
+                min="0"
+                value={valor_mm}
+                onChange={e => { setValor(e.target.value); setErr('') }}
+                placeholder="Ej. 6"
+                autoFocus
+              />
+              {valor_mm && !isNaN(Number(valor_mm)) && Number(valor_mm) > 0 && (
+                <div className="form-hint">Se guardará como: <strong>{Number(valor_mm)}MM</strong></div>
+              )}
             </div>
           </div>
           <div className="modal-footer">
@@ -122,12 +121,9 @@ function EspesorInlineModal({ onClose, onCreated }) {
 function TipoVidrioModal({ tipo, onClose, onSave }) {
   const { tonos, espesores } = useCotizacion()
   const [form, setForm] = useState({
-    id_tono:       tipo?.id_tono ?? '',
-    id_espesor:    tipo?.id_espesor ?? '',
-    clave:         tipo?.clave ?? '',
-    descripcion:   tipo?.descripcion ?? '',
-    hoja_largo_cm: tipo?.hoja_largo_cm ?? '',
-    hoja_ancho_cm: tipo?.hoja_ancho_cm ?? '',
+    id_tono:     tipo?.id_tono    ?? '',
+    id_espesor:  tipo?.id_espesor ?? '',
+    descripcion: tipo?.descripcion ?? '',
   })
   const [errors, setErrors] = useState({})
   const [saving, setSaving] = useState(false)
@@ -135,13 +131,19 @@ function TipoVidrioModal({ tipo, onClose, onSave }) {
 
   const set = (field) => (e) => setForm(f => ({ ...f, [field]: e.target.value }))
 
+  const activeTonos     = tonos.filter(t => t.activo)
+  const activeEspesores = espesores.filter(e => e.activo)
+
+  const tonoSeleccionado    = tonos.find(t => t.id_tono    === Number(form.id_tono))
+  const espesorSeleccionado = espesores.find(e => e.id_espesor === Number(form.id_espesor))
+  const claveGenerada = tonoSeleccionado && espesorSeleccionado
+    ? `${tonoSeleccionado.nombre.toUpperCase()}-${espesorSeleccionado.etiqueta}`
+    : ''
+
   const validate = () => {
     const e = {}
-    if (!form.id_tono)       e.id_tono       = 'Selecciona un tono'
-    if (!form.id_espesor)    e.id_espesor    = 'Selecciona un espesor'
-    if (!form.clave.trim())  e.clave         = 'La clave es obligatoria'
-    if (!form.hoja_largo_cm || isNaN(Number(form.hoja_largo_cm))) e.hoja_largo_cm = 'Ingresa el largo en cm'
-    if (!form.hoja_ancho_cm || isNaN(Number(form.hoja_ancho_cm))) e.hoja_ancho_cm = 'Ingresa el ancho en cm'
+    if (!form.id_tono)    e.id_tono    = 'Selecciona un tono'
+    if (!form.id_espesor) e.id_espesor = 'Selecciona un espesor'
     return e
   }
 
@@ -151,18 +153,13 @@ function TipoVidrioModal({ tipo, onClose, onSave }) {
     if (Object.keys(errs).length) { setErrors(errs); return }
     setSaving(true)
     await onSave({
-      id_tono:       Number(form.id_tono),
-      id_espesor:    Number(form.id_espesor),
-      clave:         form.clave.trim().toUpperCase(),
-      descripcion:   form.descripcion.trim(),
-      hoja_largo_cm: Number(form.hoja_largo_cm),
-      hoja_ancho_cm: Number(form.hoja_ancho_cm),
+      id_tono:     Number(form.id_tono),
+      id_espesor:  Number(form.id_espesor),
+      clave:       claveGenerada,
+      descripcion: form.descripcion.trim(),
     })
     setSaving(false)
   }
-
-  const activeTonos    = tonos.filter(t => t.activo)
-  const activeEspesores = espesores.filter(e => e.activo)
 
   return (
     <>
@@ -226,16 +223,19 @@ function TipoVidrioModal({ tipo, onClose, onSave }) {
                 {errors.id_espesor && <div className="form-error">{errors.id_espesor}</div>}
               </div>
 
-              {/* Clave */}
+              {/* Clave generada automáticamente */}
               <div className="form-group">
-                <label className="form-label required">Clave</label>
+                <label className="form-label">Clave</label>
                 <input
-                  className={`form-input${errors.clave ? ' error' : ''}`}
-                  value={form.clave}
-                  onChange={e => setForm(f => ({ ...f, clave: e.target.value.toUpperCase() }))}
-                  placeholder="Ej. CLARO-6MM"
+                  className="form-input"
+                  value={claveGenerada}
+                  readOnly
+                  style={{ background: 'var(--bg)', color: claveGenerada ? 'var(--text)' : 'var(--text-muted)', cursor: 'default' }}
+                  placeholder="Se genera al seleccionar tono y espesor"
                 />
-                {errors.clave && <div className="form-error">{errors.clave}</div>}
+                {claveGenerada && (
+                  <div className="form-hint">Generada automáticamente a partir del tono y espesor.</div>
+                )}
               </div>
 
               {/* Descripcion */}
@@ -247,36 +247,6 @@ function TipoVidrioModal({ tipo, onClose, onSave }) {
                   onChange={set('descripcion')}
                   placeholder="Descripcion opcional"
                 />
-              </div>
-
-              {/* Dimensiones de hoja */}
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label required">Largo hoja (cm)</label>
-                  <input
-                    className={`form-input${errors.hoja_largo_cm ? ' error' : ''}`}
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={form.hoja_largo_cm}
-                    onChange={set('hoja_largo_cm')}
-                    placeholder="321"
-                  />
-                  {errors.hoja_largo_cm && <div className="form-error">{errors.hoja_largo_cm}</div>}
-                </div>
-                <div className="form-group">
-                  <label className="form-label required">Ancho hoja (cm)</label>
-                  <input
-                    className={`form-input${errors.hoja_ancho_cm ? ' error' : ''}`}
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={form.hoja_ancho_cm}
-                    onChange={set('hoja_ancho_cm')}
-                    placeholder="225"
-                  />
-                  {errors.hoja_ancho_cm && <div className="form-error">{errors.hoja_ancho_cm}</div>}
-                </div>
               </div>
             </div>
             <div className="modal-footer">
@@ -383,7 +353,6 @@ export default function TiposVidrio() {
                   <th>Clave</th>
                   <th>Tono</th>
                   <th>Espesor</th>
-                  <th>Dimension hoja</th>
                   <th>Descripcion</th>
                   <th>Estado</th>
                   <th style={{ width: 90 }}>Acciones</th>
@@ -397,9 +366,6 @@ export default function TiposVidrio() {
                     </td>
                     <td data-label="Tono">{tipo.tono?.nombre ?? '—'}</td>
                     <td data-label="Espesor">{tipo.espesor?.etiqueta ?? '—'}</td>
-                    <td data-label="Dimension hoja" style={{ color: 'var(--text-muted)', fontSize: 15 }}>
-                      {tipo.hoja_largo_cm} × {tipo.hoja_ancho_cm} cm
-                    </td>
                     <td data-label="Descripcion" style={{ color: 'var(--text-muted)' }}>{tipo.descripcion || '—'}</td>
                     <td data-label="Estado">
                       <span className={`badge ${tipo.activo ? 'badge-green' : 'badge-gray'}`}>

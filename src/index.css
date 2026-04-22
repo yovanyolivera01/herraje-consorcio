@@ -354,7 +354,7 @@ body {
 .ticket-preview {
   max-width: 360px; margin: 0 auto; background: white;
   border: 1px solid var(--border); border-radius: 8px; padding: 20px;
-  font-family: 'Courier New', monospace; font-size: 16px;
+  font-family: Arial, 'Helvetica Neue', sans-serif; font-size: 13px;
 }
 .ticket-header { text-align: center; margin-bottom: 12px; }
 .ticket-header h2 { font-size: 17px; }
@@ -426,6 +426,40 @@ body {
   color: white;
 }
 .system-btn-active:hover { background: var(--accent-hover); }
+
+/* ── Estilos de impresión ────────────────────────────────────────────────── */
+@media print {
+  @page {
+    size: 80mm auto;
+    margin: 0;
+  }
+
+  /* Ocultar todo menos el ticket */
+  body * { visibility: hidden !important; }
+
+  .ticket-preview,
+  .ticket-preview * { visibility: visible !important; }
+
+  .ticket-preview {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 72mm !important;
+    max-width: 72mm !important;
+    margin: 0 !important;
+    padding: 3mm 4mm !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    font-size: 9pt !important;
+    background: white !important;
+  }
+
+  .ticket-header h2 { font-size: 11pt !important; }
+  .ticket-header p  { font-size: 8pt  !important; }
+  .ticket-row,
+  .ticket-total     { font-size: 8.5pt !important; }
+}
 
 /* ── Input grande de notacion de medidas ────────────────────────────────── */
 .cot-calc-input {

@@ -6,22 +6,23 @@ const CotizacionContext = createContext()
 
 // ── Provider ──────────────────────────────────────────────────────────────
 export function CotizacionProvider({ children }) {
-  const [tonos,         setTonos]         = useState([])
-  const [espesores,     setEspesores]     = useState([])
-  const [tiposVidrio,   setTiposVidrio]   = useState([])
-  const [nivelesPrecio, setNivelesPrecio] = useState([])
-  const [precios,       setPrecios]       = useState([])
-  const [clientes,      setClientes]      = useState([])
-  const [procesos,      setProcesos]      = useState([])
-  const [unidades,      setUnidades]      = useState([])
-  const [loading,       setLoading]       = useState(true)
-  const [error,         setError]         = useState(null)
+  const [tonos,          setTonos]          = useState([])
+  const [espesores,      setEspesores]      = useState([])
+  const [tiposVidrio,    setTiposVidrio]    = useState([])
+  const [nivelesPrecio,  setNivelesPrecio]  = useState([])
+  const [precios,        setPrecios]        = useState([])
+  const [clientes,       setClientes]       = useState([])
+  const [procesos,       setProcesos]       = useState([])
+  const [preciosProceso, setPreciosProceso] = useState([])
+  const [unidades,       setUnidades]       = useState([])
+  const [loading,        setLoading]        = useState(true)
+  const [error,          setError]          = useState(null)
 
   const loadAll = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      const [t, e, tv, np, pv, cl, pr, un] = await Promise.all([
+      const [t, e, tv, np, pv, cl, pr, un, pp] = await Promise.all([
         api.getTonos(),
         api.getEspesores(),
         api.getTiposVidrio(),
@@ -30,6 +31,7 @@ export function CotizacionProvider({ children }) {
         api.getClientes(),
         api.getProcesos(),
         api.getUnidadesCobro(),
+        api.getPreciosProceso(),
       ])
       setTonos(t)
       setEspesores(e)
@@ -39,6 +41,7 @@ export function CotizacionProvider({ children }) {
       setClientes(cl)
       setProcesos(pr)
       setUnidades(un)
+      setPreciosProceso(pp)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -129,6 +132,11 @@ export function CotizacionProvider({ children }) {
     if (!res.error) setProcesos(await api.getProcesos())
     return res
   }
+  const guardarPreciosProceso = async (id_proceso, precios) => {
+    const res = await wrap(api.guardarPreciosProceso)(id_proceso, precios)
+    if (!res.error) setPreciosProceso(await api.getPreciosProceso())
+    return res
+  }
 
   // ── Cotizaciones ──────────────────────────────────────────────────────────
   const iniciarCotizacion  = wrap(api.iniciarCotizacion)
@@ -149,8 +157,14 @@ export function CotizacionProvider({ children }) {
     return found ? Number(found.precio_m2) : null
   }
 
-  // Retorna null → NuevaCotizacion usa precio_unitario base del proceso como fallback
-  const getPrecioProceso = (_id_proceso, _id_nivel, _id_espesor) => null
+  const getPrecioProceso = (id_proceso, id_nivel_precio, id_espesor) => {
+    const found = preciosProceso.find(
+      p => p.id_proceso === id_proceso &&
+           p.id_nivel_precio === id_nivel_precio &&
+           p.id_espesor === id_espesor
+    )
+    return found ? Number(found.precio_unitario) : null
+  }
 
   if (loading) return (
     <div style={{
@@ -183,13 +197,13 @@ export function CotizacionProvider({ children }) {
 
   return (
     <CotizacionContext.Provider value={{
-      tonos, espesores, tiposVidrio, nivelesPrecio, precios, clientes, procesos, unidades,
+      tonos, espesores, tiposVidrio, nivelesPrecio, precios, clientes, procesos, preciosProceso, unidades,
       addTono,      editTono,
       addEspesor,   editEspesor,
       addTipoVidrio, editTipoVidrio,
       guardarPrecio,
       addCliente,   editCliente,
-      addProceso,   editProceso,
+      addProceso,   editProceso,   guardarPreciosProceso,
       iniciarCotizacion, agregarPartida, finalizarCotizacion, cancelarCotizacion,
       getCotizaciones, getDetalleCotizacion,
       getPrecioVidrio, getPrecioProceso,

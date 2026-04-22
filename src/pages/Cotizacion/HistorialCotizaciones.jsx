@@ -1,6 +1,35 @@
 import { useState, useEffect } from 'react'
 import { useCotizacion } from '../../context/CotizacionContext'
 import { convertirCotizacionAPedido, getDetallePedido } from '../../lib/pedidosApi'
+import {
+  connectPrinter, disconnectPrinter, isPrinterConnected, printThermalVidrio, isWebSerialSupported,
+} from '../../utils/thermalPrinter'
+import { printTicketVidrio } from '../../utils/ticket'
+
+// ── Hook impresora térmica ────────────────────────────────────────────────
+function useThermal() {
+  const [connected, setConnected] = useState(() => isPrinterConnected())
+  const [busy,      setBusy]      = useState(false)
+  const [error,     setError]     = useState(null)
+
+  const handleConnect = async () => {
+    setBusy(true); setError(null)
+    try {
+      if (connected) { await disconnectPrinter(); setConnected(false) }
+      else { const ok = await connectPrinter({ baudRate: 9600 }); if (ok) setConnected(true) }
+    } catch (err) { setError(err.message) }
+    finally { setBusy(false) }
+  }
+
+  const handlePrint = async (normalizado) => {
+    setBusy(true); setError(null)
+    try { await printThermalVidrio(normalizado, { cols: 42 }) }
+    catch (err) { setError(err.message); setConnected(false) }
+    finally { setBusy(false) }
+  }
+
+  return { connected, busy, error, handleConnect, handlePrint }
+}
 
 // ── Ticket de pedido (para imprimir) ─────────────────────────────────────
 function TicketPedido({ detalle }) {
@@ -8,15 +37,16 @@ function TicketPedido({ detalle }) {
   return (
     <div className="ticket-preview">
       <div className="ticket-header">
-        <h2>HERRAJES CONSORCIO</h2>
-        <p style={{ fontWeight: 700 }}>PEDIDO DE VIDRIO</p>
+        <h2>TEMPLADOS CONSORCIO</h2>
+        <p style={{ fontWeight: 700 }}>ARTE EN VIDRIO</p>
+        <p>Pedido vidrio</p>
       </div>
       <hr className="ticket-divider" />
       <div className="ticket-row"><span>Pedido:</span><strong>{detalle.folio}</strong></div>
       <div className="ticket-row"><span>Cotizacion:</span><span>COT-{String(detalle.id_cotizacion).padStart(5,'0')}</span></div>
       <div className="ticket-row"><span>Fecha:</span><span>{detalle.fecha}</span></div>
       <div className="ticket-row"><span>Cliente:</span><span>{detalle.cliente?.nombre ?? 'Mostrador'}</span></div>
-      <div className="ticket-row"><span>Nivel:</span><span>{detalle.nivel?.nombre ?? '—'}</span></div>
+      <div className="ticket-row"><span>Nivel:</span><span>{detalle.nivel?.es_hoja_completa ? 'POR HOJA' : (detalle.nivel?.nombre ?? '—')}</span></div>
       {detalle.observaciones && (
         <div className="ticket-row" style={{ flexDirection:'column', gap:2 }}>
           <span style={{ fontSize:11 }}>Observaciones:</span>
@@ -25,18 +55,15 @@ function TicketPedido({ detalle }) {
       )}
       <hr className="ticket-divider" />
 
-      {detalle.partidas.map((p, i) => (
+      {detalle.partidas.map((p) => (
         <div key={p.id} style={{ marginBottom: 10 }}>
-          <div style={{ fontWeight: 600, fontSize: 12 }}>
-            {i + 1}. {p.clave_vidrio} — {p.largo_cm}×{p.ancho_cm} cm · {p.metros2.toFixed(4)} m²
+          <div className="ticket-row" style={{ fontWeight: 600, fontSize: 12 }}>
+            <span>{p.cantidad} pza{p.cantidad > 1 ? 's' : ''} — {p.clave_vidrio} · {p.largo_cm}×{p.ancho_cm}</span>
+            <span>${p.subtotal_vidrio.toFixed(2)}</span>
           </div>
           {p.descripcion_vidrio && (
             <div style={{ fontSize: 11, color: 'var(--text-muted)', paddingLeft: 14 }}>{p.descripcion_vidrio}</div>
           )}
-          <div className="ticket-row" style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-            <span>${p.precio_m2_aplicado.toFixed(2)}/m²</span>
-            <span>${p.subtotal_vidrio.toFixed(2)}</span>
-          </div>
           {p.procesos.map((pr, j) => (
             <div key={j} className="ticket-row" style={{ fontSize: 11, paddingLeft: 10 }}>
               <span>+ {pr.nombre}</span>
@@ -189,6 +216,33 @@ function ConvertirPedidoModal({ cotizacion, onClose, onCreado }) {
 
 // ── Modal: pedido creado (ticket) ─────────────────────────────────────────
 function PedidoCreadoModal({ detalle, onClose }) {
+  const { connected, busy, error: printerError, handleConnect, handlePrint } = useThermal()
+
+  const normalizado = {
+    tipo:          'pedido',
+    folio:         detalle.folio,
+    foliosCot:     `COT-${String(detalle.id_cotizacion).padStart(5, '0')}`,
+    fecha:         detalle.fecha,
+    hora:          detalle.hora ?? '',
+    clienteNombre: detalle.cliente?.nombre ?? 'Mostrador',
+    nivelNombre:   detalle.nivel?.es_hoja_completa ? 'POR HOJA' : (detalle.nivel?.nombre ?? ''),
+    formaPago:     detalle.forma_pago,
+    anticipo:      detalle.anticipo,
+    saldo:         detalle.saldo,
+    saldo_cobrado: detalle.saldo_cobrado,
+    esEntregado:   detalle.estado === 'ENTREGADO',
+    total:         detalle.total,
+    partidas: detalle.partidas.map(p => ({
+      piezas:          p.cantidad,
+      clave:           p.clave_vidrio,
+      largo_cm:        p.largo_cm,
+      ancho_cm:        p.ancho_cm,
+      subtotal_vidrio: p.subtotal_vidrio,
+      procesos:        p.procesos,
+      subtotal_partida: p.subtotal_partida,
+    })),
+  }
+
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="modal modal-lg" onClick={e => e.stopPropagation()}>
@@ -205,11 +259,29 @@ function PedidoCreadoModal({ detalle, onClose }) {
           <div className="alert alert-success">
             ✅ Pedido <strong>{detalle.folio}</strong> creado correctamente.
           </div>
+          {printerError && <div className="alert alert-error">🖨️ {printerError}</div>}
           <TicketPedido detalle={detalle} />
         </div>
         <div className="modal-footer">
           <button className="btn btn-outline" onClick={onClose}>Cerrar</button>
-          <button className="btn btn-primary" onClick={() => window.print()}>🖨️ Imprimir</button>
+          <button className="btn btn-outline" onClick={() => printTicketVidrio(normalizado)}>🖨️ Imprimir</button>
+          <button
+            className="btn btn-outline"
+            onClick={handleConnect}
+            disabled={busy}
+            title={connected ? 'Desconectar impresora' : 'Conectar impresora térmica'}
+            style={{ display: isWebSerialSupported() ? undefined : 'none' }}
+          >
+            {connected ? '🔌 Desconectar' : '🔌 Conectar impresora'}
+          </button>
+          <button
+            className="btn btn-primary"
+            onClick={() => handlePrint(normalizado)}
+            disabled={!connected || busy}
+            style={{ display: isWebSerialSupported() ? undefined : 'none' }}
+          >
+            {busy ? 'Imprimiendo...' : '🖨️ Imprimir térmica'}
+          </button>
         </div>
       </div>
     </div>
@@ -221,15 +293,16 @@ function TicketDetalleCot({ detalle }) {
   return (
     <div className="ticket-preview">
       <div className="ticket-header">
-        <h2>HERRAJES CONSORCIO</h2>
-        <p style={{ fontWeight: 700 }}>COTIZACION DE VIDRIO</p>
+        <h2>TEMPLADOS CONSORCIO</h2>
+        <p style={{ fontWeight: 700 }}>ARTE EN VIDRIO</p>
+        <p>Pedido vidrio</p>
       </div>
       <hr className="ticket-divider" />
       <div className="ticket-row"><span>Folio:</span><strong>{detalle.folio}</strong></div>
       <div className="ticket-row"><span>Fecha:</span><span>{detalle.fecha}</span></div>
       <div className="ticket-row"><span>Hora:</span><span>{detalle.hora}</span></div>
       <div className="ticket-row"><span>Cliente:</span><span>{detalle.cliente?.nombre ?? 'Mostrador'}</span></div>
-      <div className="ticket-row"><span>Nivel:</span><span>{detalle.nivel?.nombre ?? '—'}</span></div>
+      <div className="ticket-row"><span>Nivel:</span><span>{detalle.nivel?.es_hoja_completa ? 'POR HOJA' : (detalle.nivel?.nombre ?? '—')}</span></div>
       {detalle.observaciones && (
         <div className="ticket-row" style={{ flexDirection:'column', gap:2 }}>
           <span style={{ fontSize:11 }}>Observaciones:</span>
@@ -237,13 +310,10 @@ function TicketDetalleCot({ detalle }) {
         </div>
       )}
       <hr className="ticket-divider" />
-      {detalle.partidas.map((p, i) => (
+      {detalle.partidas.map((p) => (
         <div key={p.id} style={{ marginBottom: 10 }}>
-          <div style={{ fontWeight: 600, fontSize: 12 }}>
-            {i + 1}. {p.tipoVidrio?.clave ?? '?'} — {p.largo_cm}×{p.ancho_cm} cm · {p.metros2.toFixed(4)} m²
-          </div>
-          <div className="ticket-row" style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-            <span>${p.precio_m2_aplicado.toFixed(2)}/m²</span>
+          <div className="ticket-row" style={{ fontWeight: 600, fontSize: 12 }}>
+            <span>{p.piezas ?? 1} pza{(p.piezas ?? 1) > 1 ? 's' : ''} — {p.tipoVidrio?.clave ?? '?'} · {p.largo_cm}×{p.ancho_cm}</span>
             <span>${p.subtotal_vidrio.toFixed(2)}</span>
           </div>
           {p.procesos.map((pr, j) => (
@@ -277,6 +347,7 @@ function DetalleModal({ resumen, onClose, onConvertir }) {
   const [detalle, setDetalle] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState(null)
+  const { connected, busy, error: printerError, handleConnect, handlePrint } = useThermal()
 
   useEffect(() => {
     getDetalleCotizacion(resumen.id).then(({ data, error: err }) => {
@@ -285,6 +356,26 @@ function DetalleModal({ resumen, onClose, onConvertir }) {
       setLoading(false)
     })
   }, [resumen.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const normalizado = detalle ? {
+    tipo:          'cotizacion',
+    folio:         detalle.folio,
+    fecha:         detalle.fecha,
+    hora:          detalle.hora ?? '',
+    clienteNombre: detalle.cliente?.nombre ?? 'Mostrador',
+    nivelNombre:   detalle.nivel?.es_hoja_completa ? 'POR HOJA' : (detalle.nivel?.nombre ?? ''),
+    esEntregado:   false,
+    total:         detalle.total,
+    partidas: detalle.partidas.map(p => ({
+      piezas:           p.piezas ?? 1,
+      clave:            p.tipoVidrio?.clave ?? '?',
+      largo_cm:         p.largo_cm,
+      ancho_cm:         p.ancho_cm,
+      subtotal_vidrio:  p.subtotal_vidrio,
+      procesos:         p.procesos,
+      subtotal_partida: p.subtotal_partida,
+    })),
+  } : null
 
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
@@ -306,15 +397,35 @@ function DetalleModal({ resumen, onClose, onConvertir }) {
             </div>
           )}
           {error && <div className="alert alert-error">❌ {error}</div>}
+          {printerError && <div className="alert alert-error">🖨️ {printerError}</div>}
           {detalle && <TicketDetalleCot detalle={detalle} />}
         </div>
 
         <div className="modal-footer">
           <button className="btn btn-outline" onClick={onClose}>Cerrar</button>
           {detalle && (
-            <button className="btn btn-outline" onClick={() => window.print()}>
-              🖨️ Imprimir
-            </button>
+            <>
+              <button className="btn btn-outline" onClick={() => printTicketVidrio(normalizado)}>🖨️ Imprimir</button>
+              {isWebSerialSupported() && (
+                <>
+                  <button
+                    className="btn btn-outline"
+                    onClick={handleConnect}
+                    disabled={busy}
+                    title={connected ? 'Desconectar impresora' : 'Conectar impresora térmica'}
+                  >
+                    {connected ? '🔌 Desconectar' : '🔌 Conectar impresora'}
+                  </button>
+                  <button
+                    className="btn btn-outline"
+                    onClick={() => handlePrint(normalizado)}
+                    disabled={!connected || busy}
+                  >
+                    {busy ? 'Imprimiendo...' : '🖨️ Imprimir térmica'}
+                  </button>
+                </>
+              )}
+            </>
           )}
           {resumen.estatus === 'FINALIZADA' && (
             <button

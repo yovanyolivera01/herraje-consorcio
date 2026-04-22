@@ -91,10 +91,10 @@ export const getTiposVidrio = async () => {
   return data ?? []
 }
 
-export const createTipoVidrio = async ({ id_tono, id_espesor, clave, descripcion, hoja_largo_cm, hoja_ancho_cm }) => {
+export const createTipoVidrio = async ({ id_tono, id_espesor, clave, descripcion }) => {
   const { data, error } = await supabase
     .from('tipo_vidrio')
-    .insert({ id_tono, id_espesor, clave, descripcion, hoja_largo_cm: Number(hoja_largo_cm), hoja_ancho_cm: Number(hoja_ancho_cm) })
+    .insert({ id_tono, id_espesor, clave, descripcion })
     .select('*, tono(id_tono, nombre), espesor(id_espesor, valor_mm, etiqueta)')
     .single()
   if (error) throw error
@@ -211,6 +211,32 @@ export const updateProceso = async (id_proceso, campos) => {
   return data
 }
 
+// ── Precios de proceso por nivel ─────────────────────────────────────────
+
+export const getPreciosProceso = async () => {
+  const { data, error } = await supabase
+    .from('precio_proceso')
+    .select('*')
+  if (error) throw error
+  return data ?? []
+}
+
+export const guardarPreciosProceso = async (id_proceso, precios) => {
+  if (!precios.length) return []
+  const rows = precios.map(p => ({
+    id_proceso,
+    id_nivel_precio: p.id_nivel_precio,
+    id_espesor:      p.id_espesor,
+    precio_unitario: Number(p.precio_unitario),
+  }))
+  const { data, error } = await supabase
+    .from('precio_proceso')
+    .upsert(rows, { onConflict: 'id_proceso,id_nivel_precio,id_espesor' })
+    .select()
+  if (error) throw error
+  return data ?? []
+}
+
 // ── Unidades de cobro ─────────────────────────────────────────────────────
 
 export const getUnidadesCobro = async () => {
@@ -315,7 +341,8 @@ export const cancelarCotizacion = async (id_cotizacion) => {
 export const getCotizaciones = async () => {
   const { data, error } = await supabase
     .from('cotizacion')
-    .select('*, cliente(id_cliente, nombre), nivel_precio(id_nivel_precio, nombre)')
+    .select('*, cliente(id_cliente, nombre), nivel_precio(id_nivel_precio, nombre, es_hoja_completa)')
+    .neq('estatus', 'CONVERTIDA')
     .order('fecha', { ascending: false })
   if (error) throw error
   return (data ?? []).map(row => {
@@ -327,7 +354,7 @@ export const getCotizaciones = async () => {
       hora,
       fechaISO:      row.fecha,
       clienteNombre: row.cliente?.nombre ?? 'Mostrador',
-      nivelNombre:   row.nivel_precio?.nombre ?? '',
+      nivelNombre:   row.nivel_precio?.es_hoja_completa ? 'POR HOJA' : (row.nivel_precio?.nombre ?? ''),
       total:         Number(row.total),
       estatus:       row.estatus,
       observaciones: row.observaciones,
@@ -344,7 +371,7 @@ export const getDetalleCotizacion = async (id) => {
       .single(),
     supabase
       .from('partida_cotizacion')
-      .select('*, tipo_vidrio(id_tipo_vidrio, clave, descripcion, hoja_largo_cm, hoja_ancho_cm), partida_proceso(*, proceso(id_proceso, nombre, unidad_cobro(nombre)))')
+      .select('*, tipo_vidrio(id_tipo_vidrio, clave, descripcion), partida_proceso(*, proceso(id_proceso, nombre, unidad_cobro(nombre)))')
       .eq('id_cotizacion', id)
       .order('id_partida', { ascending: true }),
   ])
@@ -367,6 +394,7 @@ export const getDetalleCotizacion = async (id) => {
     partidas: (partidasRes.data ?? []).map(p => ({
       id:                 p.id_partida,
       tipoVidrio:         p.tipo_vidrio,
+      piezas:             Number(p.piezas ?? 1),
       largo_cm:           Number(p.largo_cm),
       ancho_cm:           Number(p.ancho_cm),
       metros2:            Number(p.metros2),

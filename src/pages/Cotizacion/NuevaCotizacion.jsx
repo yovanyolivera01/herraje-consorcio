@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useCotizacion } from '../../context/CotizacionContext'
 import { convertirCotizacionAPedido, getDetallePedido } from '../../lib/pedidosApi'
+import { printTicketVidrio } from '../../utils/ticket'
 
 // ── Parser de notacion {piezas}-{largo}x{ancho} ───────────────────────────
 function parseNotacion(texto) {
@@ -25,8 +26,9 @@ function TicketCotizacion({ cotizacion }) {
   return (
     <div className="ticket-preview">
       <div className="ticket-header">
-        <h2>HERRAJES CONSORCIO</h2>
-        <p style={{ fontWeight: 700 }}>COTIZACION DE VIDRIO</p>
+        <h2>TEMPLADOS CONSORCIO</h2>
+        <p style={{ fontWeight: 700 }}>ARTE EN VIDRIO</p>
+        <p style={{ fontWeight: 700 }}>Pedido vidrio</p>
       </div>
       <hr className="ticket-divider" />
       <div className="ticket-row"><span>Folio:</span><strong>{cotizacion.folio}</strong></div>
@@ -35,20 +37,11 @@ function TicketCotizacion({ cotizacion }) {
         <div className="ticket-row"><span>Cliente:</span><span>{cotizacion.clienteNombre}</span></div>
       )}
       <div className="ticket-row"><span>Nivel:</span><span>{cotizacion.nivelNombre}</span></div>
-      {cotizacion.observaciones && (
-        <div className="ticket-row" style={{ flexDirection: 'column', gap: 2 }}>
-          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Observaciones:</span>
-          <span style={{ fontSize: 12 }}>{cotizacion.observaciones}</span>
-        </div>
-      )}
       <hr className="ticket-divider" />
       {cotizacion.partidas.map((p, i) => (
         <div key={i} style={{ marginBottom: 8 }}>
-          <div style={{ fontWeight: 600, fontSize: 12 }}>
-            {i + 1}. {p.tipoClaveLabel} — {p.piezas} pza{p.piezas > 1 ? 's' : ''} · {p.largo_cm}×{p.ancho_cm} cm
-          </div>
-          <div className="ticket-row" style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-            <span>{p.metros2.toFixed(4)} m² × ${p.precio_m2_aplicado.toFixed(2)}/m²</span>
+          <div className="ticket-row" style={{ fontWeight: 600, fontSize: 12 }}>
+            <span>{p.piezas} pza{p.piezas > 1 ? 's' : ''} — {p.tipoClaveLabel} · {p.largo_cm}×{p.ancho_cm}</span>
             <span>${p.subtotal_vidrio.toFixed(2)}</span>
           </div>
           {p.procesos && p.procesos.length > 0 && p.procesos.map((pr, j) => (
@@ -81,28 +74,20 @@ function TicketPedidoRapido({ detalle }) {
   return (
     <div className="ticket-preview">
       <div className="ticket-header">
-        <h2>HERRAJES CONSORCIO</h2>
-        <p style={{ fontWeight: 700 }}>PEDIDO DE VIDRIO</p>
+        <h2>TEMPLADOS CONSORCIO</h2>
+        <p style={{ fontWeight: 700 }}>ARTE EN VIDRIO</p>
+        <p style={{ fontWeight: 700 }}>Pedido vidrio</p>
       </div>
       <hr className="ticket-divider" />
       <div className="ticket-row"><span>Pedido:</span><strong>{detalle.folio}</strong></div>
       <div className="ticket-row"><span>Cotizacion:</span><span>COT-{String(detalle.id_cotizacion).padStart(5,'0')}</span></div>
       <div className="ticket-row"><span>Fecha:</span><span>{detalle.fecha}</span></div>
       <div className="ticket-row"><span>Cliente:</span><span>{detalle.cliente?.nombre ?? 'Mostrador'}</span></div>
-      {detalle.observaciones && (
-        <div className="ticket-row" style={{ flexDirection:'column', gap:2 }}>
-          <span style={{ fontSize:11 }}>Obs:</span>
-          <span style={{ fontSize:12 }}>{detalle.observaciones}</span>
-        </div>
-      )}
       <hr className="ticket-divider" />
-      {detalle.partidas.map((p, i) => (
+      {detalle.partidas.map((p) => (
         <div key={p.id} style={{ marginBottom: 8 }}>
-          <div style={{ fontWeight:600, fontSize:12 }}>
-            {i+1}. {p.clave_vidrio} — {p.largo_cm}×{p.ancho_cm} cm · {p.metros2.toFixed(4)} m²
-          </div>
-          <div className="ticket-row" style={{ fontSize:11, color:'var(--text-muted)' }}>
-            <span>${p.precio_m2_aplicado.toFixed(2)}/m²</span>
+          <div className="ticket-row" style={{ fontWeight:600, fontSize:12 }}>
+            <span>{p.cantidad} pza{p.cantidad !== 1 ? 's' : ''} — {p.clave_vidrio} · {p.largo_cm}×{p.ancho_cm}</span>
             <span>${p.subtotal_vidrio.toFixed(2)}</span>
           </div>
           {p.procesos.map((pr, j) => (
@@ -208,10 +193,9 @@ export default function NuevaCotizacion() {
     const precio_m2 = getPrecioVidrio(tipo.id_tipo_vidrio, Number(nivelId))
     if (precio_m2 === null) return { sinPrecio: true, tipo }
 
-    // Dimensiones: si es hoja completa usar las del tipo
-    const esHojaCompleta = nivel.es_hoja_completa
-    const largo = esHojaCompleta ? Number(tipo.hoja_largo_cm) : parsed.largo
-    const ancho  = esHojaCompleta ? Number(tipo.hoja_ancho_cm)  : parsed.ancho
+    const esHojaCompleta = false
+    const largo = parsed.largo
+    const ancho  = parsed.ancho
 
     const metros2_pieza   = (largo * ancho) / 10000
     const metros2_total   = parsed.piezas * metros2_pieza
@@ -276,8 +260,8 @@ export default function NuevaCotizacion() {
     }
 
     const nivel = nivelesPrecio.find(n => n.id_nivel_precio === Number(nivelId))
-    const largo = nivel.es_hoja_completa ? Number(tipoSeleccionado.hoja_largo_cm) : parsed.largo
-    const ancho  = nivel.es_hoja_completa ? Number(tipoSeleccionado.hoja_ancho_cm)  : parsed.ancho
+    const largo = parsed.largo
+    const ancho  = parsed.ancho
 
     const nuevaPartida = {
       id_tipo_vidrio:    Number(tipoVidrioId),
@@ -327,7 +311,7 @@ export default function NuevaCotizacion() {
     const { data: cot, error: cotErr } = await iniciarCotizacion({
       id_nivel_precio: Number(nivelId),
       id_cliente:      clienteId ? Number(clienteId) : null,
-      observaciones:   observaciones.trim() || null,
+      observaciones:   null,
     })
     if (cotErr) { setSaveError(cotErr); setSaving(false); return }
 
@@ -346,8 +330,8 @@ export default function NuevaCotizacion() {
       id:            cot.id_cotizacion,
       folio:         cot.folio,
       clienteNombre: clienteSeleccionado?.nombre ?? null,
-      nivelNombre:   nivelSeleccionado?.nombre ?? '',
-      observaciones: observaciones.trim() || null,
+      nivelNombre:   nivelSeleccionado?.es_hoja_completa ? 'POR HOJA' : (nivelSeleccionado?.nombre ?? ''),
+      observaciones: null,
       partidas:      partidas,
       total:         totalGeneral,
     })
@@ -389,7 +373,7 @@ export default function NuevaCotizacion() {
       const { data: cot, error: cotErr } = await iniciarCotizacion({
         id_nivel_precio: Number(nivelId),
         id_cliente:      clienteId ? Number(clienteId) : null,
-        observaciones:   observaciones.trim() || null,
+        observaciones:   null,
       })
       if (cotErr) throw new Error(cotErr)
       for (const p of partidas) {
@@ -410,7 +394,7 @@ export default function NuevaCotizacion() {
         id: cot.id_cotizacion, folio: cot.folio,
         clienteNombre: clienteSeleccionado?.nombre ?? null,
         nivelNombre: nivelSeleccionado?.nombre ?? '',
-        observaciones: observaciones.trim() || null,
+        observaciones: null,
         partidas, total: totalGeneral,
       })
     } catch (err) {
@@ -450,7 +434,27 @@ export default function NuevaCotizacion() {
               </div>
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
-              <button className="btn btn-outline" onClick={() => window.print()}>🖨️ Imprimir</button>
+              <button className="btn btn-outline" onClick={() => printTicketVidrio({
+                tipo: 'pedido',
+                folio: pedidoCreado.folio,
+                foliosCot: `COT-${String(pedidoCreado.id_cotizacion).padStart(5,'0')}`,
+                fecha: pedidoCreado.fecha,
+                hora: pedidoCreado.hora ?? '',
+                clienteNombre: pedidoCreado.cliente?.nombre ?? 'Mostrador',
+                nivelNombre: pedidoCreado.nivel?.es_hoja_completa ? 'POR HOJA' : (pedidoCreado.nivel?.nombre ?? ''),
+                formaPago: pedidoCreado.forma_pago,
+                anticipo: pedidoCreado.anticipo,
+                saldo: pedidoCreado.saldo,
+                saldo_cobrado: pedidoCreado.saldo_cobrado,
+                esEntregado: pedidoCreado.estado === 'ENTREGADO',
+                total: pedidoCreado.total,
+                partidas: pedidoCreado.partidas.map(p => ({
+                  piezas: p.cantidad, clave: p.clave_vidrio,
+                  largo_cm: p.largo_cm, ancho_cm: p.ancho_cm,
+                  subtotal_vidrio: p.subtotal_vidrio, procesos: p.procesos,
+                  subtotal_partida: p.subtotal_partida,
+                })),
+              })}>🖨️ Imprimir</button>
               <button className="btn btn-primary" onClick={nuevaCotizacion}>+ Nueva cotizacion</button>
             </div>
           </div>
@@ -474,7 +478,22 @@ export default function NuevaCotizacion() {
             <div className="page-subtitle">Folio {cotCreada.folio}</div>
           </div>
           <div style={{ display: 'flex', gap: 10 }}>
-            <button className="btn btn-outline" onClick={() => window.print()}>🖨️ Imprimir</button>
+            <button className="btn btn-outline" onClick={() => printTicketVidrio({
+              tipo: 'cotizacion',
+              folio: cotCreada.folio,
+              fecha: new Date().toLocaleDateString('es-MX'),
+              hora: new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }),
+              clienteNombre: cotCreada.clienteNombre ?? 'Mostrador',
+              nivelNombre: cotCreada.nivelNombre ?? '',
+              esEntregado: false,
+              total: cotCreada.partidas.reduce((s, p) => s + p.subtotal_partida, 0),
+              partidas: cotCreada.partidas.map(p => ({
+                piezas: p.piezas, clave: p.tipoClaveLabel,
+                largo_cm: p.largo_cm, ancho_cm: p.ancho_cm,
+                subtotal_vidrio: p.subtotal_vidrio, procesos: p.procesos ?? [],
+                subtotal_partida: p.subtotal_partida,
+              })),
+            })}>🖨️ Imprimir</button>
             <button className="btn btn-primary" onClick={nuevaCotizacion}>+ Nueva cotizacion</button>
           </div>
         </div>
@@ -482,81 +501,6 @@ export default function NuevaCotizacion() {
           <div className="alert alert-success">
             ✅ Cotizacion guardada correctamente con folio {cotCreada.folio}.
           </div>
-
-          {/* ── Convertir a pedido (inline) ── */}
-          <div className="card" style={{ marginBottom: 16, border: '2px solid var(--accent)' }}>
-            <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 14, color: 'var(--accent)' }}>
-              Convertir a pedido
-            </div>
-
-            {/* Selector de forma de pago */}
-            <div style={{ display: 'flex', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
-              {[['LIQUIDADO','✅ Liquidado','Pago completo · entrega inmediata'],['ANTICIPO','💰 Con anticipo','Pago parcial · queda pendiente']].map(([val, titulo, desc]) => (
-                <label
-                  key={val}
-                  style={{
-                    flex: 1, minWidth: 160, display: 'flex', alignItems: 'center', gap: 10,
-                    padding: '10px 14px', borderRadius: 8, cursor: 'pointer',
-                    border: `2px solid ${formaPago === val ? 'var(--accent)' : 'var(--border)'}`,
-                    background: formaPago === val ? '#ede9fe' : 'white',
-                    transition: 'all 0.15s',
-                  }}
-                  onClick={() => { setFormaPago(val); setErrorConversion(null) }}
-                >
-                  <input
-                    type="radio" name="fpCot" value={val}
-                    checked={formaPago === val}
-                    onChange={() => { setFormaPago(val); setErrorConversion(null) }}
-                    style={{ display: 'none' }}
-                  />
-                  <div>
-                    <div style={{ fontWeight: 600, fontSize: 14 }}>{titulo}</div>
-                    <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{desc}</div>
-                  </div>
-                </label>
-              ))}
-            </div>
-
-            {/* Input anticipo */}
-            {formaPago === 'ANTICIPO' && (
-              <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', marginBottom: 14, flexWrap: 'wrap' }}>
-                <div className="form-group" style={{ flex: 1, minWidth: 160, marginBottom: 0 }}>
-                  <label className="form-label required">Monto del anticipo ($)</label>
-                  <input
-                    className="form-input"
-                    type="number" min="0" step="0.01"
-                    value={anticipoStr}
-                    onChange={e => { setAnticipoStr(e.target.value); setErrorConversion(null) }}
-                    placeholder="0.00"
-                    autoFocus
-                  />
-                </div>
-                {antNum > 0 && antNum < cotCreada.total && (
-                  <div style={{ fontSize: 13, color: 'var(--text-muted)', paddingBottom: 6 }}>
-                    Saldo: <strong style={{ color: 'var(--danger)' }}>${(cotCreada.total - antNum).toFixed(2)}</strong>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {errorConversion && (
-              <div className="alert alert-error" style={{ marginBottom: 10 }}>❌ {errorConversion}</div>
-            )}
-
-            <button
-              className="btn btn-accent"
-              style={{ width: '100%', justifyContent: 'center', fontSize: 15 }}
-              onClick={handleConvertirPedido}
-              disabled={convertiendo}
-            >
-              {convertiendo
-                ? 'Creando pedido...'
-                : formaPago === 'LIQUIDADO'
-                ? '✅ Convertir y entregar — $' + cotCreada.total.toFixed(2)
-                : '📦 Crear pedido con anticipo'}
-            </button>
-          </div>
-
           <TicketCotizacion cotizacion={cotCreada} />
         </div>
       </>
@@ -612,7 +556,7 @@ export default function NuevaCotizacion() {
                   >
                     <option value="">-- Seleccionar nivel --</option>
                     {nivelesPrecio.map(n => (
-                      <option key={n.id_nivel_precio} value={n.id_nivel_precio}>{n.nombre}</option>
+                      <option key={n.id_nivel_precio} value={n.id_nivel_precio}>{n.es_hoja_completa ? 'POR HOJA' : n.nombre}</option>
                     ))}
                   </select>
                 </div>
@@ -630,15 +574,6 @@ export default function NuevaCotizacion() {
                   </select>
                 </div>
               </div>
-              <div className="form-group" style={{ marginTop: 12, marginBottom: 0 }}>
-                <label className="form-label">Observaciones</label>
-                <input
-                  className="form-input"
-                  value={observaciones}
-                  onChange={e => setObservaciones(e.target.value)}
-                  placeholder="Observaciones opcionales..."
-                />
-              </div>
             </div>
 
             {/* Calculadora */}
@@ -653,7 +588,7 @@ export default function NuevaCotizacion() {
                   value={notacion}
                   onChange={e => { setNotacion(e.target.value); setNotError('') }}
                   placeholder="Ej. 3-22x45  o  1-30.5x60.2"
-                  inputMode="decimal"
+                  inputMode="text"
                   onKeyDown={e => e.key === 'Enter' && handleAgregarPartida()}
                   autoComplete="off"
                   autoCorrect="off"
@@ -740,16 +675,12 @@ export default function NuevaCotizacion() {
                       <div style={{ fontWeight: 700, fontSize: 20, color: 'var(--accent)' }}>${preview.subtotal_total.toFixed(2)}</div>
                     </div>
                   </div>
-                  {preview.esHojaCompleta && (
-                    <div style={{ marginTop: 8, fontSize: 13, color: 'var(--warning)', fontWeight: 500 }}>
-                      ⚠️ Nivel "Hoja completa": se usan las dimensiones de fabrica del tipo de vidrio ({preview.largo}×{preview.ancho} cm), no las medidas ingresadas.
-                    </div>
-                  )}
+
                   {preview.procesosCalc.length > 0 && (
                     <div style={{ marginTop: 8, borderTop: '1px solid var(--border)', paddingTop: 8 }}>
                       {preview.procesosCalc.map((pc, i) => (
                         <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--text-muted)' }}>
-                          <span>+ {pc.nombre} ({pc.cantidad.toFixed(4)} {pc.unidad} × ${pc.precio_unitario.toFixed(2)})</span>
+                          <span>+ {pc.nombre} ({pc.cantidad.toFixed(2)} {pc.unidad} × ${pc.precio_unitario.toFixed(2)})</span>
                           <span>${pc.subtotal.toFixed(2)}</span>
                         </div>
                       ))}
@@ -799,7 +730,7 @@ export default function NuevaCotizacion() {
                         <div style={{ marginTop: 4 }}>
                           {p.procesos.map((pr, j) => (
                             <div key={j} style={{ fontSize: 12, color: 'var(--text-muted)', paddingLeft: 10 }}>
-                              + {pr.nombre}: ${pr.subtotal.toFixed(2)}
+                              + {pr.nombre} ({pr.cantidad.toFixed(2)} {pr.unidad}): ${pr.subtotal.toFixed(2)}
                             </div>
                           ))}
                         </div>
@@ -837,7 +768,7 @@ export default function NuevaCotizacion() {
               <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 6 }}>Nivel de precio</div>
               <div style={{ fontWeight: 600, marginBottom: 14 }}>
                 {nivelSeleccionado ? (
-                  <span className="badge badge-blue">{nivelSeleccionado.nombre}</span>
+                  <span className="badge badge-blue">{nivelSeleccionado.es_hoja_completa ? 'POR HOJA' : nivelSeleccionado.nombre}</span>
                 ) : (
                   <span style={{ color: 'var(--danger)', fontSize: 13 }}>— Sin seleccionar —</span>
                 )}

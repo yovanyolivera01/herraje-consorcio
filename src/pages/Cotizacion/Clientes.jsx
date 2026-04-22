@@ -4,11 +4,12 @@ import { useCotizacion } from '../../context/CotizacionContext'
 // ── Modal Crear/Editar Cliente ────────────────────────────────────────────
 function ClienteModal({ cliente, onClose, onSave }) {
   const { nivelesPrecio } = useCotizacion()
+  const vidrieroId = nivelesPrecio.find(n => n.nombre.toLowerCase().includes('vidriero'))?.id_nivel_precio ?? ''
   const [form, setForm] = useState({
     nombre:          cliente?.nombre          ?? '',
     telefono:        cliente?.telefono        ?? '',
     correo:          cliente?.correo          ?? '',
-    id_nivel_precio: cliente?.id_nivel_precio ?? '',
+    id_nivel_precio: cliente?.id_nivel_precio ?? vidrieroId,
   })
   const [errors, setErrors] = useState({})
   const [saving, setSaving] = useState(false)

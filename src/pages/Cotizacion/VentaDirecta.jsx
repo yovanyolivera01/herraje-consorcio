@@ -137,9 +137,9 @@ export default function VentaDirecta() {
     const precio_m2 = getPrecioVidrio(tipo.id_tipo_vidrio, Number(nivelId))
     if (precio_m2 === null) return { sinPrecio: true, tipo }
 
-    const esHojaCompleta   = nivel.es_hoja_completa
-    const largo            = esHojaCompleta ? Number(tipo.hoja_largo_cm) : parsed.largo
-    const ancho            = esHojaCompleta ? Number(tipo.hoja_ancho_cm) : parsed.ancho
+    const esHojaCompleta   = false
+    const largo            = parsed.largo
+    const ancho            = parsed.ancho
     const metros2_total    = parsed.piezas * (largo * ancho) / 10000
     const subtotal_vidrio  = metros2_total * precio_m2
 
@@ -181,8 +181,8 @@ export default function VentaDirecta() {
     if (!preview || preview.sinPrecio) { setNotError('No hay precio configurado para este tipo y nivel'); return }
 
     const nivel = nivelesPrecio.find(n => n.id_nivel_precio === Number(nivelId))
-    const largo = nivel.es_hoja_completa ? Number(tipoSeleccionado.hoja_largo_cm) : parsed.largo
-    const ancho = nivel.es_hoja_completa ? Number(tipoSeleccionado.hoja_ancho_cm) : parsed.ancho
+    const largo = parsed.largo
+    const ancho = parsed.ancho
 
     setPartidas(prev => [...prev, {
       id_tipo_vidrio:     Number(tipoVidrioId),
