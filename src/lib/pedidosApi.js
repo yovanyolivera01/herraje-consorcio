@@ -31,6 +31,28 @@ export const convertirCotizacionAPedido = async (id_cotizacion, tipo_pago, monto
   return row.out_id_pedido
 }
 
+// ── Crear pedido directo (sin cotización)  ────────────────────────────────
+//
+//  SP: sp_crear_pedido_directo(p_id_cliente, p_id_nivel_precio, p_tipo_pago,
+//                               p_monto_anticipo, p_partidas)
+//  Retorna TABLE (out_id_pedido INT, out_folio TEXT, out_mensaje TEXT)
+
+export const crearPedidoDirecto = async ({ id_cliente, id_nivel_precio, partidas, tipo_pago, monto_anticipo }) => {
+  const { data, error } = await supabase.rpc('sp_crear_pedido_directo', {
+    p_id_cliente:      id_cliente ?? null,
+    p_id_nivel_precio: id_nivel_precio,
+    p_tipo_pago:       tipo_pago,
+    p_monto_anticipo:  Number(monto_anticipo),
+    p_partidas:        partidas,
+  })
+  if (error) throw error
+  const row = Array.isArray(data) ? data[0] : data
+  if (!row || row.out_mensaje?.startsWith('ERROR')) {
+    throw new Error(row?.out_mensaje ?? 'Error desconocido al crear el pedido')
+  }
+  return row.out_id_pedido
+}
+
 // ── Pedidos pendientes  (HU-10) ───────────────────────────────────────────
 //
 //  SP: sp_obtener_pedidos_pendientes()

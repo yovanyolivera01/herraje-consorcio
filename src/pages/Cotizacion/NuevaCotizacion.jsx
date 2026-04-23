@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useCotizacion } from '../../context/CotizacionContext'
-import { convertirCotizacionAPedido, getDetallePedido } from '../../lib/pedidosApi'
+import { crearPedidoDirecto, getDetallePedido } from '../../lib/pedidosApi'
 import { printTicketVidrio } from '../../utils/ticket'
 
 // ── Parser de notacion {piezas}-{largo}x{ancho} ───────────────────────────
@@ -80,7 +80,9 @@ function TicketPedidoRapido({ detalle }) {
       </div>
       <hr className="ticket-divider" />
       <div className="ticket-row"><span>Pedido:</span><strong>{detalle.folio}</strong></div>
-      <div className="ticket-row"><span>Cotizacion:</span><span>COT-{String(detalle.id_cotizacion).padStart(5,'0')}</span></div>
+      {detalle.id_cotizacion && (
+        <div className="ticket-row"><span>Cotizacion:</span><span>COT-{String(detalle.id_cotizacion).padStart(5,'0')}</span></div>
+      )}
       <div className="ticket-row"><span>Fecha:</span><span>{detalle.fecha}</span></div>
       <div className="ticket-row"><span>Cliente:</span><span>{detalle.cliente?.nombre ?? 'Mostrador'}</span></div>
       <hr className="ticket-divider" />
@@ -133,7 +135,7 @@ export default function NuevaCotizacion() {
   const {
     tiposVidrio, nivelesPrecio, clientes, procesos,
     getPrecioVidrio, getPrecioProceso,
-    iniciarCotizacion, agregarPartida, finalizarCotizacion,
+    iniciarCotizacion, agregarPartida, finalizarCotizacion, // usados solo por "Solo cotizar"
   } = useCotizacion()
 
   // ── Estado global de la cotizacion ──────────────────────────────────────
@@ -357,46 +359,30 @@ export default function NuevaCotizacion() {
     }
   }
 
-  // Guarda cotización Y convierte a pedido en un solo paso
+  // Crea el pedido directamente sin pasar por cotización
   const handleCotizarYConvertir = async () => {
     const antN = parseFloat(modalAnticipoStr) || 0
     if (!nivelId)         { setModalError('Selecciona un nivel de precio'); return }
     if (!partidas.length) { setModalError('Agrega al menos una partida'); return }
     if (modalFormaPago === 'ANTICIPO') {
-      if (antN <= 0)              { setModalError('Ingresa un monto de anticipo valido'); return }
-      if (antN >= totalGeneral)   { setModalError('El anticipo debe ser menor al total'); return }
+      if (antN <= 0)            { setModalError('Ingresa un monto de anticipo valido'); return }
+      if (antN >= totalGeneral) { setModalError('El anticipo debe ser menor al total'); return }
     }
     setModalConvertiendo(true)
     setModalError(null)
     try {
-      // 1. Crear cotización
-      const { data: cot, error: cotErr } = await iniciarCotizacion({
-        id_nivel_precio: Number(nivelId),
-        id_cliente:      clienteId ? Number(clienteId) : null,
-        observaciones:   null,
-      })
-      if (cotErr) throw new Error(cotErr)
-      for (const p of partidas) {
-        const { error: pErr } = await agregarPartida(cot.id_cotizacion, p)
-        if (pErr) throw new Error(pErr)
-      }
-      const { error: finErr } = await finalizarCotizacion(cot.id_cotizacion, totalGeneral)
-      if (finErr) throw new Error(finErr)
-
-      // 2. Convertir a pedido
       const monto    = modalFormaPago === 'LIQUIDADO' ? totalGeneral : antN
-      const idPedido = await convertirCotizacionAPedido(cot.id_cotizacion, modalFormaPago, monto)
-      const detalle  = await getDetallePedido(idPedido)
-
+      const idPedido = await crearPedidoDirecto({
+        id_cliente:      clienteId ? Number(clienteId) : null,
+        id_nivel_precio: Number(nivelId),
+        partidas,
+        tipo_pago:       modalFormaPago,
+        monto_anticipo:  monto,
+      })
+      const detalle = await getDetallePedido(idPedido)
       setShowPedidoModal(false)
       setPedidoCreado(detalle)
-      setCotCreada({
-        id: cot.id_cotizacion, folio: cot.folio,
-        clienteNombre: clienteSeleccionado?.nombre ?? null,
-        nivelNombre: nivelSeleccionado?.nombre ?? '',
-        observaciones: null,
-        partidas, total: totalGeneral,
-      })
+      setCotCreada({ folio: null, clienteNombre: clienteSeleccionado?.nombre ?? null, partidas, total: totalGeneral })
     } catch (err) {
       setModalError(err.message || 'Error al crear el pedido')
     } finally {
@@ -460,7 +446,7 @@ export default function NuevaCotizacion() {
           </div>
           <div className="page-body">
             <div className="alert alert-success">
-              ✅ Pedido <strong>{pedidoCreado.folio}</strong> creado desde cotizacion <strong>{cotCreada.folio}</strong>.
+              ✅ Pedido <strong>{pedidoCreado.folio}</strong> registrado correctamente.
             </div>
             <TicketPedidoRapido detalle={pedidoCreado} />
           </div>

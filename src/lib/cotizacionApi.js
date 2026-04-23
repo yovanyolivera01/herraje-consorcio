@@ -190,7 +190,7 @@ export const getProcesos = async () => {
   return data ?? []
 }
 
-export const createProceso = async ({ nombre, id_unidad_cobro, precio_unitario }) => {
+export const createProceso = async ({ nombre, id_unidad_cobro, precio_unitario = 0 }) => {
   const { data, error } = await supabase
     .from('proceso')
     .insert({ nombre, id_unidad_cobro, precio_unitario: Number(precio_unitario) })

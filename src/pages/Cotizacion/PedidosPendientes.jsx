@@ -116,18 +116,16 @@ function TicketEntrega({ detalle, saldoCobrado }) {
 
 // ── Modal: marcar como entregado ─────────────────────────────────────────
 function MarcarEntregadoModal({ detalle, onClose, onEntregado }) {
-  const [saldo,  setSaldo]  = useState(detalle.saldo.toFixed(2))
   const [saving, setSaving] = useState(false)
   const [error,  setError]  = useState(null)
+  const saldoPendiente = detalle.saldo
 
   const handleConfirm = async () => {
-    const n = parseFloat(saldo)
-    if (isNaN(n) || n < 0) { setError('Ingresa un monto valido'); return }
     setSaving(true)
     setError(null)
     try {
-      await marcarComoEntregado(detalle.id, n)
-      onEntregado(n)
+      await marcarComoEntregado(detalle.id, saldoPendiente)
+      onEntregado(saldoPendiente)
     } catch (err) {
       setError(err.message || 'Error al registrar la entrega')
       setSaving(false)
@@ -145,26 +143,45 @@ function MarcarEntregadoModal({ detalle, onClose, onEntregado }) {
           <div style={{ fontSize:14, marginBottom:14 }}>
             ¿Confirmar entrega del pedido <strong>{detalle.folio}</strong>?
           </div>
-          <div className="alert alert-warning">
-            ⚠️ Esta accion no se puede revertir. El pedido pasara al historial de ventas.
+
+          {/* Resumen de cobro */}
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:10, marginBottom:14 }}>
+            {[
+              ['Total pedido',   `$${detalle.total.toFixed(2)}`,      'var(--text)'],
+              ['Anticipo pagado', `$${detalle.anticipo.toFixed(2)}`,  'var(--accent)'],
+              ['Saldo a cobrar',  `$${saldoPendiente.toFixed(2)}`,    'var(--danger)'],
+            ].map(([label, val, color]) => (
+              <div key={label} style={{ textAlign:'center', background:'var(--bg)', borderRadius:8, padding:'10px 6px' }}>
+                <div style={{ fontSize:11, color:'var(--text-muted)', marginBottom:4 }}>{label}</div>
+                <div style={{ fontWeight:700, fontSize:16, color }}>{val}</div>
+              </div>
+            ))}
           </div>
-          <div className="form-group" style={{ marginTop:14 }}>
-            <label className="form-label required">Saldo cobrado al cliente ($)</label>
+
+          {/* Saldo protegido — solo lectura */}
+          <div className="form-group">
+            <label className="form-label">Saldo cobrado al cliente ($)</label>
             <input
               className="form-input"
-              type="number" min="0" step="0.01"
-              value={saldo}
-              onChange={e => { setSaldo(e.target.value); setError(null) }}
-              autoFocus
+              type="text"
+              value={`$${saldoPendiente.toFixed(2)}`}
+              readOnly
+              style={{ background:'var(--bg)', cursor:'default', fontWeight:700, fontSize:16, color:'var(--danger)' }}
             />
-            <div className="form-hint">Saldo pendiente registrado: ${detalle.saldo.toFixed(2)}</div>
+            <div className="form-hint">
+              Este monto corresponde exactamente al saldo pendiente registrado y no puede modificarse.
+            </div>
+          </div>
+
+          <div className="alert alert-warning" style={{ marginTop:8 }}>
+            ⚠️ Esta accion no se puede revertir. El pedido pasara al historial de ventas.
           </div>
           {error && <div className="alert alert-error">❌ {error}</div>}
         </div>
         <div className="modal-footer">
           <button className="btn btn-outline" onClick={onClose} disabled={saving}>Cancelar</button>
           <button className="btn btn-primary" onClick={handleConfirm} disabled={saving}>
-            {saving ? 'Registrando...' : '✅ Confirmar entrega'}
+            {saving ? 'Registrando...' : `✅ Confirmar — cobrar $${saldoPendiente.toFixed(2)}`}
           </button>
         </div>
       </div>

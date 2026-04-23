@@ -7,7 +7,6 @@ function ProcesoModal({ proceso, onClose, onSave }) {
   const [form, setForm] = useState({
     nombre:          proceso?.nombre          ?? '',
     id_unidad_cobro: proceso?.id_unidad_cobro ?? '',
-    precio_unitario: proceso?.precio_unitario ?? '',
   })
   // clave: `${id_espesor}_${id_nivel_precio}`
   const [preciosGrid, setPreciosGrid] = useState(() => {
@@ -28,8 +27,6 @@ function ProcesoModal({ proceso, onClose, onSave }) {
     const e = {}
     if (!form.nombre.trim()) e.nombre = 'El nombre es obligatorio'
     if (!form.id_unidad_cobro) e.id_unidad_cobro = 'Selecciona una unidad de cobro'
-    if (!form.precio_unitario || isNaN(Number(form.precio_unitario)) || Number(form.precio_unitario) < 0)
-      e.precio_unitario = 'Ingresa un precio valido'
     return e
   }
 
@@ -47,7 +44,6 @@ function ProcesoModal({ proceso, onClose, onSave }) {
     await onSave({
       nombre:          form.nombre.trim(),
       id_unidad_cobro: Number(form.id_unidad_cobro),
-      precio_unitario: Number(form.precio_unitario),
       preciosNivel:    preciosArray,
     })
     setSaving(false)
@@ -90,19 +86,6 @@ function ProcesoModal({ proceso, onClose, onSave }) {
                   ))}
                 </select>
                 {errors.id_unidad_cobro && <div className="form-error">{errors.id_unidad_cobro}</div>}
-              </div>
-              <div className="form-group">
-                <label className="form-label required">Precio base ($)</label>
-                <input
-                  className={`form-input${errors.precio_unitario ? ' error' : ''}`}
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={form.precio_unitario}
-                  onChange={set('precio_unitario')}
-                  placeholder="0.00"
-                />
-                {errors.precio_unitario && <div className="form-error">{errors.precio_unitario}</div>}
               </div>
             </div>
 
