@@ -3,6 +3,7 @@ import { AppProvider }          from './context/AppContext'
 import { CotizacionProvider }   from './context/CotizacionContext'
 import { PersonalProvider }     from './context/PersonalContext'
 import Layout                   from './components/Layout'
+import ErrorBoundary            from './components/ErrorBoundary'
 import Proveedores              from './pages/Proveedores/Proveedores'
 import Productos                from './pages/Productos/Productos'
 import NuevaVenta               from './pages/Ventas/NuevaVenta'
@@ -21,6 +22,7 @@ import ResumenSemanal           from './pages/Personal/ResumenSemanal'
 
 export default function App() {
   return (
+    <ErrorBoundary>
     <AppProvider>
       <CotizacionProvider>
         <PersonalProvider>
@@ -57,5 +59,6 @@ export default function App() {
         </PersonalProvider>
       </CotizacionProvider>
     </AppProvider>
+    </ErrorBoundary>
   )
 }

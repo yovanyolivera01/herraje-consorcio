@@ -1,4 +1,11 @@
 -- ═══════════════════════════════════════════════════════════════════════
+--  DIAGNÓSTICO: ejecuta esto primero para ver el nombre real de las tablas
+-- ═══════════════════════════════════════════════════════════════════════
+-- SELECT table_name FROM information_schema.tables
+-- WHERE table_schema = 'public' AND table_name LIKE '%proceso%'
+-- ORDER BY table_name;
+
+-- ═══════════════════════════════════════════════════════════════════════
 --  Paso 1: permitir pedidos sin cotización previa
 -- ═══════════════════════════════════════════════════════════════════════
 ALTER TABLE pedido ALTER COLUMN id_cotizacion DROP NOT NULL;
@@ -103,17 +110,15 @@ BEGIN
     IF jsonb_array_length(COALESCE(v_partida->'procesos', '[]'::JSONB)) > 0 THEN
       FOR v_proceso IN SELECT * FROM jsonb_array_elements(v_partida->'procesos')
       LOOP
-        INSERT INTO partida_proceso_pedido (
+        INSERT INTO proceso_partida_pedido (
           id_partida_pedido,
           id_proceso,
-          id_unidad_cobro,
           cantidad_unidades,
           precio_unitario,
           subtotal
         ) VALUES (
           v_id_partida,
           (v_proceso->>'id_proceso')::INT,
-          (v_proceso->>'id_unidad_cobro')::INT,
           (v_proceso->>'cantidad')::NUMERIC,
           (v_proceso->>'precio_unitario')::NUMERIC,
           (v_proceso->>'subtotal')::NUMERIC

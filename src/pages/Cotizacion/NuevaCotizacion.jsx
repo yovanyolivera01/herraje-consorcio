@@ -403,6 +403,11 @@ export default function NuevaCotizacion() {
     setNotacion('')
     setProcesosSeleccionados([])
     setSaveError(null)
+    setShowPedidoModal(false)
+    setModalFormaPago('LIQUIDADO')
+    setModalAnticipoStr('')
+    setModalError(null)
+    setModalConvertiendo(false)
     window.scrollTo({ top: 0, behavior: 'instant' })
   }
 
@@ -423,7 +428,7 @@ export default function NuevaCotizacion() {
               <button className="btn btn-outline" onClick={() => printTicketVidrio({
                 tipo: 'pedido',
                 folio: pedidoCreado.folio,
-                foliosCot: `COT-${String(pedidoCreado.id_cotizacion).padStart(5,'0')}`,
+                foliosCot: pedidoCreado.id_cotizacion ? `COT-${String(pedidoCreado.id_cotizacion).padStart(5,'0')}` : null,
                 fecha: pedidoCreado.fecha,
                 hora: pedidoCreado.hora ?? '',
                 clienteNombre: pedidoCreado.cliente?.nombre ?? 'Mostrador',
@@ -607,7 +612,7 @@ export default function NuevaCotizacion() {
               {procesosActivos.length > 0 && (
                 <div className="form-group">
                   <label className="form-label">Procesos adicionales</label>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  <div className="procesos-chips">
                     {procesosActivos.map(proc => {
                       const sel = procesosSeleccionados.some(p => p.id_proceso === proc.id_proceso)
                       return (

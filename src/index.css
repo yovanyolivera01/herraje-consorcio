@@ -496,6 +496,13 @@ body {
 .row-low-stock td { background: #fff5f5 !important; }
 .row-low-stock:hover td { background: #fee2e2 !important; }
 
+/* ── Chips de procesos ───────────────────────────────────────────────────── */
+.procesos-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 /* ── Venta grid (2 columnas) ─────────────────────────────────────────────── */
 .venta-grid {
   display: grid;
@@ -691,6 +698,17 @@ body {
 
   /* Espacio para que la barra no tape el contenido */
   .page-body { padding-bottom: 90px; }
+
+  /* Procesos: chips en lista vertical en móvil */
+  .procesos-chips {
+    flex-direction: column;
+    gap: 6px;
+  }
+  .procesos-chips label {
+    border-radius: 10px !important;
+    width: 100%;
+    font-size: 14px !important;
+  }
 
   /* Modal full-screen en móvil */
   .modal-overlay { padding: 0; align-items: flex-end; }
