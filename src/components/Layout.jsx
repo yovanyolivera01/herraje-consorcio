@@ -80,26 +80,6 @@ export default function Layout() {
           </div>
         </div>
 
-        {/* Navegacion */}
-        <nav className="sidebar-nav">
-          {navItems.map(({ section, links }) => (
-            <div key={section}>
-              <div className="nav-section">{section}</div>
-              {links.map(({ to, icon, label }) => (
-                <NavLink
-                  key={to}
-                  to={to}
-                  className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
-                  onClick={closeDrawer}
-                >
-                  <span className="nav-icon">{icon}</span>
-                  <span className="nav-label">{label}</span>
-                </NavLink>
-              ))}
-            </div>
-          ))}
-        </nav>
-
         {/* Selector de sistema */}
         <div className="system-switcher">
           <div className="system-switcher-label">Sistema activo</div>
@@ -127,6 +107,26 @@ export default function Layout() {
             </button>
           </div>
         </div>
+
+        {/* Navegacion */}
+        <nav className="sidebar-nav">
+          {navItems.map(({ section, links }) => (
+            <div key={section}>
+              <div className="nav-section">{section}</div>
+              {links.map(({ to, icon, label }) => (
+                <NavLink
+                  key={to}
+                  to={to}
+                  className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
+                  onClick={closeDrawer}
+                >
+                  <span className="nav-icon">{icon}</span>
+                  <span className="nav-label">{label}</span>
+                </NavLink>
+              ))}
+            </div>
+          ))}
+        </nav>
       </aside>
 
       <main className="main-content">

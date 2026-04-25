@@ -2,13 +2,21 @@
 title Herraje Consorcio
 cd /d "%~dp0"
 
+:: ── Auto-elevacion a Administrador ──────────────────────────────────────────
+net session >nul 2>&1
+if errorlevel 1 (
+    echo  Solicitando permisos de administrador...
+    powershell -Command "Start-Process '%~f0' -Verb RunAs"
+    exit /b
+)
+
 echo.
 echo  ==========================================
 echo   HERRAJE CONSORCIO - Iniciando servidor...
 echo  ==========================================
 echo.
 
-:: Verificar que Node.js esta instalado
+:: Verificar Node.js
 where node >nul 2>&1
 if errorlevel 1 (
     echo  ERROR: Node.js no esta instalado.
@@ -18,25 +26,38 @@ if errorlevel 1 (
     exit /b 1
 )
 
-:: Verificar que las dependencias esten instaladas
+:: Abrir puerto 5173 en el firewall
+netsh advfirewall firewall delete rule name="Herraje Consorcio Dev" >nul 2>&1
+netsh advfirewall firewall add rule name="Herraje Consorcio Dev" dir=in action=allow protocol=TCP localport=5173
+echo  Puerto 5173 habilitado en el firewall.
+echo.
+
+:: Instalar dependencias si faltan
 if not exist "node_modules" (
     echo  Instalando dependencias por primera vez...
-    echo  Esto puede tardar unos minutos.
-    echo.
     npm install
     echo.
 )
 
-echo  Servidor iniciando en http://localhost:5173
-echo  Abre tu navegador si no se abre automaticamente.
+:: Mostrar IP local
+echo  ==========================================
+echo   Direcciones para conectar desde celular:
+for /f "tokens=2 delims=:" %%a in ('ipconfig ^| findstr /i "IPv4"') do (
+    setlocal enabledelayedexpansion
+    set IP=%%a
+    set IP=!IP: =!
+    if not "!IP!"=="127.0.0.1" echo   http://!IP!:5173
+    endlocal
+)
+echo  ==========================================
 echo.
-echo  Para CERRAR el servidor presiona Ctrl+C en esta ventana.
+echo  Para CERRAR presiona Ctrl+C en esta ventana.
 echo.
 
-:: Esperar 2 segundos y abrir el navegador
-start "" cmd /c "timeout /t 2 >nul && start http://localhost:5173"
+:: Abrir navegador local
+start "" cmd /c "timeout /t 3 >nul && start http://localhost:5173"
 
-:: Iniciar servidor con acceso desde red local (para celular)
-npx vite --host
+:: Iniciar Vite
+npx vite
 
 pause
