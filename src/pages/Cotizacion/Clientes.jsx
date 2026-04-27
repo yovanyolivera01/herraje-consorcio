@@ -70,7 +70,7 @@ function ClienteModal({ cliente, onClose, onSave }) {
                   }}
                   placeholder="55 1234-5678"
                   inputMode="tel"
-                  maxLength={20}
+                  maxLength={10}
                 />
               </div>
               <div className="form-group">

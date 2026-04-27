@@ -1,53 +1,77 @@
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { useCotizacion } from '../../context/CotizacionContext'
 
 // ── Celda de precio editable ──────────────────────────────────────────────
 function PrecioCell({ idTipoVidrio, idNivel, precioActual, onSave }) {
-  const [editing, setEditing]   = useState(false)
-  const [value, setValue]       = useState(precioActual != null ? String(precioActual) : '')
-  const [saving, setSaving]     = useState(false)
-  const [error, setError]       = useState(null)
+  const [editing, setEditing] = useState(false)
+  const [value, setValue]     = useState(precioActual != null ? String(precioActual) : '')
+  const [saving, setSaving]   = useState(false)
+  const [error, setError]     = useState(null)
+  const inputRef = React.useRef(null)
 
-  const handleBlur = async () => {
+  const abrir = () => {
+    setValue(precioActual != null ? String(precioActual) : '')
+    setEditing(true)
+    setError(null)
+    setTimeout(() => inputRef.current?.focus(), 50)
+  }
+
+  const cancelar = () => {
+    setValue(precioActual != null ? String(precioActual) : '')
+    setEditing(false)
+    setError(null)
+  }
+
+  const guardar = async () => {
     const num = parseFloat(value)
-    if (isNaN(num) || num < 0) {
-      setError('Valor invalido')
-      setValue(precioActual != null ? String(precioActual) : '')
-      setEditing(false)
-      return
-    }
+    if (isNaN(num) || num < 0) { setError('Valor invalido'); return }
     setError(null)
     setSaving(true)
     const { error: saveErr } = await onSave(idTipoVidrio, idNivel, num)
     setSaving(false)
-    if (saveErr) setError(saveErr)
+    if (saveErr) { setError(saveErr); return }
     setEditing(false)
   }
 
   const handleKeyDown = (e) => {
-    if (e.key === 'Enter')  { e.target.blur() }
-    if (e.key === 'Escape') { setValue(precioActual != null ? String(precioActual) : ''); setEditing(false) }
+    if (e.key === 'Enter')  guardar()
+    if (e.key === 'Escape') cancelar()
   }
 
   if (editing) {
     return (
-      <td style={{ padding: '8px 10px' }}>
-        <input
-          type="number"
-          min="0"
-          step="0.01"
-          value={value}
-          onChange={e => setValue(e.target.value)}
-          onBlur={handleBlur}
-          onKeyDown={handleKeyDown}
-          autoFocus
-          style={{
-            width: '100%', minWidth: 90,
-            border: '1.5px solid var(--accent)', borderRadius: 5,
-            padding: '4px 8px', fontSize: 15, fontFamily: 'inherit',
-          }}
-        />
-        {error && <div style={{ fontSize: 11, color: 'var(--danger)' }}>{error}</div>}
+      <td style={{ padding: '6px 8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <input
+            ref={inputRef}
+            type="number"
+            min="0"
+            step="0.01"
+            value={value}
+            onChange={e => setValue(e.target.value)}
+            onKeyDown={handleKeyDown}
+            style={{
+              width: 80, border: '1.5px solid var(--accent)', borderRadius: 5,
+              padding: '4px 6px', fontSize: 14, fontFamily: 'inherit',
+            }}
+          />
+          <button
+            onClick={guardar}
+            disabled={saving}
+            style={{
+              padding: '4px 8px', background: 'var(--accent)', color: 'white',
+              border: 'none', borderRadius: 5, cursor: 'pointer', fontSize: 13, fontWeight: 700,
+            }}
+          >{saving ? '...' : '✓'}</button>
+          <button
+            onClick={cancelar}
+            style={{
+              padding: '4px 8px', background: 'var(--bg)', color: 'var(--text-muted)',
+              border: '1px solid var(--border)', borderRadius: 5, cursor: 'pointer', fontSize: 13,
+            }}
+          >✕</button>
+        </div>
+        {error && <div style={{ fontSize: 11, color: 'var(--danger)', marginTop: 2 }}>{error}</div>}
       </td>
     )
   }
@@ -55,13 +79,14 @@ function PrecioCell({ idTipoVidrio, idNivel, precioActual, onSave }) {
   return (
     <td
       style={{
-        padding: '8px 10px', cursor: 'pointer', textAlign: 'right',
-        fontSize: 15,
+        padding: '8px 10px', cursor: 'pointer', textAlign: 'right', fontSize: 15,
         background: saving ? '#f0f9ff' : precioActual != null ? 'white' : '#fafafa',
         color: precioActual != null ? 'var(--text)' : 'var(--text-muted)',
+        userSelect: 'none',
       }}
-      onClick={() => { setEditing(true); setValue(precioActual != null ? String(precioActual) : '') }}
-      title="Clic para editar"
+      onClick={abrir}
+      onTouchEnd={e => { e.preventDefault(); abrir() }}
+      title="Toca para editar"
     >
       {saving ? '...' : precioActual != null ? `$${Number(precioActual).toFixed(2)}` : (
         <span style={{ fontSize: 12 }}>— agregar</span>

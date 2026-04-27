@@ -7,26 +7,18 @@ import { supabase } from './supabase'
  * @param {string} isoString - Fecha en formato ISO (de Supabase)
  * @returns {{fecha: string, hora: string}}
  */
+const TZ = 'America/Mexico_City'
 function formatearFechaHora(isoString) {
   const d = new Date(isoString)
-  
-  // Usar Intl para obtener formato confiable
   const fechaFormatter = new Intl.DateTimeFormat('es-MX', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
+    year: 'numeric', month: '2-digit', day: '2-digit', timeZone: TZ,
   })
-  
   const horaFormatter = new Intl.DateTimeFormat('es-MX', {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false,
+    hour: '2-digit', minute: '2-digit', hour12: false, timeZone: TZ,
   })
-  
   return {
     fecha: fechaFormatter.format(d),
-    hora: horaFormatter.format(d).slice(0, 5), // HH:MM solo
+    hora: horaFormatter.format(d).slice(0, 5),
   }
 }
 

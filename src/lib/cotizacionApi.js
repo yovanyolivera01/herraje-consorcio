@@ -2,13 +2,14 @@ import { supabase } from './supabase'
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 
+const TZ = 'America/Mexico_City'
 function formatearFechaHora(isoString) {
   const d = new Date(isoString)
   const fechaFormatter = new Intl.DateTimeFormat('es-MX', {
-    year: 'numeric', month: '2-digit', day: '2-digit',
+    year: 'numeric', month: '2-digit', day: '2-digit', timeZone: TZ,
   })
   const horaFormatter = new Intl.DateTimeFormat('es-MX', {
-    hour: '2-digit', minute: '2-digit', hour12: false,
+    hour: '2-digit', minute: '2-digit', hour12: false, timeZone: TZ,
   })
   return {
     fecha: fechaFormatter.format(d),

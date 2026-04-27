@@ -266,6 +266,7 @@ export default function NuevaCotizacion() {
     const ancho  = parsed.ancho
 
     const nuevaPartida = {
+      _key:              Date.now() + Math.random(),
       id_tipo_vidrio:    Number(tipoVidrioId),
       tipoClaveLabel:    tipoSeleccionado.clave,
       piezas:            parsed.piezas,
@@ -296,7 +297,11 @@ export default function NuevaCotizacion() {
   }
 
   // ── Quitar partida ────────────────────────────────────────────────────────
-  const quitarPartida = (idx) => setPartidas(prev => prev.filter((_, i) => i !== idx))
+  const quitarPartida = (idx) => {
+    requestAnimationFrame(() => {
+      setPartidas(prev => prev.filter((_, i) => i !== idx))
+    })
+  }
 
   // ── Totales ───────────────────────────────────────────────────────────────
   const totalM2      = partidas.reduce((s, p) => s + p.metros2, 0)
@@ -540,16 +545,28 @@ export default function NuevaCotizacion() {
               <div className="form-row">
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label required">Nivel de precio</label>
-                  <select
-                    className="form-select"
-                    value={nivelId}
-                    onChange={e => setNivelId(e.target.value)}
-                  >
-                    <option value="">-- Seleccionar nivel --</option>
-                    {nivelesPrecio.map(n => (
-                      <option key={n.id_nivel_precio} value={n.id_nivel_precio}>{n.es_hoja_completa ? 'POR HOJA' : n.nombre}</option>
-                    ))}
-                  </select>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+                    {nivelesPrecio.map(n => {
+                      const activo = nivelId === String(n.id_nivel_precio)
+                      return (
+                        <button
+                          key={n.id_nivel_precio}
+                          type="button"
+                          onClick={() => setNivelId(String(n.id_nivel_precio))}
+                          style={{
+                            padding: '7px 14px', borderRadius: 8, fontSize: 14, cursor: 'pointer',
+                            border: `2px solid ${activo ? 'var(--accent)' : 'var(--border)'}`,
+                            background: activo ? 'var(--accent)' : 'white',
+                            color: activo ? 'white' : 'var(--text)',
+                            fontWeight: activo ? 700 : 400,
+                            transition: 'all 0.15s',
+                          }}
+                        >
+                          {n.es_hoja_completa ? 'POR HOJA' : n.nombre}
+                        </button>
+                      )
+                    })}
+                  </div>
                 </div>
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label">Cliente (opcional)</label>
@@ -708,7 +725,7 @@ export default function NuevaCotizacion() {
                   Partidas ({partidas.length})
                 </div>
                 {partidas.map((p, i) => (
-                  <div key={i} className="cot-partida-item">
+                  <div key={p._key} className="cot-partida-item">
                     <div style={{ flex: 1 }}>
                       <div style={{ fontWeight: 600, fontSize: 15 }}>
                         {p.piezas} pza{p.piezas > 1 ? 's' : ''} · {p.largo_cm}×{p.ancho_cm} cm · {p.metros2.toFixed(4)} m²
@@ -732,7 +749,7 @@ export default function NuevaCotizacion() {
                     </div>
                     <button
                       className="btn-icon danger"
-                      onClick={() => quitarPartida(i)}
+                      onPointerDown={e => { e.preventDefault(); quitarPartida(i) }}
                       title="Quitar"
                     >✕</button>
                   </div>

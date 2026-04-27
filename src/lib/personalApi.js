@@ -3,9 +3,9 @@ import { supabase } from './supabase'
 // ── Horario base (constantes) ─────────────────────────────────
 export const HORARIO_BASE = {
   SEMANA: { entrada: '09:30', salida: '19:30', minutosEsperados: 600 },
-  SABADO: { entrada: '09:00', salida: '16:30', minutosEsperados: 450 },
+  SABADO: { entrada: '09:30', salida: '16:30', minutosEsperados: 420 },
 }
-export const MINUTOS_SEMANA_COMPLETA = 600 * 5 + 450 // 3450 min = 57.5 hrs
+export const MINUTOS_SEMANA_COMPLETA = 600 * 5 + 420 // 3420 min = 57 hrs
 
 export function getTipoDia(nombreDia) {
   return nombreDia === 'Sábado' ? 'SABADO' : 'SEMANA'
