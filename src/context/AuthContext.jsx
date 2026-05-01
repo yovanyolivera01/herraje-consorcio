@@ -1,0 +1,48 @@
+import { createContext, useContext, useState, useEffect } from 'react'
+
+const USUARIOS = {
+  '129': { role: 'admin',    nombre: 'Super Usuario' },
+  '130': { role: 'empleado', nombre: 'Vendedor' },
+}
+
+const AuthContext = createContext()
+
+export function AuthProvider({ children }) {
+  const [user,    setUser]    = useState(null)
+  const [role,    setRole]    = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const saved = sessionStorage.getItem('hc_user')
+    if (saved) {
+      const parsed = JSON.parse(saved)
+      setUser(parsed)
+      setRole(parsed.role)
+    }
+    setLoading(false)
+  }, [])
+
+  const login = (usuario, password) => {
+    const u = USUARIOS[usuario]
+    if (!u || password !== usuario) throw new Error('Credenciales incorrectas')
+    const session = { usuario, ...u }
+    sessionStorage.setItem('hc_user', JSON.stringify(session))
+    setUser(session)
+    setRole(u.role)
+    return session
+  }
+
+  const logout = () => {
+    sessionStorage.removeItem('hc_user')
+    setUser(null)
+    setRole(null)
+  }
+
+  return (
+    <AuthContext.Provider value={{ user, role, loading, login, logout }}>
+      {children}
+    </AuthContext.Provider>
+  )
+}
+
+export const useAuth = () => useContext(AuthContext)
