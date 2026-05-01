@@ -1,11 +1,11 @@
-import { supabase } from './supabase'
+import { http } from './http'
 
 // ── Horario base (constantes) ─────────────────────────────────
 export const HORARIO_BASE = {
   SEMANA: { entrada: '09:30', salida: '19:30', minutosEsperados: 600 },
   SABADO: { entrada: '09:30', salida: '16:30', minutosEsperados: 420 },
 }
-export const MINUTOS_SEMANA_COMPLETA = 600 * 5 + 420 // 3420 min = 57 hrs
+export const MINUTOS_SEMANA_COMPLETA = 600 * 5 + 420
 
 export function getTipoDia(nombreDia) {
   return nombreDia === 'Sábado' ? 'SABADO' : 'SEMANA'
@@ -24,7 +24,6 @@ export function minToHHMM(min) {
   return String(Math.floor(abs / 60)).padStart(2, '0') + ':' + String(abs % 60).padStart(2, '0')
 }
 
-// Supabase devuelve TIME como "HH:MM:SS", normalizamos a "HH:MM"
 function normTime(t) {
   return t ? t.slice(0, 5) : null
 }
@@ -105,7 +104,7 @@ export function calcularResumenSemanal(registros) {
 // ── Helpers de semana ─────────────────────────────────────────
 export function getLunesDeSemana(fechaStr) {
   const d   = new Date(fechaStr + 'T12:00:00')
-  const dia = d.getDay() // 0=dom
+  const dia = d.getDay()
   const off = dia === 0 ? -6 : 1 - dia
   d.setDate(d.getDate() + off)
   return d.toISOString().slice(0, 10)
@@ -135,7 +134,6 @@ export function getNombreDia(fechaStr) {
   return NOMBRES_DIA[new Date(fechaStr + 'T12:00:00').getDay()]
 }
 
-// Devuelve las 6 fechas de la semana (Lun–Sáb) a partir del lunes
 export function getDiasDeSemana(fechaLunes) {
   return Array.from({ length: 6 }, (_, i) => {
     const d = new Date(fechaLunes + 'T12:00:00')
@@ -145,85 +143,43 @@ export function getDiasDeSemana(fechaLunes) {
   })
 }
 
-// ── Semanas (Supabase) ────────────────────────────────────────
+// ── Semanas ───────────────────────────────────────────────────
 export async function getOrCreateSemana(fechaRef) {
   const lunes  = getLunesDeSemana(fechaRef)
-  const sabado = (() => { const d = new Date(lunes + 'T12:00:00'); d.setDate(d.getDate() + 5); return d.toISOString().slice(0, 10) })()
-  const desc   = `Semana del ${fmtCorto(lunes)} al ${fmtCorto(sabado)}`
-
-  const { data: existente } = await supabase
-    .from('semanas')
-    .select('*')
-    .eq('fecha_inicio', lunes)
-    .maybeSingle()
-  if (existente) return existente
-
-  const { data, error } = await supabase
-    .from('semanas')
-    .insert({ fecha_inicio: lunes, fecha_fin: sabado, descripcion: desc })
-    .select()
-    .single()
-  if (error) throw error
-  return data
+  const sabado = (() => {
+    const d = new Date(lunes + 'T12:00:00')
+    d.setDate(d.getDate() + 5)
+    return d.toISOString().slice(0, 10)
+  })()
+  const descripcion = `Semana del ${fmtCorto(lunes)} al ${fmtCorto(sabado)}`
+  return http.post('/api/personal/semanas', { fecha_inicio: lunes, fecha_fin: sabado, descripcion })
 }
 
 export async function getSemanas() {
-  const { data, error } = await supabase
-    .from('semanas')
-    .select('*')
-    .order('fecha_inicio', { ascending: false })
-  if (error) throw error
-  return data ?? []
+  return http.get('/api/personal/semanas')
 }
 
-// ── Empleados (Supabase) ──────────────────────────────────────
+// ── Empleados ─────────────────────────────────────────────────
 export async function getEmpleados() {
-  const { data, error } = await supabase
-    .from('empleados')
-    .select('*')
-    .eq('activo', true)
-    .order('nombre')
-  if (error) throw error
-  return data ?? []
+  return http.get('/api/personal/empleados')
 }
 
 export async function createEmpleado(nombre, telefono) {
-  const { data, error } = await supabase
-    .from('empleados')
-    .insert({ nombre: nombre.trim(), telefono: telefono.trim() })
-    .select()
-    .single()
-  if (error) throw error
-  return data
+  return http.post('/api/personal/empleados', { nombre, telefono })
 }
 
 export async function updateEmpleado(id, nombre, telefono) {
-  const { data, error } = await supabase
-    .from('empleados')
-    .update({ nombre: nombre.trim(), telefono: telefono.trim() })
-    .eq('empleado_id', id)
-    .select()
-    .single()
-  if (error) throw error
-  return data
+  return http.put(`/api/personal/empleados/${id}`, { nombre, telefono })
 }
 
 export async function deleteEmpleado(id) {
-  const { error } = await supabase
-    .from('empleados')
-    .update({ activo: false })
-    .eq('empleado_id', id)
-  if (error) throw error
+  return http.del(`/api/personal/empleados/${id}`)
 }
 
-// ── Registros diarios (Supabase) ──────────────────────────────
+// ── Registros diarios ─────────────────────────────────────────
 export async function getRegistrosSemana(semanaId) {
-  const { data, error } = await supabase
-    .from('registros_diarios')
-    .select('*')
-    .eq('semana_id', semanaId)
-  if (error) throw error
-  return (data ?? []).map(r => ({
+  const rows = await http.get(`/api/personal/registros/${semanaId}`)
+  return rows.map(r => ({
     ...r,
     hora_entrada: normTime(r.hora_entrada),
     hora_salida:  normTime(r.hora_salida),
@@ -231,42 +187,20 @@ export async function getRegistrosSemana(semanaId) {
 }
 
 export async function upsertRegistro(empleadoId, semanaId, fecha, horaEntrada, horaSalida) {
-  const { data, error } = await supabase
-    .from('registros_diarios')
-    .upsert(
-      {
-        empleado_id:        empleadoId,
-        semana_id:          semanaId,
-        fecha,
-        nombre_dia:         getNombreDia(fecha),
-        hora_entrada:       horaEntrada || null,
-        hora_salida:        horaSalida  || null,
-        fecha_modificacion: new Date().toISOString(),
-      },
-      { onConflict: 'empleado_id,fecha' }
-    )
-    .select()
-    .single()
-  if (error) throw error
+  const data = await http.post('/api/personal/registros', {
+    empleadoId, semanaId, fecha,
+    nombreDia: getNombreDia(fecha),
+    horaEntrada: horaEntrada || null,
+    horaSalida:  horaSalida  || null,
+  })
   return { ...data, hora_entrada: normTime(data.hora_entrada), hora_salida: normTime(data.hora_salida) }
 }
 
-// ── Resumen semanal (Supabase) ────────────────────────────────
+// ── Resumen semanal ───────────────────────────────────────────
 export async function getResumenesSemana(semanaId) {
-  const { data, error } = await supabase
-    .from('resumen_semanal')
-    .select('*')
-    .eq('semana_id', semanaId)
-  if (error) throw error
-  return data ?? []
+  return http.get(`/api/personal/resumenes/${semanaId}`)
 }
 
 export async function upsertResumen(empleadoId, semanaId, resumen) {
-  const { error } = await supabase
-    .from('resumen_semanal')
-    .upsert(
-      { empleado_id: empleadoId, semana_id: semanaId, ...resumen, fecha_calculo: new Date().toISOString() },
-      { onConflict: 'empleado_id,semana_id' }
-    )
-  if (error) throw error
+  return http.post('/api/personal/resumenes', { empleadoId, semanaId, resumen })
 }
