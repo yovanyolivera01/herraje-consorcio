@@ -60,7 +60,7 @@ const PRODUCTOS_QUERY = `
     p.precio,
     p.existencias,
     p.imagen_url,
-    p.stock_bajo
+    false         AS stock_bajo
   FROM productos p
   JOIN proveedores pr ON pr.id = p.proveedor_id
 `
