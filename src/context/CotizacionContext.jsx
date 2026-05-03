@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import * as api from '../lib/cotizacionApi'
+import * as empApi from '../lib/empresasApi'
 import { supabaseConfigured } from '../lib/supabase'
 
 const CotizacionContext = createContext()
@@ -12,9 +13,11 @@ export function CotizacionProvider({ children }) {
   const [nivelesPrecio,  setNivelesPrecio]  = useState([])
   const [precios,        setPrecios]        = useState([])
   const [clientes,       setClientes]       = useState([])
-  const [procesos,       setProcesos]       = useState([])
-  const [preciosProceso, setPreciosProceso] = useState([])
-  const [unidades,       setUnidades]       = useState([])
+  const [procesos,                setProcesos]                = useState([])
+  const [preciosProceso,          setPreciosProceso]          = useState([])
+  const [preciosProcesoEspecial,  setPreciosProcesoEspecial]  = useState([])
+  const [unidades,                setUnidades]                = useState([])
+  const [empresas,       setEmpresas]       = useState([])
   const [loading,        setLoading]        = useState(true)
   const [error,          setError]          = useState(null)
 
@@ -22,7 +25,7 @@ export function CotizacionProvider({ children }) {
     setLoading(true)
     setError(null)
     try {
-      const [t, e, tv, np, pv, cl, pr, un, pp] = await Promise.all([
+      const [t, e, tv, np, pv, cl, pr, un, pp, ppe, em] = await Promise.all([
         api.getTonos(),
         api.getEspesores(),
         api.getTiposVidrio(),
@@ -32,6 +35,8 @@ export function CotizacionProvider({ children }) {
         api.getProcesos(),
         api.getUnidadesCobro(),
         api.getPreciosProceso(),
+        api.getPreciosProcesoEspecial(),
+        empApi.getEmpresas(),
       ])
       setTonos(t)
       setEspesores(e)
@@ -42,6 +47,8 @@ export function CotizacionProvider({ children }) {
       setProcesos(pr)
       setUnidades(un)
       setPreciosProceso(pp)
+      setPreciosProcesoEspecial(ppe)
+      setEmpresas(em)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -137,6 +144,31 @@ export function CotizacionProvider({ children }) {
     if (!res.error) setPreciosProceso(await api.getPreciosProceso())
     return res
   }
+  const guardarPreciosProcesoEspecial = async (id_proceso, precios) => {
+    const res = await wrap(api.guardarPreciosProcesoEspecial)(id_proceso, precios)
+    if (!res.error) setPreciosProcesoEspecial(await api.getPreciosProcesoEspecial())
+    return res
+  }
+
+  // ── Empresas ──────────────────────────────────────────────────────────────
+  const addEmpresa = async (data) => {
+    const res = await wrap(empApi.createEmpresa)(data)
+    if (!res.error) setEmpresas(await empApi.getEmpresas())
+    return res
+  }
+  const editEmpresa = async (id, data) => {
+    const res = await wrap(empApi.updateEmpresa)(id, data)
+    if (!res.error) setEmpresas(await empApi.getEmpresas())
+    return res
+  }
+  const vincularClienteEmpresa = async (id_cliente, id_empresa) => {
+    const res = await wrap(empApi.vincularClienteEmpresa)(id_cliente, id_empresa)
+    if (!res.error) setClientes(await api.getClientes())
+    return res
+  }
+  const guardarPrecioEmpresa           = async (payload) => wrap(empApi.guardarPrecioEmpresa)(payload)
+  const guardarPrecioClienteRegistrado = async (payload) => wrap(empApi.guardarPrecioClienteRegistrado)(payload)
+  const getDocumentoEmpresa            = wrap(empApi.getDocumentoEmpresa)
 
   // ── Cotizaciones ──────────────────────────────────────────────────────────
   const iniciarCotizacion  = wrap(api.iniciarCotizacion)
@@ -165,6 +197,16 @@ export function CotizacionProvider({ children }) {
     )
     return found ? Number(found.precio_unitario) : null
   }
+
+  const getPrecioProcesoEspecial = (id_proceso, id_nivel_precio) => {
+    const found = preciosProcesoEspecial.find(
+      p => p.id_proceso === id_proceso && p.id_nivel_precio === id_nivel_precio
+    )
+    return found ? Number(found.precio_unitario) : null
+  }
+
+  const barrenos = procesos.filter(p => p.activo && p.tipo === 'BARRENO')
+  const saques   = procesos.filter(p => p.activo && p.tipo === 'SAQUE')
 
   if (loading) return (
     <div style={{
@@ -197,16 +239,22 @@ export function CotizacionProvider({ children }) {
 
   return (
     <CotizacionContext.Provider value={{
-      tonos, espesores, tiposVidrio, nivelesPrecio, precios, clientes, procesos, preciosProceso, unidades,
+      tonos, espesores, tiposVidrio, nivelesPrecio, precios, clientes, procesos, preciosProceso, preciosProcesoEspecial, unidades, empresas, barrenos, saques,
       addTono,      editTono,
       addEspesor,   editEspesor,
       addTipoVidrio, editTipoVidrio,
       guardarPrecio,
       addCliente,   editCliente,
-      addProceso,   editProceso,   guardarPreciosProceso,
+      addProceso,   editProceso,   guardarPreciosProceso, guardarPreciosProcesoEspecial,
+      addEmpresa,   editEmpresa,   vincularClienteEmpresa,
+      guardarPrecioEmpresa, guardarPrecioClienteRegistrado,
+      getPreciosEmpresa:           empApi.getPreciosEmpresa,
+      getPreciosClienteRegistrado: empApi.getPreciosClienteRegistrado,
+      getEmpresaDeCliente:         empApi.getEmpresaDeCliente,
+      getDocumentoEmpresa,
       iniciarCotizacion, agregarPartida, finalizarCotizacion, cancelarCotizacion,
       getCotizaciones, getDetalleCotizacion,
-      getPrecioVidrio, getPrecioProceso,
+      getPrecioVidrio, getPrecioProceso, getPrecioProcesoEspecial,
       recargar: loadAll,
     }}>
       {children}

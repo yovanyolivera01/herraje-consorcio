@@ -1,18 +1,18 @@
 import React, { useState } from 'react'
 import { useCotizacion } from '../../context/CotizacionContext'
 
-// ── Modal Crear/Editar Cliente ────────────────────────────────────────────
-function ClienteModal({ cliente, onClose, onSave }) {
-  const { nivelesPrecio } = useCotizacion()
-  const vidrieroId = nivelesPrecio.find(n => n.nombre.toLowerCase().includes('vidriero'))?.id_nivel_precio ?? ''
+// ── Modal Crear/Editar Empresa ────────────────────────────────────────────
+function EmpresaModal({ empresa, onClose, onSave }) {
   const [form, setForm] = useState({
-    nombre:          cliente?.nombre          ?? '',
-    telefono:        cliente?.telefono        ?? '',
-    correo:          cliente?.correo          ?? '',
-    id_nivel_precio: cliente?.id_nivel_precio ?? vidrieroId,
+    nombre:       empresa?.nombre       ?? '',
+    razon_social: empresa?.razon_social ?? '',
+    rfc:          empresa?.rfc          ?? '',
+    correo:       empresa?.correo       ?? '',
+    telefono:     empresa?.telefono     ?? '',
+    direccion:    empresa?.direccion    ?? '',
   })
-  const [errors, setErrors] = useState({})
-  const [saving, setSaving] = useState(false)
+  const [errors, setErrors]   = useState({})
+  const [saving, setSaving]   = useState(false)
 
   const set = (field) => (e) => setForm(f => ({ ...f, [field]: e.target.value }))
 
@@ -24,16 +24,18 @@ function ClienteModal({ cliente, onClose, onSave }) {
     return e
   }
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
+  const handleSubmit = async (ev) => {
+    ev.preventDefault()
     const errs = validate()
     if (Object.keys(errs).length) { setErrors(errs); return }
     setSaving(true)
     await onSave({
-      nombre:          form.nombre.trim(),
-      telefono:        form.telefono.trim() || null,
-      correo:          form.correo.trim()   || null,
-      id_nivel_precio: form.id_nivel_precio ? Number(form.id_nivel_precio) : null,
+      nombre:       form.nombre.trim(),
+      razon_social: form.razon_social.trim() || null,
+      rfc:          form.rfc.trim()          || null,
+      correo:       form.correo.trim()       || null,
+      telefono:     form.telefono.trim()     || null,
+      direccion:    form.direccion.trim()    || null,
     })
     setSaving(false)
   }
@@ -42,37 +44,55 @@ function ClienteModal({ cliente, onClose, onSave }) {
     <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <h2 className="modal-title">{cliente ? 'Editar cliente' : 'Nuevo cliente'}</h2>
+          <h2 className="modal-title">{empresa ? 'Editar empresa' : 'Nueva empresa'}</h2>
           <button className="btn-icon" onClick={onClose}>✕</button>
         </div>
         <form onSubmit={handleSubmit}>
           <div className="modal-body">
             <div className="form-group">
-              <label className="form-label required">Nombre</label>
+              <label className="form-label required">Nombre / Razon social</label>
               <input
                 className={`form-input${errors.nombre ? ' error' : ''}`}
                 value={form.nombre}
                 onChange={set('nombre')}
-                placeholder="Nombre del cliente"
+                placeholder="Nombre de la empresa"
                 autoFocus
               />
               {errors.nombre && <div className="form-error">{errors.nombre}</div>}
             </div>
+            <div className="form-group">
+              <label className="form-label">Razon social</label>
+              <input
+                className="form-input"
+                value={form.razon_social}
+                onChange={set('razon_social')}
+                placeholder="Razon social (si difiere del nombre)"
+              />
+            </div>
             <div className="form-row">
+              <div className="form-group">
+                <label className="form-label">RFC</label>
+                <input
+                  className="form-input"
+                  value={form.rfc}
+                  onChange={set('rfc')}
+                  placeholder="RFC de la empresa"
+                  style={{ textTransform: 'uppercase' }}
+                />
+              </div>
               <div className="form-group">
                 <label className="form-label">Telefono</label>
                 <input
                   className="form-input"
                   value={form.telefono}
-                  onChange={e => {
-                    const val = e.target.value.replace(/[a-zA-ZáéíóúÁÉÍÓÚñÑ]/g, '')
-                    setForm(f => ({ ...f, telefono: val }))
-                  }}
+                  onChange={e => setForm(f => ({ ...f, telefono: e.target.value.replace(/[a-zA-ZáéíóúÁÉÍÓÚñÑ]/g, '') }))}
                   placeholder="55 1234-5678"
                   inputMode="tel"
                   maxLength={10}
                 />
               </div>
+            </div>
+            <div className="form-row">
               <div className="form-group">
                 <label className="form-label">Correo</label>
                 <input
@@ -80,30 +100,25 @@ function ClienteModal({ cliente, onClose, onSave }) {
                   type="email"
                   value={form.correo}
                   onChange={set('correo')}
-                  placeholder="correo@ejemplo.com"
+                  placeholder="correo@empresa.com"
                 />
                 {errors.correo && <div className="form-error">{errors.correo}</div>}
               </div>
-            </div>
-            <div className="form-group">
-              <label className="form-label">Nivel de precio predeterminado</label>
-              <select
-                className="form-select"
-                value={form.id_nivel_precio}
-                onChange={set('id_nivel_precio')}
-              >
-                <option value="">-- Sin nivel predeterminado --</option>
-                {nivelesPrecio.map(n => (
-                  <option key={n.id_nivel_precio} value={n.id_nivel_precio}>{n.nombre}</option>
-                ))}
-              </select>
-              <div className="form-hint">Se aplicara automaticamente al crear una cotizacion para este cliente</div>
+              <div className="form-group">
+                <label className="form-label">Direccion</label>
+                <input
+                  className="form-input"
+                  value={form.direccion}
+                  onChange={set('direccion')}
+                  placeholder="Calle, colonia, ciudad"
+                />
+              </div>
             </div>
           </div>
           <div className="modal-footer">
             <button type="button" className="btn btn-outline" onClick={onClose}>Cancelar</button>
             <button type="submit" className="btn btn-primary" disabled={saving}>
-              {saving ? 'Guardando...' : cliente ? 'Guardar cambios' : 'Registrar cliente'}
+              {saving ? 'Guardando...' : empresa ? 'Guardar cambios' : 'Registrar empresa'}
             </button>
           </div>
         </form>
@@ -112,53 +127,7 @@ function ClienteModal({ cliente, onClose, onSave }) {
   )
 }
 
-// ── Modal vincular cliente a empresa ─────────────────────────────────────
-function VincularEmpresaModal({ cliente, onClose, onSave }) {
-  const { empresas } = useCotizacion()
-  const [empresaId, setEmpresaId] = useState('')
-  const [saving, setSaving] = useState(false)
-
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    if (!empresaId) return
-    setSaving(true)
-    await onSave(cliente.id_cliente, Number(empresaId))
-    setSaving(false)
-  }
-
-  return (
-    <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal" onClick={e => e.stopPropagation()}>
-        <div className="modal-header">
-          <h2 className="modal-title">Vincular empresa — {cliente.nombre}</h2>
-          <button className="btn-icon" onClick={onClose}>✕</button>
-        </div>
-        <form onSubmit={handleSubmit}>
-          <div className="modal-body">
-            <div className="form-group">
-              <label className="form-label required">Empresa</label>
-              <select className="form-select" value={empresaId} onChange={e => setEmpresaId(e.target.value)} autoFocus>
-                <option value="">-- Seleccionar empresa --</option>
-                {empresas.filter(e => e.activo).map(e => (
-                  <option key={e.id_empresa} value={e.id_empresa}>{e.nombre}</option>
-                ))}
-              </select>
-              <div className="form-hint">Sustituye cualquier vinculacion anterior</div>
-            </div>
-          </div>
-          <div className="modal-footer">
-            <button type="button" className="btn btn-outline" onClick={onClose}>Cancelar</button>
-            <button type="submit" className="btn btn-primary" disabled={saving || !empresaId}>
-              {saving ? 'Vinculando...' : 'Vincular'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  )
-}
-
-// ── Celda precio inline (reutilizable) ───────────────────────────────────
+// ── Celda de precio inline editable ──────────────────────────────────────
 function PrecioInline({ precioActual, onGuardar, saving }) {
   const [editing, setEditing] = useState(false)
   const [value,   setValue]   = useState('')
@@ -205,10 +174,10 @@ function PrecioInline({ precioActual, onGuardar, saving }) {
   )
 }
 
-// ── Modal precios cliente registrado ─────────────────────────────────────
-function PreciosClienteModal({ cliente, onClose }) {
-  const { tiposVidrio, procesos, getPreciosClienteRegistrado, guardarPrecioClienteRegistrado } = useCotizacion()
-  const [precios,  setPrecios]  = useState(null)
+// ── Modal Precios agrupados por tipo de vidrio ─────────────────────────────
+function PreciosModal({ titulo, precios: preciosIniciales, onGuardar, onClose }) {
+  const { tiposVidrio, procesos } = useCotizacion()
+  const [precios,  setPrecios]  = useState(preciosIniciales)
   const [saving,   setSaving]   = useState(null)
   const [toast,    setToast]    = useState(null)
   const [busqueda, setBusqueda] = useState('')
@@ -218,31 +187,23 @@ function PreciosClienteModal({ cliente, onClose }) {
     setTimeout(() => setToast(null), 2000)
   }
 
-  const cargar = async () => {
-    const data = await getPreciosClienteRegistrado(cliente.id_cliente)
-    setPrecios(data)
-  }
-
-  if (precios === null) { cargar(); return null }
-
   const getPrecio = (id_tipo_vidrio, id_proceso) =>
     precios.find(p => p.id_tipo_vidrio === id_tipo_vidrio && (p.id_proceso ?? null) === (id_proceso ?? null))?.precio_m2 ?? null
 
-  const handleGuardar = async (id_tipo_vidrio, id_proceso, precio_m2) => {
+  const handleGuardar = async (id_tipo_vidrio, id_proceso, num) => {
     const key = `${id_tipo_vidrio}-${id_proceso ?? 'v'}`
     setSaving(key)
-    const res = await guardarPrecioClienteRegistrado({ id_cliente: cliente.id_cliente, id_tipo_vidrio, id_proceso, precio_m2 })
+    const { error, data } = await onGuardar(id_tipo_vidrio, id_proceso, num)
     setSaving(null)
-    if (res.error) { showToast(res.error, 'error'); return res }
+    if (error) { showToast(error, 'error'); return }
     setPrecios(prev => {
-      const sig = prev.filter(p => !(p.id_tipo_vidrio === id_tipo_vidrio && (p.id_proceso ?? null) === (id_proceso ?? null)))
-      return [...sig, { id_tipo_vidrio, id_proceso: id_proceso ?? null, precio_m2 }]
+      const siguiente = prev.filter(p => !(p.id_tipo_vidrio === id_tipo_vidrio && (p.id_proceso ?? null) === (id_proceso ?? null)))
+      return [...siguiente, { id_tipo_vidrio, id_proceso: id_proceso ?? null, precio_m2: num }]
     })
     showToast('Guardado ✅')
-    return res
   }
 
-  const tiposActivos    = tiposVidrio.filter(t => t.activo)
+  const tiposActivos  = tiposVidrio.filter(t => t.activo)
   const procesosActivos = procesos.filter(p => p.activo)
 
   const tiposFiltrados = tiposActivos.filter(t =>
@@ -256,7 +217,7 @@ function PreciosClienteModal({ cliente, onClose }) {
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="modal" style={{ maxWidth: 680, width: '98vw' }} onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <h2 className="modal-title">Precios especiales — {cliente.nombre}</h2>
+          <h2 className="modal-title">{titulo}</h2>
           <button className="btn-icon" onClick={onClose}>✕</button>
         </div>
 
@@ -277,6 +238,7 @@ function PreciosClienteModal({ cliente, onClose }) {
               procesosActivos.some(p => getPrecio(tipo.id_tipo_vidrio, p.id_proceso) != null)
             return (
               <div key={tipo.id_tipo_vidrio} className="card" style={{ padding: '10px 14px' }}>
+                {/* Cabecera del tipo */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                   <span className="badge badge-blue">{tipo.clave}</span>
                   <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>
@@ -285,6 +247,7 @@ function PreciosClienteModal({ cliente, onClose }) {
                   {tieneAlgunPrecio && <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--accent)' }}>✓ configurado</span>}
                 </div>
 
+                {/* Fila: solo vidrio */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 0', borderBottom: procesosActivos.length ? '1px solid var(--border)' : 'none' }}>
                   <span style={{ fontSize: 13, fontWeight: 600 }}>Solo vidrio ($/m²)</span>
                   <PrecioInline
@@ -294,6 +257,7 @@ function PreciosClienteModal({ cliente, onClose }) {
                   />
                 </div>
 
+                {/* Filas: procesos */}
                 {procesosActivos.map((proc, idx) => (
                   <div
                     key={proc.id_proceso}
@@ -327,13 +291,38 @@ function PreciosClienteModal({ cliente, onClose }) {
   )
 }
 
-// ── Pagina Clientes ───────────────────────────────────────────────────────
-export default function Clientes() {
-  const { clientes, addCliente, editCliente, vincularClienteEmpresa } = useCotizacion()
-  const [modal, setModal]   = useState(null)
-  const [toast, setToast]   = useState(null)
+// ── Wrapper para empresa ──────────────────────────────────────────────────
+function PreciosEmpresaModal({ empresa, onClose }) {
+  const { getPreciosEmpresa, guardarPrecioEmpresa } = useCotizacion()
+  const [precios, setPrecios] = useState(null)
+
+  const cargar = async () => {
+    const data = await getPreciosEmpresa(empresa.id_empresa)
+    setPrecios(data)
+  }
+
+  if (precios === null) { cargar(); return null }
+
+  const handleGuardar = async (id_tipo_vidrio, id_proceso, precio_m2) => {
+    return guardarPrecioEmpresa({ id_empresa: empresa.id_empresa, id_tipo_vidrio, id_proceso, precio_m2 })
+  }
+
+  return (
+    <PreciosModal
+      titulo={`Precios — ${empresa.nombre}`}
+      precios={precios}
+      onGuardar={handleGuardar}
+      onClose={onClose}
+    />
+  )
+}
+
+// ── Pagina Empresas ───────────────────────────────────────────────────────
+export default function Empresas() {
+  const { empresas, addEmpresa, editEmpresa } = useCotizacion()
+  const [modal,  setModal]  = useState(null)
+  const [toast,  setToast]  = useState(null)
   const [search, setSearch] = useState('')
-  const [filtroActivo, setFiltroActivo] = useState('todos') // 'todos' | 'activos' | 'inactivos'
 
   const showToast = (msg, type = 'success') => {
     setToast({ msg, type })
@@ -342,42 +331,34 @@ export default function Clientes() {
 
   const handleSave = async (form) => {
     const { error } = modal.type === 'create'
-      ? await addCliente(form)
-      : await editCliente(modal.data.id_cliente, form)
+      ? await addEmpresa(form)
+      : await editEmpresa(modal.data.id_empresa, form)
     if (error) { showToast(error, 'error'); return }
-    showToast(modal.type === 'create' ? 'Cliente registrado ✅' : 'Cliente actualizado ✅')
+    showToast(modal.type === 'create' ? 'Empresa registrada ✅' : 'Empresa actualizada ✅')
     setModal(null)
   }
 
-  const handleVincularEmpresa = async (id_cliente, id_empresa) => {
-    const { error } = await vincularClienteEmpresa(id_cliente, id_empresa)
+  const handleToggleActivo = async (emp) => {
+    const { error } = await editEmpresa(emp.id_empresa, { activo: !emp.activo })
     if (error) showToast(error, 'error')
-    else { showToast('Cliente vinculado a empresa ✅'); setModal(null) }
+    else showToast(emp.activo ? 'Empresa desactivada' : 'Empresa activada ✅')
   }
 
-  const handleToggleActivo = async (cliente) => {
-    const { error } = await editCliente(cliente.id_cliente, { activo: !cliente.activo })
-    if (error) showToast(error, 'error')
-    else showToast(cliente.activo ? 'Cliente desactivado' : 'Cliente activado ✅')
-  }
-
-  const filtered = clientes
-    .filter(c => filtroActivo === 'todos' || (filtroActivo === 'activos' ? c.activo : !c.activo))
-    .filter(c =>
-      c.nombre.toLowerCase().includes(search.toLowerCase()) ||
-      (c.telefono || '').includes(search) ||
-      (c.correo || '').toLowerCase().includes(search.toLowerCase())
-    )
+  const filtered = empresas.filter(em =>
+    em.nombre.toLowerCase().includes(search.toLowerCase()) ||
+    (em.rfc || '').toLowerCase().includes(search.toLowerCase()) ||
+    (em.razon_social || '').toLowerCase().includes(search.toLowerCase())
+  )
 
   return (
     <>
       <div className="page-header">
         <div>
-          <div className="page-title">Clientes</div>
-          <div className="page-subtitle">{clientes.length} cliente{clientes.length !== 1 ? 's' : ''} registrado{clientes.length !== 1 ? 's' : ''}</div>
+          <div className="page-title">Empresas</div>
+          <div className="page-subtitle">{empresas.length} empresa{empresas.length !== 1 ? 's' : ''} registrada{empresas.length !== 1 ? 's' : ''}</div>
         </div>
         <button className="btn btn-primary" onClick={() => setModal({ type: 'create' })}>
-          + Nuevo cliente
+          + Nueva empresa
         </button>
       </div>
 
@@ -389,66 +370,50 @@ export default function Clientes() {
             <span className="search-icon">🔍</span>
             <input
               className="search-input"
-              placeholder="Buscar por nombre, telefono o correo..."
+              placeholder="Buscar por nombre, RFC o contacto..."
               value={search}
               onChange={e => setSearch(e.target.value)}
             />
           </div>
-          <select
-            className="filter-select"
-            value={filtroActivo}
-            onChange={e => setFiltroActivo(e.target.value)}
-          >
-            <option value="todos">Todos</option>
-            <option value="activos">Activos</option>
-            <option value="inactivos">Inactivos</option>
-          </select>
         </div>
 
         {filtered.length === 0 ? (
           <div className="empty-state">
-            <div className="empty-state-icon">👥</div>
-            <h3>{search ? 'Sin resultados' : 'Sin clientes registrados'}</h3>
-            <p>{search ? 'Intenta con otro termino' : 'Haz clic en "+ Nuevo cliente" para comenzar'}</p>
+            <div className="empty-state-icon">🏢</div>
+            <h3>{search ? 'Sin resultados' : 'Sin empresas registradas'}</h3>
+            <p>{search ? 'Intenta con otro termino' : 'Haz clic en "+ Nueva empresa" para comenzar'}</p>
           </div>
         ) : (
           <div className="table-container">
             <table className="table table-mobile-cards">
               <thead>
                 <tr>
-                  <th>Nombre</th>
+                  <th>Nombre / Razon social</th>
+                  <th>RFC</th>
                   <th>Telefono</th>
                   <th>Correo</th>
-                  <th>Nivel precio</th>
                   <th>Estado</th>
-                  <th style={{ width: 90 }}>Acciones</th>
+                  <th style={{ width: 110 }}>Acciones</th>
                 </tr>
               </thead>
               <tbody>
-                {filtered.map(c => (
-                  <tr key={c.id_cliente}>
-                    <td data-label="Nombre" style={{ fontWeight: 500 }}>{c.nombre}</td>
-                    <td data-label="Telefono">{c.telefono || '—'}</td>
-                    <td data-label="Correo" style={{ fontSize: 15 }}>{c.correo || '—'}</td>
-                    <td data-label="Nivel precio">
-                      {c.nivel_precio ? (
-                        <span className="badge badge-blue">{c.nivel_precio.nombre}</span>
-                      ) : (
-                        <span style={{ color: 'var(--text-muted)', fontSize: 14 }}>—</span>
-                      )}
-                    </td>
+                {filtered.map(em => (
+                  <tr key={em.id_empresa}>
+                    <td data-label="Nombre" style={{ fontWeight: 500 }}>{em.nombre}</td>
+                    <td data-label="RFC" style={{ fontSize: 14 }}>{em.rfc || '—'}</td>
+                    <td data-label="Telefono">{em.telefono || '—'}</td>
+                    <td data-label="Correo" style={{ fontSize: 14 }}>{em.correo || '—'}</td>
                     <td data-label="Estado">
-                      <span className={`badge ${c.activo ? 'badge-green' : 'badge-gray'}`}>
-                        {c.activo ? 'Activo' : 'Inactivo'}
+                      <span className={`badge ${em.activo ? 'badge-green' : 'badge-gray'}`}>
+                        {em.activo ? 'Activa' : 'Inactiva'}
                       </span>
                     </td>
                     <td data-label="">
                       <div style={{ display: 'flex', gap: 2 }}>
-                        <button className="btn-icon" title="Editar" onClick={() => setModal({ type: 'edit', data: c })}>✏️</button>
-                        <button className="btn-icon" title="Precios especiales" onClick={() => setModal({ type: 'precios', data: c })}>💲</button>
-                        <button className="btn-icon" title="Vincular empresa" onClick={() => setModal({ type: 'vincular', data: c })}>🏢</button>
-                        <button className="btn-icon" title={c.activo ? 'Desactivar' : 'Activar'} onClick={() => handleToggleActivo(c)}>
-                          {c.activo ? '🔕' : '✅'}
+                        <button className="btn-icon" title="Editar" onClick={() => setModal({ type: 'edit', data: em })}>✏️</button>
+                        <button className="btn-icon" title="Precios especiales" onClick={() => setModal({ type: 'precios', data: em })}>💲</button>
+                        <button className="btn-icon" title={em.activo ? 'Desactivar' : 'Activar'} onClick={() => handleToggleActivo(em)}>
+                          {em.activo ? '🔕' : '✅'}
                         </button>
                       </div>
                     </td>
@@ -461,24 +426,16 @@ export default function Clientes() {
       </div>
 
       {(modal?.type === 'create' || modal?.type === 'edit') && (
-        <ClienteModal
-          cliente={modal.type === 'edit' ? modal.data : null}
+        <EmpresaModal
+          empresa={modal.type === 'edit' ? modal.data : null}
           onClose={() => setModal(null)}
           onSave={handleSave}
         />
       )}
 
-      {modal?.type === 'vincular' && (
-        <VincularEmpresaModal
-          cliente={modal.data}
-          onClose={() => setModal(null)}
-          onSave={handleVincularEmpresa}
-        />
-      )}
-
       {modal?.type === 'precios' && (
-        <PreciosClienteModal
-          cliente={modal.data}
+        <PreciosEmpresaModal
+          empresa={modal.data}
           onClose={() => setModal(null)}
         />
       )}

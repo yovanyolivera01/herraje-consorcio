@@ -250,7 +250,7 @@ export default function VentaDirecta() {
     setTipoPago('LIQUIDADO')
     setAnticipoStr('')
     setSaveError(null)
-    window.scrollTo({ top: 0, behavior: 'instant' })
+    window.scrollTo(0, 0)
   }
 
   // ── Pantalla de ticket ────────────────────────────────────────────────────

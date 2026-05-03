@@ -191,10 +191,10 @@ export const getProcesos = async () => {
   return data ?? []
 }
 
-export const createProceso = async ({ nombre, id_unidad_cobro, precio_unitario = 0 }) => {
+export const createProceso = async ({ nombre, id_unidad_cobro, precio_unitario = 0, tipo = 'PROCESO', diametro_mm = null }) => {
   const { data, error } = await supabase
     .from('proceso')
-    .insert({ nombre, id_unidad_cobro, precio_unitario: Number(precio_unitario) })
+    .insert({ nombre, id_unidad_cobro, precio_unitario: Number(precio_unitario), tipo, diametro_mm: diametro_mm ?? null })
     .select('*, unidad_cobro(id_unidad_cobro, nombre, descripcion)')
     .single()
   if (error) throw error
@@ -233,6 +233,31 @@ export const guardarPreciosProceso = async (id_proceso, precios) => {
   const { data, error } = await supabase
     .from('precio_proceso')
     .upsert(rows, { onConflict: 'id_proceso,id_nivel_precio,id_espesor' })
+    .select()
+  if (error) throw error
+  return data ?? []
+}
+
+// ── Precios especiales (Barrenos / Saque) ─────────────────────────────────
+
+export const getPreciosProcesoEspecial = async () => {
+  const { data, error } = await supabase
+    .from('precio_proceso_especial')
+    .select('*')
+  if (error) throw error
+  return data ?? []
+}
+
+export const guardarPreciosProcesoEspecial = async (id_proceso, precios) => {
+  if (!precios.length) return []
+  const rows = precios.map(p => ({
+    id_proceso,
+    id_nivel_precio: p.id_nivel_precio,
+    precio_unitario: Number(p.precio_unitario),
+  }))
+  const { data, error } = await supabase
+    .from('precio_proceso_especial')
+    .upsert(rows, { onConflict: 'id_proceso,id_nivel_precio' })
     .select()
   if (error) throw error
   return data ?? []

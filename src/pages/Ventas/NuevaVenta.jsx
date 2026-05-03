@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useApp } from '../../context/AppContext'
 import { printTicket } from '../../utils/ticket'
 import {
+  isWebSerialSupported,
   isPrinterConnected,
   connectPrinter,
   disconnectPrinter,
@@ -249,11 +250,12 @@ export default function NuevaVenta() {
   const nuevaVenta = () => {
     setVentaCreada(null)
     setPartidas([])
-    window.scrollTo({ top: 0, behavior: 'instant' })
+    window.scrollTo(0, 0)
   }
 
   // ── Pantalla de ticket confirmado ────────────────────────────────────────
   if (ventaCreada) {
+    const webSerialDisponible = isWebSerialSupported()
     return (
       <>
         <div className="page-header">
@@ -261,46 +263,39 @@ export default function NuevaVenta() {
             <div className="page-title">Venta registrada</div>
             <div className="page-subtitle">Folio {ventaCreada.folio} — {ventaCreada.fecha} {ventaCreada.hora}</div>
           </div>
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
 
-            {/* ── Impresora Térmica ── */}
-            <button
-              className={`btn ${printerConnected ? 'btn-outline' : 'btn-outline'}`}
-              onClick={handleConnectPrinter}
-              disabled={printerBusy}
-              title={printerConnected ? 'Haz clic para desconectar' : 'Conectar impresora de calor'}
-              style={{ borderColor: printerConnected ? '#22c55e' : undefined, color: printerConnected ? '#16a34a' : undefined }}
-            >
-              {printerBusy ? '⏳' : printerConnected ? '🟢 Impresora conectada' : '🔌 Conectar impresora'}
-            </button>
-
-            {printerConnected && (
+            {/* Impresora térmica solo en escritorio con Web Serial */}
+            {webSerialDisponible && (
               <>
-                <select
-                  value={paperCols}
-                  onChange={e => setPaperCols(Number(e.target.value))}
-                  style={{ padding: '6px 10px', borderRadius: 6, border: '1.5px solid var(--border)', fontSize: 13 }}
-                  title="Ancho del papel"
-                >
-                  <option value={42}>Papel 80 mm</option>
-                  <option value={32}>Papel 58 mm</option>
-                </select>
                 <button
-                  className="btn btn-accent"
-                  onClick={handlePrintThermal}
+                  className="btn btn-outline"
+                  onClick={handleConnectPrinter}
                   disabled={printerBusy}
+                  style={{ borderColor: printerConnected ? '#22c55e' : undefined, color: printerConnected ? '#16a34a' : undefined }}
                 >
-                  🖨️ Imprimir térmica
+                  {printerBusy ? '⏳' : printerConnected ? '🟢 Conectada' : '🔌 Impresora'}
                 </button>
+                {printerConnected && (
+                  <>
+                    <select
+                      value={paperCols}
+                      onChange={e => setPaperCols(Number(e.target.value))}
+                      style={{ padding: '6px 10px', borderRadius: 6, border: '1.5px solid var(--border)', fontSize: 13 }}
+                    >
+                      <option value={42}>80 mm</option>
+                      <option value={32}>58 mm</option>
+                    </select>
+                    <button className="btn btn-accent" onClick={handlePrintThermal} disabled={printerBusy}>
+                      🖨️ Térmica
+                    </button>
+                  </>
+                )}
               </>
             )}
 
-            {/* ── Impresión normal ── */}
             <button className="btn btn-outline" onClick={() => printTicket(ventaCreada, '80mm')}>
-              🖨️ Ticket 80 mm
-            </button>
-            <button className="btn btn-outline" onClick={() => printTicket(ventaCreada, 'carta')}>
-              🖨️ Hoja carta
+              🖨️ Imprimir
             </button>
             <button className="btn btn-primary" onClick={nuevaVenta}>
               + Nueva venta
@@ -308,9 +303,7 @@ export default function NuevaVenta() {
           </div>
         </div>
         <div className="page-body">
-          {printerError && (
-            <div className="alert alert-error">⚠️ {printerError}</div>
-          )}
+          {printerError && <div className="alert alert-error">⚠️ {printerError}</div>}
           <div className="alert alert-success">
             ✅ Venta registrada correctamente. Las existencias han sido actualizadas.
           </div>
