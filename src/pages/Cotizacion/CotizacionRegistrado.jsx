@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useCotizacion } from '../../context/CotizacionContext'
 import { convertirCotizacionAPedido, getDetallePedido } from '../../lib/pedidosApi'
-import { printCotizacionCarta } from '../../utils/ticket'
+import { printCotizacionCarta, printTicketVidrio } from '../../utils/ticket'
 import { exportCotizacionPDF } from '../../utils/pdf'
 
 // ── Parser notacion ───────────────────────────────────────────────────────
@@ -386,6 +386,29 @@ export default function CotizacionRegistrado() {
     }
   }
 
+  const imprimirTicket = () => {
+    if (!cotCreada) return
+    printTicketVidrio({
+      tipo:          'cotizacion',
+      folio:         cotCreada.folio,
+      fecha:         new Date().toLocaleDateString('es-MX'),
+      hora:          new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }),
+      clienteNombre: cotCreada.clienteNombre,
+      clienteTel:    cotCreada.clienteTel,
+      nivelNombre:   cotCreada.nivelNombre,
+      total:         cotCreada.total,
+      partidas:      cotCreada.partidas.map(p => ({
+        piezas:           p.piezas,
+        clave:            p.tipoClaveLabel,
+        largo_cm:         p.largo_cm,
+        ancho_cm:         p.ancho_cm,
+        subtotal_vidrio:  p.subtotal_vidrio,
+        procesos:         p.procesos,
+        subtotal_partida: p.subtotal_partida,
+      })),
+    })
+  }
+
   const imprimirCotizacion = () => {
     if (!cotCreada) return
     printCotizacionCarta({
@@ -452,6 +475,9 @@ export default function CotizacionRegistrado() {
           <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
             <button className="btn btn-outline" style={{ flex: 1 }} onClick={nueva}>
               Nueva cotizacion
+            </button>
+            <button className="btn btn-outline" style={{ flex: 1 }} onClick={imprimirTicket}>
+              🎫 Ticket
             </button>
             <button className="btn btn-outline" style={{ flex: 1 }} onClick={imprimirCotizacion}>
               🖨️ Imprimir

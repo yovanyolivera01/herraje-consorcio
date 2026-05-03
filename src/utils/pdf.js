@@ -7,29 +7,19 @@ function buildCotizacionHTML(detalle) {
   const pie       = detalle.tipo === 'pedido' ? '¡Gracias por su compra!' : 'Cotización con vigencia de 15 días a partir de la fecha de emisión.'
 
   const filas = detalle.partidas.map((p, idx) => {
-    const pzas    = p.piezas ?? 1
-    const m2      = (pzas * p.largo_cm * p.ancho_cm / 10000).toFixed(4)
-    const procRows = (p.procesos ?? []).map(pr => `
-      <tr>
-        <td></td>
-        <td colspan="3" style="padding-left:18px;color:#555;font-size:11px">+ ${pr.nombre}</td>
-        <td style="text-align:right;color:#555;font-size:11px">$${Number(pr.subtotal).toFixed(2)}</td>
-      </tr>`).join('')
-    const subRow = (p.procesos?.length > 0) ? `
-      <tr style="font-weight:700;background:#f5f5f5">
-        <td></td>
-        <td colspan="3" style="padding-left:18px;font-size:11px">Subtotal partida</td>
-        <td style="text-align:right;font-size:11px">$${Number(p.subtotal_partida).toFixed(2)}</td>
-      </tr>` : ''
+    const pzas     = p.piezas ?? 1
+    const m2       = (pzas * p.largo_cm * p.ancho_cm / 10000).toFixed(4)
+    const procesos = (p.procesos ?? []).map(pr => pr.nombre).join(', ') || '—'
+    const precioPza = (Number(p.subtotal_partida) / pzas).toFixed(2)
     return `
       <tr style="background:${idx % 2 === 0 ? '#fff' : '#fafafa'}">
-        <td style="color:#888;font-size:11px">${idx + 1}</td>
+        <td style="font-weight:700;text-align:center">${pzas}</td>
         <td style="font-weight:700;color:#1a3a6b">${p.clave}</td>
-        <td>${pzas} pza${pzas > 1 ? 's' : ''} · ${p.largo_cm}×${p.ancho_cm} cm</td>
+        <td style="color:#555;font-size:11px">${procesos}</td>
         <td style="color:#555;font-size:11px;text-align:center">${m2} m²</td>
+        <td style="text-align:right;font-size:11px">$${precioPza}</td>
         <td style="text-align:right;font-weight:600">$${Number(p.subtotal_partida).toFixed(2)}</td>
-      </tr>
-      ${procRows}${subRow}`
+      </tr>`
   }).join('')
 
   const emp = detalle.empresa
@@ -109,7 +99,7 @@ function buildCotizacionHTML(detalle) {
   </div>
   ${destinatario}
   <table>
-    <thead><tr><th>#</th><th>Tipo</th><th>Descripción</th><th style="text-align:center">m²</th><th style="text-align:right">Subtotal</th></tr></thead>
+    <thead><tr><th style="text-align:center">Pzas</th><th>Tipo de vidrio</th><th>Procesos</th><th style="text-align:center">m²</th><th style="text-align:right">Precio/pza</th><th style="text-align:right">Total</th></tr></thead>
     <tbody>${filas}</tbody>
   </table>
   <div class="total-box">

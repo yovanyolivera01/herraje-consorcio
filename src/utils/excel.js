@@ -43,8 +43,8 @@ export function exportCotizacionExcel(detalle) {
   const merges = []
   const merge  = (rs, re, cs, ce) => merges.push({ s: { r: rs, c: cs }, e: { r: re, c: ce } })
 
-  // ── 5 columnas: A(0) B(1) C(2) D(3) E(4) ─────────────────────────────────
-  const COLS = 5
+  // ── 6 columnas: A(0) B(1) C(2) D(3) E(4) F(5) ────────────────────────────
+  const COLS = 6
 
   let row = 0
 
@@ -123,7 +123,7 @@ export function exportCotizacionExcel(detalle) {
     border: { left: { style: 'thin', color: { rgb: 'DDDDDD' } }, right: { style: 'thin', color: { rgb: 'DDDDDD' } } },
   })
 
-  merge(row, row + 1, 3, 4)
+  merge(row, row + 1, 3, 5)
   set(row, 3, 'Brüken', {
     font: { name: 'Calibri', sz: 14, bold: true, color: { rgb: blanco } },
     fill: { patternType: 'solid', fgColor: { rgb: azulOsc } },
@@ -136,7 +136,10 @@ export function exportCotizacionExcel(detalle) {
     alignment: { horizontal: 'center', vertical: 'center' },
     border: {},
   })
-  for (let r2 = row; r2 <= row + 1; r2++) set(r2, 4, '', { fill: { patternType: 'solid', fgColor: { rgb: azulOsc } }, border: {} })
+  for (let r2 = row; r2 <= row + 1; r2++) {
+    set(r2, 4, '', { fill: { patternType: 'solid', fgColor: { rgb: azulOsc } }, border: {} })
+    set(r2, 5, '', { fill: { patternType: 'solid', fgColor: { rgb: azulOsc } }, border: {} })
+  }
   row += 2
 
   // ── Fila 6: espacio ────────────────────────────────────────────────────────
@@ -229,7 +232,7 @@ export function exportCotizacionExcel(detalle) {
   row++
 
   // ── Encabezado tabla ───────────────────────────────────────────────────────
-  const headers = ['#', 'Tipo de vidrio', 'Descripción', 'm²', 'Subtotal']
+  const headers = ['Pzas', 'Tipo de vidrio', 'Procesos', 'm²', 'Precio/pza', 'Total']
   headers.forEach((h, c) => {
     set(row, c, h, {
       font: { name: 'Calibri', sz: 11, bold: true, color: { rgb: blanco } },
@@ -242,44 +245,32 @@ export function exportCotizacionExcel(detalle) {
 
   // ── Filas de datos ─────────────────────────────────────────────────────────
   detalle.partidas.forEach((p, idx) => {
-    const pzas  = p.piezas ?? 1
-    const m2    = (pzas * p.largo_cm * p.ancho_cm / 10000)
-    const bgRow = idx % 2 === 0 ? 'FFFFFF' : gris
+    const pzas     = p.piezas ?? 1
+    const m2       = (pzas * p.largo_cm * p.ancho_cm / 10000)
+    const procesos = (p.procesos ?? []).map(pr => pr.nombre).join(', ') || '—'
+    const precioPza = Number(p.subtotal_partida) / pzas
+    const bgRow    = idx % 2 === 0 ? 'FFFFFF' : gris
 
-    set(row, 0, idx + 1,   estBorde(negro, bgRow, false, true))
-    set(row, 1, p.clave,   estBorde(azulOsc, bgRow, true, false))
-    set(row, 2, `${pzas} pza${pzas > 1 ? 's' : ''} · ${p.largo_cm}×${p.ancho_cm} cm`, estBorde(negro, bgRow))
-    ws[C(row, 3)] = { v: m2, t: 'n', z: '0.0000', s: estBorde(negro, bgRow, false, true) }
-    ws[C(row, 4)] = { v: p.subtotal_partida, t: 'n', z: '"$"#,##0.00', s: estBorde(negro, bgRow, true, true) }
+    set(row, 0, pzas,     estBorde(negro, bgRow, true, true))
+    set(row, 1, p.clave,  estBorde(azulOsc, bgRow, true, false))
+    set(row, 2, procesos, estBorde(negro, bgRow))
+    ws[C(row, 3)] = { v: m2,        t: 'n', z: '0.0000',      s: estBorde(negro, bgRow, false, true) }
+    ws[C(row, 4)] = { v: precioPza, t: 'n', z: '"$"#,##0.00', s: estBorde(negro, bgRow, false, true) }
+    ws[C(row, 5)] = { v: p.subtotal_partida, t: 'n', z: '"$"#,##0.00', s: estBorde(negro, bgRow, true, true) }
     row++
-
-    // procesos
-    ;(p.procesos ?? []).forEach(pr => {
-      merge(row, row, 1, 3)
-      set(row, 0, '', estBorde(negro, bgRow))
-      set(row, 1, `   + ${pr.nombre}`, {
-        font: { name: 'Calibri', sz: 10, italic: true, color: { rgb: '555555' } },
-        fill: { patternType: 'solid', fgColor: { rgb: bgRow } },
-        alignment: { horizontal: 'left', vertical: 'center' },
-        border: { top: { style: 'thin', color: { rgb: 'DDDDDD' } }, bottom: { style: 'thin', color: { rgb: 'DDDDDD' } } },
-      })
-      for (let c = 2; c <= 3; c++) set(row, c, '', { fill: { patternType: 'solid', fgColor: { rgb: bgRow } }, border: {} })
-      ws[C(row, 4)] = { v: pr.subtotal, t: 'n', z: '"$"#,##0.00', s: estBorde('555555', bgRow, false, true, 10) }
-      row++
-    })
   })
 
   // ── Total ──────────────────────────────────────────────────────────────────
   row++
-  merge(row, row, 0, 3)
+  merge(row, row, 0, 4)
   set(row, 0, 'TOTAL', {
     font: { name: 'Calibri', sz: 14, bold: true, color: { rgb: blanco } },
     fill: { patternType: 'solid', fgColor: { rgb: azulOsc } },
     alignment: { horizontal: 'right', vertical: 'center' },
     border: {},
   })
-  for (let c = 1; c <= 3; c++) set(row, c, '', { fill: { patternType: 'solid', fgColor: { rgb: azulOsc } }, border: {} })
-  ws[C(row, 4)] = {
+  for (let c = 1; c <= 4; c++) set(row, c, '', { fill: { patternType: 'solid', fgColor: { rgb: azulOsc } }, border: {} })
+  ws[C(row, 5)] = {
     v: detalle.total, t: 'n', z: '"$"#,##0.00',
     s: {
       font: { name: 'Calibri', sz: 14, bold: true, color: { rgb: blanco } },
@@ -312,11 +303,12 @@ export function exportCotizacionExcel(detalle) {
   ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: row, c: COLS - 1 } })
   ws['!merges'] = merges
   ws['!cols'] = [
-    { wch: 5 },   // #
-    { wch: 16 },  // Tipo
-    { wch: 28 },  // Descripción
+    { wch: 6 },   // Pzas
+    { wch: 16 },  // Tipo de vidrio
+    { wch: 28 },  // Procesos
     { wch: 10 },  // m²
-    { wch: 14 },  // Subtotal
+    { wch: 13 },  // Precio/pza
+    { wch: 13 },  // Total
   ]
   ws['!rows'] = [
     { hpt: 42 }, // TEMPLADOS
