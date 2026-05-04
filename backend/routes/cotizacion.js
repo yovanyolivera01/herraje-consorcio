@@ -380,12 +380,13 @@ router.post('/cotizaciones/:id/partidas', async (req, res) => {
     const partida = req.body
     const { rows: pRows } = await client.query(`
       INSERT INTO partida_cotizacion
-        (id_cotizacion, id_tipo_vidrio, largo_cm, ancho_cm, metros2, precio_m2_aplicado,
+        (id_cotizacion, id_tipo_vidrio, piezas, largo_cm, ancho_cm, metros2, precio_m2_aplicado,
          subtotal_vidrio, subtotal_procesos, subtotal_partida, es_hoja_completa)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *
     `, [
       req.params.id,
       partida.id_tipo_vidrio,
+      partida.piezas ?? 1,
       partida.largo_cm,
       partida.ancho_cm,
       partida.metros2,
@@ -414,6 +415,34 @@ router.post('/cotizaciones/:id/partidas', async (req, res) => {
   } finally {
     client.release()
   }
+})
+
+// ── Precios de proceso especial (sin diferenciar espesor) ─────────────────
+
+router.get('/precios-proceso-especial', async (req, res) => {
+  try {
+    const { rows } = await query('SELECT * FROM precio_proceso_especial')
+    ok(res, rows)
+  } catch (e) { err(res, e) }
+})
+
+router.post('/precios-proceso-especial', async (req, res) => {
+  try {
+    const { id_proceso, precios } = req.body
+    if (!precios?.length) return ok(res, [])
+    const results = []
+    for (const p of precios) {
+      const { rows } = await query(`
+        INSERT INTO precio_proceso_especial (id_proceso, id_nivel_precio, precio_unitario)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (id_proceso, id_nivel_precio)
+        DO UPDATE SET precio_unitario = EXCLUDED.precio_unitario
+        RETURNING *
+      `, [id_proceso, p.id_nivel_precio, Number(p.precio_unitario)])
+      results.push(rows[0])
+    }
+    ok(res, results)
+  } catch (e) { err(res, e) }
 })
 
 module.exports = router

@@ -79,6 +79,15 @@ export const guardarPreciosProceso = async (id_proceso, precios) => {
   return http.post('/api/precios-proceso', { id_proceso, precios })
 }
 
+// ── Precios de proceso especial (sin espesor) ─────────────────────────────
+
+export const getPreciosProcesoEspecial = () => http.get('/api/precios-proceso-especial')
+
+export const guardarPreciosProcesoEspecial = async (id_proceso, precios) => {
+  if (!precios.length) return []
+  return http.post('/api/precios-proceso-especial', { id_proceso, precios })
+}
+
 // ── Unidades de cobro ─────────────────────────────────────────────────────
 
 export const getUnidadesCobro = () => http.get('/api/unidades-cobro')

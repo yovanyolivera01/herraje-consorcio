@@ -1,28 +1,29 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
-import * as api from '../lib/cotizacionApi'
-import { supabaseConfigured } from '../lib/supabase'
+import * as api    from '../lib/cotizacionApi'
+import * as empApi from '../lib/empresasApi'
 
 const CotizacionContext = createContext()
 
-// ── Provider ──────────────────────────────────────────────────────────────
 export function CotizacionProvider({ children }) {
-  const [tonos,          setTonos]          = useState([])
-  const [espesores,      setEspesores]      = useState([])
-  const [tiposVidrio,    setTiposVidrio]    = useState([])
-  const [nivelesPrecio,  setNivelesPrecio]  = useState([])
-  const [precios,        setPrecios]        = useState([])
-  const [clientes,       setClientes]       = useState([])
-  const [procesos,       setProcesos]       = useState([])
-  const [preciosProceso, setPreciosProceso] = useState([])
-  const [unidades,       setUnidades]       = useState([])
-  const [loading,        setLoading]        = useState(true)
-  const [error,          setError]          = useState(null)
+  const [tonos,                   setTonos]                   = useState([])
+  const [espesores,               setEspesores]               = useState([])
+  const [tiposVidrio,             setTiposVidrio]             = useState([])
+  const [nivelesPrecio,           setNivelesPrecio]           = useState([])
+  const [precios,                 setPrecios]                 = useState([])
+  const [clientes,                setClientes]                = useState([])
+  const [procesos,                setProcesos]                = useState([])
+  const [preciosProceso,          setPreciosProceso]          = useState([])
+  const [preciosProcesoEspecial,  setPreciosProcesoEspecial]  = useState([])
+  const [unidades,                setUnidades]                = useState([])
+  const [empresas,                setEmpresas]                = useState([])
+  const [loading,                 setLoading]                 = useState(true)
+  const [error,                   setError]                   = useState(null)
 
   const loadAll = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      const [t, e, tv, np, pv, cl, pr, un, pp] = await Promise.all([
+      const [t, e, tv, np, pv, cl, pr, un, pp, ppe, em] = await Promise.all([
         api.getTonos(),
         api.getEspesores(),
         api.getTiposVidrio(),
@@ -32,16 +33,12 @@ export function CotizacionProvider({ children }) {
         api.getProcesos(),
         api.getUnidadesCobro(),
         api.getPreciosProceso(),
+        api.getPreciosProcesoEspecial(),
+        empApi.getEmpresas(),
       ])
-      setTonos(t)
-      setEspesores(e)
-      setTiposVidrio(tv)
-      setNivelesPrecio(np)
-      setPrecios(pv)
-      setClientes(cl)
-      setProcesos(pr)
-      setUnidades(un)
-      setPreciosProceso(pp)
+      setTonos(t); setEspesores(e); setTiposVidrio(tv); setNivelesPrecio(np)
+      setPrecios(pv); setClientes(cl); setProcesos(pr); setUnidades(un)
+      setPreciosProceso(pp); setPreciosProcesoEspecial(ppe); setEmpresas(em)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -49,13 +46,11 @@ export function CotizacionProvider({ children }) {
     }
   }, [])
 
-  useEffect(() => { if (supabaseConfigured) loadAll() }, [loadAll])
+  useEffect(() => { loadAll() }, [loadAll])
 
-  // ── Helpers ──────────────────────────────────────────────────────────────
   const wrap = (fn) => async (...args) => {
     try {
-      const result = await fn(...args)
-      return { data: result }
+      return { data: await fn(...args) }
     } catch (err) {
       const msg = err.message || 'Error desconocido'
       if (msg.includes('violates foreign key') || msg.includes('RESTRICT'))
@@ -66,130 +61,78 @@ export function CotizacionProvider({ children }) {
     }
   }
 
-  // ── Tonos ─────────────────────────────────────────────────────────────────
-  const addTono = async (data) => {
-    const res = await wrap(api.createTono)(data)
-    if (!res.error) setTonos(await api.getTonos())
-    return res
-  }
-  const editTono = async (id, data) => {
-    const res = await wrap(api.updateTono)(id, data)
-    if (!res.error) setTonos(await api.getTonos())
-    return res
-  }
+  const addTono        = async (d)    => { const r = await wrap(api.createTono)(d);          if (!r.error) setTonos(await api.getTonos()); return r }
+  const editTono       = async (id,d) => { const r = await wrap(api.updateTono)(id,d);       if (!r.error) setTonos(await api.getTonos()); return r }
+  const addEspesor     = async (d)    => { const r = await wrap(api.createEspesor)(d);       if (!r.error) setEspesores(await api.getEspesores()); return r }
+  const editEspesor    = async (id,d) => { const r = await wrap(api.updateEspesor)(id,d);    if (!r.error) setEspesores(await api.getEspesores()); return r }
+  const addTipoVidrio  = async (d)    => { const r = await wrap(api.createTipoVidrio)(d);    if (!r.error) setTiposVidrio(await api.getTiposVidrio()); return r }
+  const editTipoVidrio = async (id,d) => { const r = await wrap(api.updateTipoVidrio)(id,d); if (!r.error) setTiposVidrio(await api.getTiposVidrio()); return r }
+  const guardarPrecio  = async (d)    => { const r = await wrap(api.guardarPrecio)(d);       if (!r.error) setPrecios(await api.getPreciosVidrio()); return r }
+  const addCliente     = async (d)    => { const r = await wrap(api.createCliente)(d);       if (!r.error) setClientes(await api.getClientes()); return r }
+  const editCliente    = async (id,d) => { const r = await wrap(api.updateCliente)(id,d);    if (!r.error) setClientes(await api.getClientes()); return r }
+  const addProceso     = async (d)    => { const r = await wrap(api.createProceso)(d);       if (!r.error) setProcesos(await api.getProcesos()); return r }
+  const editProceso    = async (id,d) => { const r = await wrap(api.updateProceso)(id,d);    if (!r.error) setProcesos(await api.getProcesos()); return r }
 
-  // ── Espesores ─────────────────────────────────────────────────────────────
-  const addEspesor = async (data) => {
-    const res = await wrap(api.createEspesor)(data)
-    if (!res.error) setEspesores(await api.getEspesores())
-    return res
+  const guardarPreciosProceso = async (id, p) => {
+    const r = await wrap(api.guardarPreciosProceso)(id, p)
+    if (!r.error) setPreciosProceso(await api.getPreciosProceso())
+    return r
   }
-  const editEspesor = async (id, data) => {
-    const res = await wrap(api.updateEspesor)(id, data)
-    if (!res.error) setEspesores(await api.getEspesores())
-    return res
+  const guardarPreciosProcesoEspecial = async (id, p) => {
+    const r = await wrap(api.guardarPreciosProcesoEspecial)(id, p)
+    if (!r.error) setPreciosProcesoEspecial(await api.getPreciosProcesoEspecial())
+    return r
   }
+  const addEmpresa = async (d) => {
+    const r = await wrap(empApi.createEmpresa)(d)
+    if (!r.error) setEmpresas(await empApi.getEmpresas())
+    return r
+  }
+  const editEmpresa = async (id, d) => {
+    const r = await wrap(empApi.updateEmpresa)(id, d)
+    if (!r.error) setEmpresas(await empApi.getEmpresas())
+    return r
+  }
+  const vincularClienteEmpresa = async (id_cliente, id_empresa) => {
+    const r = await wrap(empApi.vincularClienteEmpresa)(id_cliente, id_empresa)
+    if (!r.error) setClientes(await api.getClientes())
+    return r
+  }
+  const guardarPrecioEmpresa           = (p) => wrap(empApi.guardarPrecioEmpresa)(p)
+  const guardarPrecioClienteRegistrado = (p) => wrap(empApi.guardarPrecioClienteRegistrado)(p)
 
-  // ── Tipos de vidrio ───────────────────────────────────────────────────────
-  const addTipoVidrio = async (data) => {
-    const res = await wrap(api.createTipoVidrio)(data)
-    if (!res.error) setTiposVidrio(await api.getTiposVidrio())
-    return res
-  }
-  const editTipoVidrio = async (id, data) => {
-    const res = await wrap(api.updateTipoVidrio)(id, data)
-    if (!res.error) setTiposVidrio(await api.getTiposVidrio())
-    return res
-  }
-
-  // ── Precios ───────────────────────────────────────────────────────────────
-  const guardarPrecio = async (data) => {
-    const res = await wrap(api.guardarPrecio)(data)
-    if (!res.error) setPrecios(await api.getPreciosVidrio())
-    return res
-  }
-
-  // ── Clientes ──────────────────────────────────────────────────────────────
-  const addCliente = async (data) => {
-    const res = await wrap(api.createCliente)(data)
-    if (!res.error) setClientes(await api.getClientes())
-    return res
-  }
-  const editCliente = async (id, data) => {
-    const res = await wrap(api.updateCliente)(id, data)
-    if (!res.error) setClientes(await api.getClientes())
-    return res
-  }
-
-  // ── Procesos ──────────────────────────────────────────────────────────────
-  const addProceso = async (data) => {
-    const res = await wrap(api.createProceso)(data)
-    if (!res.error) setProcesos(await api.getProcesos())
-    return res
-  }
-  const editProceso = async (id, data) => {
-    const res = await wrap(api.updateProceso)(id, data)
-    if (!res.error) setProcesos(await api.getProcesos())
-    return res
-  }
-  const guardarPreciosProceso = async (id_proceso, precios) => {
-    const res = await wrap(api.guardarPreciosProceso)(id_proceso, precios)
-    if (!res.error) setPreciosProceso(await api.getPreciosProceso())
-    return res
-  }
-
-  // ── Cotizaciones ──────────────────────────────────────────────────────────
-  const iniciarCotizacion  = wrap(api.iniciarCotizacion)
-  const agregarPartida     = wrap(api.agregarPartida)
-  const finalizarCotizacion = async (id, total) => {
-    const res = await wrap(api.finalizarCotizacion)(id, total)
-    return res
-  }
-  const cancelarCotizacion = wrap(api.cancelarCotizacion)
-  const getCotizaciones    = wrap(api.getCotizaciones)
+  const iniciarCotizacion    = wrap(api.iniciarCotizacion)
+  const agregarPartida       = wrap(api.agregarPartida)
+  const finalizarCotizacion  = (id, total) => wrap(api.finalizarCotizacion)(id, total)
+  const cancelarCotizacion   = wrap(api.cancelarCotizacion)
+  const getCotizaciones      = wrap(api.getCotizaciones)
   const getDetalleCotizacion = wrap(api.getDetalleCotizacion)
 
-  // ── Precio lookup ─────────────────────────────────────────────────────────
   const getPrecioVidrio = (id_tipo_vidrio, id_nivel_precio) => {
-    const found = precios.find(
-      p => p.id_tipo_vidrio === id_tipo_vidrio && p.id_nivel_precio === id_nivel_precio
-    )
-    return found ? Number(found.precio_m2) : null
+    const f = precios.find(p => p.id_tipo_vidrio === id_tipo_vidrio && p.id_nivel_precio === id_nivel_precio)
+    return f ? Number(f.precio_m2) : null
   }
-
   const getPrecioProceso = (id_proceso, id_nivel_precio, id_espesor) => {
-    const found = preciosProceso.find(
-      p => p.id_proceso === id_proceso &&
-           p.id_nivel_precio === id_nivel_precio &&
-           p.id_espesor === id_espesor
-    )
-    return found ? Number(found.precio_unitario) : null
+    const f = preciosProceso.find(p => p.id_proceso === id_proceso && p.id_nivel_precio === id_nivel_precio && p.id_espesor === id_espesor)
+    return f ? Number(f.precio_unitario) : null
+  }
+  const getPrecioProcesoEspecial = (id_proceso, id_nivel_precio) => {
+    const f = preciosProcesoEspecial.find(p => p.id_proceso === id_proceso && p.id_nivel_precio === id_nivel_precio)
+    return f ? Number(f.precio_unitario) : null
   }
 
   if (loading) return (
-    <div style={{
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      height: '100vh', flexDirection: 'column', gap: 14,
-      background: '#f0f4f8', color: '#718096',
-    }}>
-      <div style={{ fontSize: 44 }}>🔩</div>
-      <div style={{ fontSize: 15, fontWeight: 500 }}>Cargando Cotizacion de Vidrio...</div>
+    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh', flexDirection:'column', gap:14, background:'#f0f4f8', color:'#718096' }}>
+      <div style={{ fontSize:44 }}>🔩</div>
+      <div style={{ fontSize:15, fontWeight:500 }}>Cargando sistema...</div>
     </div>
   )
-
   if (error) return (
-    <div style={{
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      height: '100vh', flexDirection: 'column', gap: 14,
-      background: '#f0f4f8', padding: 24, textAlign: 'center',
-    }}>
-      <div style={{ fontSize: 44 }}>❌</div>
-      <div style={{ fontSize: 16, fontWeight: 600, color: '#991b1b' }}>Error de conexion</div>
-      <div style={{ fontSize: 13, color: '#718096', maxWidth: 420 }}>{error}</div>
-      <button
-        onClick={loadAll}
-        style={{ padding: '8px 20px', background: '#1e3a5f', color: 'white', border: 'none', borderRadius: 7, cursor: 'pointer', fontSize: 14 }}
-      >
+    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh', flexDirection:'column', gap:14, background:'#f0f4f8', padding:24, textAlign:'center' }}>
+      <div style={{ fontSize:44 }}>❌</div>
+      <div style={{ fontSize:16, fontWeight:600, color:'#991b1b' }}>Error de conexion</div>
+      <div style={{ fontSize:13, color:'#718096', maxWidth:420 }}>{error}</div>
+      <button onClick={loadAll} style={{ padding:'8px 20px', background:'#1e3a5f', color:'white', border:'none', borderRadius:7, cursor:'pointer', fontSize:14 }}>
         Reintentar
       </button>
     </div>
@@ -197,16 +140,19 @@ export function CotizacionProvider({ children }) {
 
   return (
     <CotizacionContext.Provider value={{
-      tonos, espesores, tiposVidrio, nivelesPrecio, precios, clientes, procesos, preciosProceso, unidades,
-      addTono,      editTono,
-      addEspesor,   editEspesor,
-      addTipoVidrio, editTipoVidrio,
-      guardarPrecio,
-      addCliente,   editCliente,
-      addProceso,   editProceso,   guardarPreciosProceso,
+      tonos, espesores, tiposVidrio, nivelesPrecio, precios, clientes,
+      procesos, preciosProceso, preciosProcesoEspecial, unidades, empresas,
+      addTono, editTono, addEspesor, editEspesor, addTipoVidrio, editTipoVidrio,
+      guardarPrecio, addCliente, editCliente, addProceso, editProceso,
+      guardarPreciosProceso, guardarPreciosProcesoEspecial,
+      addEmpresa, editEmpresa, vincularClienteEmpresa,
+      guardarPrecioEmpresa, guardarPrecioClienteRegistrado,
+      getPreciosEmpresa:           empApi.getPreciosEmpresa,
+      getPreciosClienteRegistrado: empApi.getPreciosClienteRegistrado,
+      getEmpresaDeCliente:         empApi.getEmpresaDeCliente,
       iniciarCotizacion, agregarPartida, finalizarCotizacion, cancelarCotizacion,
       getCotizaciones, getDetalleCotizacion,
-      getPrecioVidrio, getPrecioProceso,
+      getPrecioVidrio, getPrecioProceso, getPrecioProcesoEspecial,
       recargar: loadAll,
     }}>
       {children}

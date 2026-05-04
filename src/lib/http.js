@@ -1,4 +1,6 @@
-const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3001'
+// En producción Express sirve el build → URL relativa (vacía).
+// En desarrollo con Vite, poner VITE_API_URL=http://localhost:3001 en .env
+const BASE = import.meta.env.VITE_API_URL ?? ''
 
 async function req(method, path, body) {
   const res = await fetch(`${BASE}${path}`, {
