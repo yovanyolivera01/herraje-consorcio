@@ -7,9 +7,10 @@ import {
   getDiasDeSemana, minToHHMM,
 } from '../../lib/personalApi'
 
-// ── Helper: fecha de hoy ──────────────────────────────────────
+// ── Helper: fecha de hoy (hora local, no UTC) ─────────────────
 function todayStr() {
-  return new Date().toISOString().slice(0, 10)
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 // ── Badge de estado ───────────────────────────────────────────
@@ -26,10 +27,11 @@ function FilaDia({ dia, empId, semanaId, registro, onChange }) {
   const [saving,  setSaving]    = useState(false)
   const [saved,   setSaved]     = useState(false)
 
-  // Sync cuando cambia el empleado seleccionado
+  // Sync al montar (carga inicial) o cuando el empleado/semana cambian (via key prop).
+  // NO sobreescribir si el usuario ya escribió algo en el campo.
   useEffect(() => {
-    setEntrada(registro?.hora_entrada ?? '')
-    setSalida(registro?.hora_salida  ?? '')
+    if (entrada === '') setEntrada(registro?.hora_entrada ?? '')
+    if (salida  === '') setSalida(registro?.hora_salida  ?? '')
     setSaving(false)
     setSaved(false)
   }, [registro])
@@ -61,7 +63,7 @@ function FilaDia({ dia, empId, semanaId, registro, onChange }) {
 
   return (
     <tr>
-      <td data-label="Día" className="p-dia-col">
+      <td data-label="Día" className="p-dia-col" translate="no">
         <span className="p-dia-nombre">{dia.nombreDia.slice(0, 3)}</span>
         <span className="p-dia-num">{dia.numeroDia}</span>
       </td>
@@ -261,7 +263,7 @@ export default function RegistroSemanal() {
                     const reg = empRegistros.find(r => r.fecha === dia.fecha)
                     return (
                       <FilaDia
-                        key={dia.fecha}
+                        key={`${selectedEmpId}-${semana?.semana_id}-${dia.fecha}`}
                         dia={dia}
                         empId={selectedEmpId}
                         semanaId={semana?.semana_id}

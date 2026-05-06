@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getPedidosPendientes, getDetallePedido, marcarComoEntregado } from '../../lib/pedidosApi'
+import { printPedidoPendiente, printTicketVidrio } from '../../utils/ticket'
 
 // ── Ticket de pedido ──────────────────────────────────────────────────────
 function TicketPedido({ detalle }) {
@@ -228,7 +229,27 @@ function DetallePedidoModal({ resumen, onClose, onEntregado }) {
           </div>
           <div className="modal-footer">
             <button className="btn btn-outline" onClick={onClose}>Cerrar</button>
-            <button className="btn btn-primary" onClick={() => window.print()}>🖨️ Imprimir</button>
+            <button className="btn btn-primary" onClick={() => printTicketVidrio({
+              tipo: 'pedido',
+              folio: detalle.folio,
+              foliosCot: detalle.id_cotizacion ? `COT-${String(detalle.id_cotizacion).padStart(5,'0')}` : null,
+              fecha: detalle.fecha,
+              hora: detalle.hora ?? '',
+              clienteNombre: detalle.cliente?.nombre ?? 'Mostrador',
+              nivelNombre: detalle.nivel?.nombre ?? '',
+              formaPago: detalle.forma_pago ?? 'ANTICIPO',
+              anticipo: detalle.anticipo ?? 0,
+              saldo: 0,
+              saldo_cobrado: entregado.saldoCobrado,
+              esEntregado: true,
+              total: detalle.total,
+              partidas: detalle.partidas.map(p => ({
+                piezas: p.cantidad ?? 1, clave: p.clave_vidrio,
+                largo_cm: p.largo_cm, ancho_cm: p.ancho_cm,
+                subtotal_vidrio: p.subtotal_vidrio, procesos: p.procesos,
+                subtotal_partida: p.subtotal_partida,
+              })),
+            })}>🖨️ Imprimir</button>
           </div>
         </div>
       </div>
@@ -238,42 +259,120 @@ function DetallePedidoModal({ resumen, onClose, onEntregado }) {
   return (
     <>
       <div className="modal-overlay" onClick={e => e.target === e.currentTarget && !showEntregar && onClose()}>
-        <div className="modal modal-lg" onClick={e => e.stopPropagation()}>
+        <div className="modal modal-lg" onClick={e => e.stopPropagation()} style={{ maxWidth: 680 }}>
           <div className="modal-header">
             <div>
-              <div className="modal-title">Pedido pendiente — {resumen.folio}</div>
+              <div className="modal-title">{resumen.folio}</div>
               <div style={{ fontSize:12, color:'var(--text-muted)', marginTop:2 }}>
-                {resumen.fecha} · {resumen.clienteNombre}
+                {resumen.fecha} · <strong>{resumen.clienteNombre}</strong>
+                {resumen.nivelNombre && <span className="badge badge-gray" style={{ marginLeft:8, fontSize:11 }}>{resumen.nivelNombre}</span>}
               </div>
             </div>
             <button className="btn-icon" onClick={onClose}>✕</button>
           </div>
-          <div className="modal-body">
-            {error  && <div className="alert alert-error">❌ {error}</div>}
+
+          <div className="modal-body" style={{ padding: '0 0 4px' }}>
+            {error && <div className="alert alert-error" style={{ margin:'12px 20px 0' }}>❌ {error}</div>}
+
             {detalle && (
               <>
-                {/* Resumen de pago */}
-                <div style={{ display:'flex', gap:12, marginBottom:16, flexWrap:'wrap' }}>
+                {/* Barra de pago compacta */}
+                <div style={{
+                  display: 'flex', gap: 0, borderBottom: '1px solid var(--border)',
+                  background: 'var(--bg)',
+                }}>
                   {[
-                    ['Total', `$${detalle.total.toFixed(2)}`, 'var(--text)'],
-                    ['Anticipo', `$${detalle.anticipo.toFixed(2)}`, 'var(--accent)'],
-                    ['Saldo pendiente', `$${detalle.saldo.toFixed(2)}`, 'var(--danger)'],
-                  ].map(([label, val, color]) => (
-                    <div key={label} className="stat-card" style={{ flex:1, minWidth:120 }}>
-                      <div className="stat-label">{label}</div>
-                      <div className="stat-value" style={{ fontSize:18, color }}>{val}</div>
+                    ['Total',           `$${detalle.total.toFixed(2)}`,    'var(--text)',    ''],
+                    ['Anticipo pagado',  `$${detalle.anticipo.toFixed(2)}`, 'var(--accent)', ''],
+                    ['Saldo pendiente',  `$${detalle.saldo.toFixed(2)}`,    'var(--danger)', '⚠️ '],
+                  ].map(([label, val, color, icon]) => (
+                    <div key={label} style={{ flex:1, textAlign:'center', padding:'10px 8px', borderRight:'1px solid var(--border)' }}>
+                      <div style={{ fontSize:11, color:'var(--text-muted)', marginBottom:3 }}>{label}</div>
+                      <div style={{ fontWeight:700, fontSize:16, color }}>{icon}{val}</div>
                     </div>
                   ))}
                 </div>
-                <TicketPedido detalle={detalle} />
+
+                {/* Partidas */}
+                <div style={{ padding: '16px 20px' }}>
+                  <div style={{ fontWeight:700, fontSize:13, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:1, marginBottom:10 }}>
+                    Partidas — {detalle.partidas.length} {detalle.partidas.length === 1 ? 'pieza' : 'registros'}
+                  </div>
+
+                  <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                    {detalle.partidas.map((p, i) => (
+                      <div key={p.id} style={{
+                        border: '1px solid var(--border)', borderRadius: 10,
+                        overflow: 'hidden',
+                      }}>
+                        {/* Fila principal */}
+                        <div style={{
+                          display: 'flex', alignItems: 'center', gap: 12,
+                          padding: '10px 14px', background: 'white',
+                        }}>
+                          <div style={{
+                            width: 28, height: 28, borderRadius: 6,
+                            background: 'var(--accent)', color: 'white',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: 12, fontWeight: 700, flexShrink: 0,
+                          }}>
+                            {i + 1}
+                          </div>
+
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontWeight:700, fontSize:15 }}>
+                              {p.cantidad ?? 1} pza{(p.cantidad ?? 1) > 1 ? 's' : ''} · {p.largo_cm} × {p.ancho_cm} cm
+                            </div>
+                            <div style={{ fontSize:12, color:'var(--text-muted)', marginTop:1 }}>
+                              <span className="badge badge-blue" style={{ fontSize:11, marginRight:6 }}>{p.clave_vidrio}</span>
+                              {p.descripcion_vidrio && <span>{p.descripcion_vidrio}</span>}
+                            </div>
+                          </div>
+
+                          <div style={{ textAlign:'right', flexShrink:0 }}>
+                            <div style={{ fontWeight:700, fontSize:15, color:'var(--accent)' }}>
+                              ${p.subtotal_partida.toFixed(2)}
+                            </div>
+                            <div style={{ fontSize:11, color:'var(--text-muted)' }}>
+                              {p.metros2.toFixed(4)} m²
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Procesos si los hay */}
+                        {p.procesos && p.procesos.length > 0 && (
+                          <div style={{ background:'var(--bg)', borderTop:'1px solid var(--border)', padding:'6px 14px 6px 54px' }}>
+                            {p.procesos.map((pr, j) => (
+                              <div key={j} style={{ display:'flex', justifyContent:'space-between', fontSize:12, color:'var(--text-muted)', paddingBottom: j < p.procesos.length - 1 ? 3 : 0 }}>
+                                <span>+ {pr.nombre} {pr.cantidad !== 1 ? `× ${pr.cantidad}` : ''}</span>
+                                <span>${pr.subtotal.toFixed(2)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Total al final */}
+                  <div style={{
+                    display:'flex', justifyContent:'space-between', alignItems:'center',
+                    marginTop:12, paddingTop:12, borderTop:'2px solid var(--border)',
+                    fontWeight:700, fontSize:16,
+                  }}>
+                    <span>Total</span>
+                    <span style={{ color:'var(--accent)' }}>${detalle.total.toFixed(2)}</span>
+                  </div>
+                </div>
               </>
             )}
           </div>
+
           <div className="modal-footer">
             <button className="btn btn-outline" onClick={onClose}>Cerrar</button>
             {detalle && (
               <>
-                <button className="btn btn-outline" onClick={() => window.print()}>🖨️ Imprimir</button>
+                <button className="btn btn-outline" onClick={() => printPedidoPendiente(detalle)}>🖨️ Imprimir</button>
                 <button className="btn btn-primary" onClick={() => setShowEntregar(true)}>
                   📦 Marcar como entregado
                 </button>
@@ -290,7 +389,7 @@ function DetallePedidoModal({ resumen, onClose, onEntregado }) {
           onEntregado={(saldoCobrado) => {
             setShowEntregar(false)
             setEntregado({ saldoCobrado })
-            onEntregado() // avisa a la página padre para refrescar
+            onEntregado()
           }}
         />
       )}
@@ -367,52 +466,63 @@ export default function PedidosPendientes() {
             <p>Todos los pedidos han sido entregados</p>
           </div>
         ) : (
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(300px, 1fr))', gap:14 }}>
-            {pedidos.map(p => (
-              <div
-                key={p.id}
-                className="card"
-                style={{ cursor:'pointer', transition:'box-shadow 0.15s' }}
-                onClick={() => setSeleccionado(p)}
-                onMouseEnter={e => e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.12)'}
-                onMouseLeave={e => e.currentTarget.style.boxShadow = ''}
-              >
-                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:10 }}>
-                  <span className="badge badge-orange" style={{ fontSize:13 }}>{p.folio}</span>
-                  <span style={{ fontSize:12, color:'var(--text-muted)' }}>{p.fecha}</span>
-                </div>
-
-                <div style={{ fontWeight:600, fontSize:15, marginBottom:12 }}>
-                  {p.clienteNombre}
-                </div>
-                {p.nivelNombre && (
-                  <div style={{ marginBottom:10 }}>
-                    <span className="badge badge-gray">{p.nivelNombre}</span>
-                  </div>
-                )}
-
-                <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:8 }}>
-                  {[
-                    ['Total',    `$${p.total.toFixed(2)}`,    'var(--text)'],
-                    ['Anticipo', `$${p.anticipo.toFixed(2)}`, 'var(--accent)'],
-                    ['Saldo',    `$${p.saldo.toFixed(2)}`,    'var(--danger)'],
-                  ].map(([label, val, color]) => (
-                    <div key={label} style={{ textAlign:'center', background:'var(--bg)', borderRadius:8, padding:'8px 4px' }}>
-                      <div style={{ fontSize:11, color:'var(--text-muted)', marginBottom:2 }}>{label}</div>
-                      <div style={{ fontWeight:700, fontSize:14, color }}>{val}</div>
-                    </div>
-                  ))}
-                </div>
-
-                <button
-                  className="btn btn-outline btn-sm"
-                  style={{ width:'100%', marginTop:12, justifyContent:'center' }}
-                  onClick={e => { e.stopPropagation(); setSeleccionado(p) }}
-                >
-                  Ver detalle
-                </button>
-              </div>
-            ))}
+          <div className="table-container">
+            <table className="table table-mobile-cards">
+              <thead>
+                <tr>
+                  <th>Folio</th>
+                  <th>Fecha</th>
+                  <th>Cliente</th>
+                  <th>Nivel</th>
+                  <th style={{ textAlign:'right' }}>Total</th>
+                  <th style={{ textAlign:'right' }}>Anticipo</th>
+                  <th style={{ textAlign:'right' }}>Saldo</th>
+                  <th style={{ width:80 }}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {pedidos.map(p => (
+                  <tr
+                    key={p.id}
+                    style={{ cursor:'pointer' }}
+                    onClick={() => setSeleccionado(p)}
+                  >
+                    <td data-label="Folio">
+                      <span className="badge badge-orange">{p.folio}</span>
+                    </td>
+                    <td data-label="Fecha" style={{ fontSize:13, color:'var(--text-muted)', whiteSpace:'nowrap' }}>
+                      {p.fecha}
+                    </td>
+                    <td data-label="Cliente" style={{ fontWeight:600 }}>
+                      {p.clienteNombre}
+                    </td>
+                    <td data-label="Nivel">
+                      {p.nivelNombre
+                        ? <span className="badge badge-gray">{p.nivelNombre}</span>
+                        : <span style={{ color:'var(--text-muted)', fontSize:13 }}>—</span>
+                      }
+                    </td>
+                    <td data-label="Total" style={{ textAlign:'right', fontWeight:600 }}>
+                      ${p.total.toFixed(2)}
+                    </td>
+                    <td data-label="Anticipo" style={{ textAlign:'right', color:'var(--accent)', fontWeight:600 }}>
+                      ${p.anticipo.toFixed(2)}
+                    </td>
+                    <td data-label="Saldo" style={{ textAlign:'right', color:'var(--danger)', fontWeight:700 }}>
+                      ${p.saldo.toFixed(2)}
+                    </td>
+                    <td data-label="">
+                      <button
+                        className="btn btn-outline btn-sm"
+                        onClick={e => { e.stopPropagation(); setSeleccionado(p) }}
+                      >
+                        Ver
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>

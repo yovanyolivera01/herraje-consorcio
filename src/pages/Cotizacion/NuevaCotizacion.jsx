@@ -133,8 +133,8 @@ function TicketPedidoRapido({ detalle }) {
 // ── Pagina Nueva Cotizacion ───────────────────────────────────────────────
 export default function NuevaCotizacion() {
   const {
-    tiposVidrio, nivelesPrecio, clientes, procesos,
-    getPrecioVidrio, getPrecioProceso,
+    tiposVidrio, nivelesPrecio, clientes, procesos, barrenos, saques,
+    getPrecioVidrio, getPrecioProceso, getPrecioProcesoEspecial,
     iniciarCotizacion, agregarPartida, finalizarCotizacion, // usados solo por "Solo cotizar"
   } = useCotizacion()
 
@@ -168,6 +168,13 @@ export default function NuevaCotizacion() {
   const [modalAnticipoStr,    setModalAnticipoStr]    = useState('')
   const [modalError,          setModalError]          = useState(null)
   const [modalConvertiendo,   setModalConvertiendo]   = useState(false)
+
+  // ── Barrenos y saque ──────────────────────────────────────────────────────
+  const [barrenosSeleccionados, setBarrenosSeleccionados] = useState([]) // [{id_proceso, cantidad}]
+  const [saqueId,               setSaqueId]               = useState('')
+
+  // ── Precio manual para piezas pequeñas ───────────────────────────────────
+  const [precioManual, setPrecioManual] = useState('')
 
   // ── UI ──────────────────────────────────────────────────────────────────
   const [saving,       setSaving]       = useState(false)
@@ -226,6 +233,42 @@ export default function NuevaCotizacion() {
       return { id_proceso: proc.id_proceso, id_unidad_cobro: proc.id_unidad_cobro, nombre: proc.nombre, unidad, cantidad, precio_unitario, subtotal }
     }).filter(Boolean)
 
+    // Barrenos seleccionados
+    barrenosSeleccionados.forEach(bs => {
+      const proc = barrenos.find(b => b.id_proceso === bs.id_proceso)
+      if (!proc || bs.cantidad <= 0) return
+      const precio_unitario = getPrecioProcesoEspecial(proc.id_proceso, Number(nivelId)) ?? 0
+      const subtotal = bs.cantidad * precio_unitario
+      subtotal_procesos += subtotal
+      procesosCalc.push({
+        id_proceso:      proc.id_proceso,
+        id_unidad_cobro: proc.id_unidad_cobro,
+        nombre:          proc.nombre,
+        unidad:          proc.unidad_cobro?.nombre ?? 'PZA',
+        cantidad:        bs.cantidad,
+        precio_unitario,
+        subtotal,
+      })
+    })
+
+    // Saque seleccionado
+    if (saqueId) {
+      const proc = saques.find(s => s.id_proceso === Number(saqueId))
+      if (proc) {
+        const precio_unitario = getPrecioProcesoEspecial(proc.id_proceso, Number(nivelId)) ?? 0
+        subtotal_procesos += precio_unitario
+        procesosCalc.push({
+          id_proceso:      proc.id_proceso,
+          id_unidad_cobro: proc.id_unidad_cobro,
+          nombre:          proc.nombre,
+          unidad:          proc.unidad_cobro?.nombre ?? 'SERV',
+          cantidad:        1,
+          precio_unitario,
+          subtotal:        precio_unitario,
+        })
+      }
+    }
+
     return {
       piezas: parsed.piezas,
       largo,
@@ -238,7 +281,9 @@ export default function NuevaCotizacion() {
       esHojaCompleta,
       procesosCalc,
     }
-  }, [notacion, tipoVidrioId, nivelId, procesosSeleccionados, tiposVidrio, nivelesPrecio, procesosActivos, getPrecioVidrio, getPrecioProceso])
+  }, [notacion, tipoVidrioId, nivelId, procesosSeleccionados, barrenosSeleccionados, saqueId,
+      tiposVidrio, nivelesPrecio, procesosActivos, barrenos, saques,
+      getPrecioVidrio, getPrecioProceso, getPrecioProcesoEspecial])
 
   // ── Manejo de cambio de cliente ───────────────────────────────────────────
   const handleClienteChange = (e) => {
@@ -246,7 +291,9 @@ export default function NuevaCotizacion() {
     setClienteId(cid)
     if (cid) {
       const cl = clientes.find(c => c.id_cliente === Number(cid))
-      if (cl?.id_nivel_precio) setNivelId(String(cl.id_nivel_precio))
+      setNivelId(cl?.id_nivel_precio ? String(cl.id_nivel_precio) : '')
+    } else {
+      setNivelId('')
     }
   }
 
@@ -265,6 +312,11 @@ export default function NuevaCotizacion() {
     const largo = parsed.largo
     const ancho  = parsed.ancho
 
+    const esPequena   = preview.metros2_total / parsed.piezas <= 0.12 ||
+                        (preview.metros2_total / parsed.piezas < 0.45 && preview.procesosCalc.length > 0)
+    const manualNum   = esPequena && precioManual !== '' ? parseFloat(precioManual) : NaN
+    const subtotalFin = (!isNaN(manualNum) && manualNum > 0) ? manualNum : preview.subtotal_total
+
     const nuevaPartida = {
       _key:              Date.now() + Math.random(),
       id_tipo_vidrio:    Number(tipoVidrioId),
@@ -276,15 +328,19 @@ export default function NuevaCotizacion() {
       precio_m2_aplicado: preview.precio_m2,
       subtotal_vidrio:   preview.subtotal_vidrio,
       subtotal_procesos: preview.subtotal_procesos,
-      subtotal_partida:  preview.subtotal_total,
+      subtotal_partida:  subtotalFin,
       es_hoja_completa:  preview.esHojaCompleta,
       procesos:          preview.procesosCalc,
+      precio_manual:     (!isNaN(manualNum) && manualNum > 0) ? manualNum : null,
     }
 
     setPartidas(prev => [...prev, nuevaPartida])
     setNotacion('')
     setNotError('')
+    setPrecioManual('')
     setProcesosSeleccionados([])
+    setBarrenosSeleccionados([])
+    setSaqueId('')
   }
 
   // ── Toggle proceso en la seleccion ───────────────────────────────────────
@@ -294,6 +350,20 @@ export default function NuevaCotizacion() {
       if (existe) return prev.filter(p => p.id_proceso !== proc.id_proceso)
       return [...prev, { id_proceso: proc.id_proceso }]
     })
+  }
+
+  // ── Barrenos ──────────────────────────────────────────────────────────────
+  const toggleBarreno = (id_proceso) => {
+    setBarrenosSeleccionados(prev => {
+      const existe = prev.find(b => b.id_proceso === id_proceso)
+      if (existe) return prev.filter(b => b.id_proceso !== id_proceso)
+      return [...prev, { id_proceso, cantidad: 1 }]
+    })
+  }
+  const updateBarrenoCantidad = (id_proceso, cantidad) => {
+    setBarrenosSeleccionados(prev =>
+      prev.map(b => b.id_proceso === id_proceso ? { ...b, cantidad: Math.max(1, cantidad || 1) } : b)
+    )
   }
 
   // ── Quitar partida ────────────────────────────────────────────────────────
@@ -407,13 +477,15 @@ export default function NuevaCotizacion() {
     setObservaciones('')
     setNotacion('')
     setProcesosSeleccionados([])
+    setBarrenosSeleccionados([])
+    setSaqueId('')
     setSaveError(null)
     setShowPedidoModal(false)
     setModalFormaPago('LIQUIDADO')
     setModalAnticipoStr('')
     setModalError(null)
     setModalConvertiendo(false)
-    window.scrollTo({ top: 0, behavior: 'instant' })
+    window.scrollTo(0, 0)
   }
 
   // ── Pantalla de ticket ────────────────────────────────────────────────────
@@ -547,7 +619,10 @@ export default function NuevaCotizacion() {
                   <label className="form-label required">Nivel de precio</label>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
                     {nivelesPrecio.map(n => {
-                      const activo = nivelId === String(n.id_nivel_precio)
+                      const activo  = nivelId === String(n.id_nivel_precio)
+                      const precioM2 = tipoVidrioId
+                        ? getPrecioVidrio(Number(tipoVidrioId), n.id_nivel_precio)
+                        : null
                       return (
                         <button
                           key={n.id_nivel_precio}
@@ -560,9 +635,15 @@ export default function NuevaCotizacion() {
                             color: activo ? 'white' : 'var(--text)',
                             fontWeight: activo ? 700 : 400,
                             transition: 'all 0.15s',
+                            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1,
                           }}
                         >
-                          {n.es_hoja_completa ? 'POR HOJA' : n.nombre}
+                          <span>{n.es_hoja_completa ? 'POR HOJA' : n.nombre}</span>
+                          {precioM2 !== null && (
+                            <span style={{ fontSize: 11, opacity: 0.85, fontWeight: 600 }}>
+                              ${precioM2.toFixed(2)}/m²
+                            </span>
+                          )}
                         </button>
                       )
                     })}
@@ -594,7 +675,7 @@ export default function NuevaCotizacion() {
                 <input
                   className={`form-input cot-calc-input${notError ? ' error' : ''}`}
                   value={notacion}
-                  onChange={e => { setNotacion(e.target.value); setNotError('') }}
+                  onChange={e => { setNotacion(e.target.value); setNotError(''); setPrecioManual('') }}
                   placeholder="Ej. 3-22x45  o  1-30.5x60.2"
                   inputMode="text"
                   onKeyDown={e => e.key === 'Enter' && handleAgregarPartida()}
@@ -616,7 +697,7 @@ export default function NuevaCotizacion() {
                 <select
                   className="form-select"
                   value={tipoVidrioId}
-                  onChange={e => setTipoVidrioId(e.target.value)}
+                  onChange={e => { setTipoVidrioId(e.target.value); setPrecioManual('') }}
                 >
                   <option value="">-- Seleccionar tipo --</option>
                   {tiposActivos.map(t => (
@@ -658,6 +739,88 @@ export default function NuevaCotizacion() {
                 </div>
               )}
 
+              {/* Barrenos */}
+              {barrenos.length > 0 && (
+                <div className="form-group">
+                  <label className="form-label">🔩 Barrenos</label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {barrenos.map(b => {
+                      const sel = barrenosSeleccionados.find(bs => bs.id_proceso === b.id_proceso)
+                      return (
+                        <div key={b.id_proceso} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <label style={{
+                            display: 'flex', alignItems: 'center', gap: 6,
+                            padding: '5px 12px', borderRadius: 20, cursor: 'pointer',
+                            border: `1.5px solid ${sel ? '#d97706' : 'var(--border)'}`,
+                            background: sel ? '#fef3c7' : 'white',
+                            fontSize: 14, transition: 'all 0.15s', minWidth: 110,
+                          }}>
+                            <input type="checkbox" checked={!!sel} onChange={() => toggleBarreno(b.id_proceso)} style={{ display: 'none' }} />
+                            {sel ? '✅' : '⬜'} {b.nombre}
+                          </label>
+                          {sel && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Cant.:</span>
+                              <input
+                                type="number" min="1" step="1"
+                                className="form-input"
+                                style={{ width: 70, padding: '4px 8px', fontSize: 14, margin: 0 }}
+                                value={sel.cantidad}
+                                onChange={e => updateBarrenoCantidad(b.id_proceso, parseInt(e.target.value))}
+                              />
+                              {nivelId && (
+                                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                                  ${(getPrecioProcesoEspecial(b.id_proceso, Number(nivelId)) ?? 0).toFixed(2)}/pza
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Saque */}
+              {saques.length > 0 && (
+                <div className="form-group">
+                  <label className="form-label">✂️ Saque</label>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    <label style={{
+                      display: 'flex', alignItems: 'center', gap: 6,
+                      padding: '5px 12px', borderRadius: 20, cursor: 'pointer',
+                      border: `1.5px solid ${!saqueId ? '#10b981' : 'var(--border)'}`,
+                      background: !saqueId ? '#d1fae5' : 'white',
+                      fontSize: 14, transition: 'all 0.15s',
+                    }}>
+                      <input type="radio" name="saqueOpt" value="" checked={!saqueId} onChange={() => setSaqueId('')} style={{ display: 'none' }} />
+                      {!saqueId ? '✅' : '⬜'} Sin saque
+                    </label>
+                    {saques.map(s => {
+                      const sel = saqueId === String(s.id_proceso)
+                      return (
+                        <label key={s.id_proceso} style={{
+                          display: 'flex', alignItems: 'center', gap: 6,
+                          padding: '5px 12px', borderRadius: 20, cursor: 'pointer',
+                          border: `1.5px solid ${sel ? '#10b981' : 'var(--border)'}`,
+                          background: sel ? '#d1fae5' : 'white',
+                          fontSize: 14, transition: 'all 0.15s',
+                        }}>
+                          <input type="radio" name="saqueOpt" value={s.id_proceso} checked={sel} onChange={() => setSaqueId(String(s.id_proceso))} style={{ display: 'none' }} />
+                          {sel ? '✅' : '⬜'} {s.nombre}
+                          {nivelId && (
+                            <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 2 }}>
+                              (${(getPrecioProcesoEspecial(s.id_proceso, Number(nivelId)) ?? 0).toFixed(2)})
+                            </span>
+                          )}
+                        </label>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
               {/* Preview en vivo */}
               {preview && !preview.sinPrecio && (
                 <div className="cot-preview-row">
@@ -692,6 +855,49 @@ export default function NuevaCotizacion() {
                           <span>${pc.subtotal.toFixed(2)}</span>
                         </div>
                       ))}
+                    </div>
+                  )}
+
+                  {/* Edición manual para piezas pequeñas */}
+                  {(preview.metros2_total / preview.piezas <= 0.12 ||
+                    (preview.metros2_total / preview.piezas < 0.45 && preview.procesosCalc.length > 0)) && (
+                    <div style={{
+                      marginTop: 10, padding: '10px 12px', borderRadius: 8,
+                      background: '#fffbeb', border: '1.5px solid #f59e0b',
+                    }}>
+                      <div style={{ fontSize: 12, color: '#92400e', fontWeight: 600, marginBottom: 6 }}>
+                        ⚠️ Pieza pequeña — precio calculado: <strong>${preview.subtotal_total.toFixed(2)}</strong>
+                      </div>
+                      <div style={{ fontSize: 12, color: '#78350f', marginBottom: 8 }}>
+                        Puedes ajustar el precio final a cobrar:
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: 14, fontWeight: 600, color: '#78350f' }}>$</span>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          className="form-input"
+                          style={{ maxWidth: 140, margin: 0 }}
+                          placeholder={preview.subtotal_total.toFixed(2)}
+                          value={precioManual}
+                          onChange={e => setPrecioManual(e.target.value)}
+                        />
+                        {precioManual && (
+                          <button
+                            type="button"
+                            style={{ fontSize: 12, color: '#92400e', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+                            onClick={() => setPrecioManual('')}
+                          >
+                            Restablecer
+                          </button>
+                        )}
+                      </div>
+                      {precioManual && Number(precioManual) > 0 && (
+                        <div style={{ fontSize: 12, color: '#15803d', marginTop: 6, fontWeight: 600 }}>
+                          ✓ Se cobrará: ${Number(precioManual).toFixed(2)}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
