@@ -121,6 +121,9 @@ export function CotizacionProvider({ children }) {
     return f ? Number(f.precio_unitario) : null
   }
 
+  const barrenos = procesos.filter(p => p.activo && p.tipo === 'BARRENO')
+  const saques   = procesos.filter(p => p.activo && p.tipo === 'SAQUE')
+
   if (loading) return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh', flexDirection:'column', gap:14, background:'#f0f4f8', color:'#718096' }}>
       <div style={{ fontSize:44 }}>🔩</div>
@@ -141,7 +144,7 @@ export function CotizacionProvider({ children }) {
   return (
     <CotizacionContext.Provider value={{
       tonos, espesores, tiposVidrio, nivelesPrecio, precios, clientes,
-      procesos, preciosProceso, preciosProcesoEspecial, unidades, empresas,
+      procesos, preciosProceso, preciosProcesoEspecial, unidades, empresas, barrenos, saques,
       addTono, editTono, addEspesor, editEspesor, addTipoVidrio, editTipoVidrio,
       guardarPrecio, addCliente, editCliente, addProceso, editProceso,
       guardarPreciosProceso, guardarPreciosProcesoEspecial,

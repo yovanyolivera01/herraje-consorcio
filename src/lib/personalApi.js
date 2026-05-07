@@ -81,10 +81,14 @@ export function calcularResumenSemanal(registros) {
     }
   }
 
+  const DIAS_LABORALES = 6 // Lun–Sáb
+
   let bonoPuntualidad = false
   let motivoBono      = null
   if (diasCompletos === 0) {
     motivoBono = 'Sin registros completos en la semana.'
+  } else if (diasCompletos < DIAS_LABORALES) {
+    motivoBono = `Solo asistió ${diasCompletos} de ${DIAS_LABORALES} días.`
   } else if (primerDiaTardio) {
     motivoBono = `Llegada tardía el ${primerDiaTardio}.`
   } else {
@@ -102,24 +106,29 @@ export function calcularResumenSemanal(registros) {
 }
 
 // ── Helpers de semana ─────────────────────────────────────────
+// Convierte un objeto Date a "YYYY-MM-DD" usando hora LOCAL (no UTC)
+function localStr(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 export function getLunesDeSemana(fechaStr) {
   const d   = new Date(fechaStr + 'T12:00:00')
   const dia = d.getDay()
   const off = dia === 0 ? -6 : 1 - dia
   d.setDate(d.getDate() + off)
-  return d.toISOString().slice(0, 10)
+  return localStr(d)
 }
 
 export function getLunesAnterior(fechaLunes) {
   const d = new Date(fechaLunes + 'T12:00:00')
   d.setDate(d.getDate() - 7)
-  return d.toISOString().slice(0, 10)
+  return localStr(d)
 }
 
 export function getLunesSiguiente(fechaLunes) {
   const d = new Date(fechaLunes + 'T12:00:00')
   d.setDate(d.getDate() + 7)
-  return d.toISOString().slice(0, 10)
+  return localStr(d)
 }
 
 const MESES_CORTO = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic']
@@ -138,8 +147,7 @@ export function getDiasDeSemana(fechaLunes) {
   return Array.from({ length: 6 }, (_, i) => {
     const d = new Date(fechaLunes + 'T12:00:00')
     d.setDate(d.getDate() + i)
-    const fecha = d.toISOString().slice(0, 10)
-    return { fecha, nombreDia: NOMBRES_DIA[d.getDay()], numeroDia: d.getDate() }
+    return { fecha: localStr(d), nombreDia: NOMBRES_DIA[d.getDay()], numeroDia: d.getDate() }
   })
 }
 
@@ -149,7 +157,7 @@ export async function getOrCreateSemana(fechaRef) {
   const sabado = (() => {
     const d = new Date(lunes + 'T12:00:00')
     d.setDate(d.getDate() + 5)
-    return d.toISOString().slice(0, 10)
+    return localStr(d)
   })()
   const descripcion = `Semana del ${fmtCorto(lunes)} al ${fmtCorto(sabado)}`
   return http.post('/api/personal/semanas', { fecha_inicio: lunes, fecha_fin: sabado, descripcion })
