@@ -98,7 +98,7 @@ export function AppProvider({ children }) {
         api.getProductos(),
         api.getVentas(),
       ])
-      setProveedores(provs)
+      setProveedores(provs.slice().sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')))
       setProductos(prods)
       setVentas(vents)
     } catch (err) {
@@ -127,19 +127,19 @@ export function AppProvider({ children }) {
   // ── Proveedores ──────────────────────────────────────────────────────────
   const addProveedor = async (data) => {
     const res = await wrap(api.createProveedor)(data)
-    if (!res.error) setProveedores(await api.getProveedores())
+    if (!res.error) setProveedores((await api.getProveedores()).slice().sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')))
     return res
   }
 
   const updateProveedor = async (codigo, data) => {
     const res = await wrap(api.updateProveedor)(codigo, data)
-    if (!res.error) setProveedores(await api.getProveedores())
+    if (!res.error) setProveedores((await api.getProveedores()).slice().sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')))
     return res
   }
 
   const deleteProveedor = async (codigo) => {
     const res = await wrap(api.deleteProveedor)(codigo)
-    if (!res.error) setProveedores(await api.getProveedores())
+    if (!res.error) setProveedores((await api.getProveedores()).slice().sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')))
     if (res.error?.includes('dependencias'))
       return { error: 'No se puede eliminar: el proveedor tiene productos activos' }
     return res
