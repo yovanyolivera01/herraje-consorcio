@@ -85,7 +85,7 @@ export default function Layout() {
 
   const topbarTitle = isPersonal
     ? 'Gestión de Personal'
-    : isCot ? 'Cotizacion de Vidrio' : 'Herraje Consorcio'
+    : isCot ? 'Cotizacion de Vidrio' : 'Templados Consorcio'
 
   const closeDrawer = () => setDrawerOpen(false)
 

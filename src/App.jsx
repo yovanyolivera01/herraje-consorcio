@@ -41,7 +41,7 @@ export default function App() {
                 <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
                   <Route index element={<Navigate to="/proveedores" replace />} />
 
-                  {/* ── Sistema Herraje Consorcio ── */}
+                  {/* ── Sistema Templados Consorcio ── */}
                   <Route path="proveedores"      element={<Proveedores />} />
                   <Route path="productos"        element={<Productos />} />
                   <Route path="ventas/nueva"     element={<NuevaVenta />} />
