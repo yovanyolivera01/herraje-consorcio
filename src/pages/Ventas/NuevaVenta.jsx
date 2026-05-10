@@ -99,7 +99,7 @@ function TicketPreview({ venta }) {
   return (
     <div className="ticket-preview">
       <div className="ticket-header">
-        <h2>HERRAJES CONSORCIO</h2>
+        <h2>TEMPLADOS CONSORCIO</h2>
         <p style={{ fontWeight: 700 }}>ARTE EN VIDRIO</p>
       </div>
       <hr className="ticket-divider" />
