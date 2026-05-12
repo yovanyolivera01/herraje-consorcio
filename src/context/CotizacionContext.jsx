@@ -1,6 +1,9 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import * as api from '../lib/cotizacionApi'
 import * as empApi from '../lib/empresasApi'
+import * as maqApi from '../lib/maquilaApi'
+import * as invApi from '../lib/inventarioVidrioApi'
+import * as prodApi from '../lib/productosGeneralesApi'
 import { supabaseConfigured } from '../lib/supabase'
 
 const CotizacionContext = createContext()
@@ -170,6 +173,32 @@ export function CotizacionProvider({ children }) {
   const guardarPrecioClienteRegistrado = async (payload) => wrap(empApi.guardarPrecioClienteRegistrado)(payload)
   const getDocumentoEmpresa            = wrap(empApi.getDocumentoEmpresa)
 
+  // ── Maquila ───────────────────────────────────────────────────────────────
+  const iniciarCotizacionMaquila       = wrap(maqApi.iniciarCotizacionMaquila)
+  const agregarPartidaMaquila          = wrap(maqApi.agregarPartidaMaquila)
+  const eliminarPartidaMaquila         = wrap(maqApi.eliminarPartidaMaquila)
+  const finalizarCotizacionMaquila     = wrap(maqApi.finalizarCotizacionMaquila)
+  const getTicketMaquila               = wrap(maqApi.getTicketMaquila)
+  const getCotizacionesMaquila         = wrap(maqApi.getCotizacionesMaquila)
+  const getDetalleCotizacionMaquila    = wrap(maqApi.getDetalleCotizacionMaquila)
+  const reabrirCotizacion              = wrap(maqApi.reabrirCotizacion)
+  const convertirMaquilaAPedido        = wrap(maqApi.convertirMaquilaAPedido)
+  const getPedidosPendientesMaquila    = wrap(maqApi.getPedidosPendientesMaquila)
+  const getDetallePedidoMaquila        = wrap(maqApi.getDetallePedidoMaquila)
+  const entregarPartidaMaquila         = wrap(maqApi.entregarPartidaMaquila)
+  const marcarAnticipoLiquidadoMaquila = wrap(maqApi.marcarAnticipoLiquidado)
+
+  // ── Inventario ────────────────────────────────────────────────────────────
+  const getInventarioVidrio       = wrap(invApi.getInventarioVidrio)
+  const registrarInventarioVidrio = wrap(invApi.registrarInventarioVidrio)
+  const ajustarInventario         = wrap(invApi.ajustarInventario)
+  const getMovimientosInventario  = wrap(invApi.getMovimientosInventario)
+
+  // ── Productos Generales ───────────────────────────────────────────────────
+  const getProductosGenerales = wrap(prodApi.getProductosGenerales)
+  const createProductoGeneral = wrap(prodApi.createProductoGeneral)
+  const updateProductoGeneral = wrap(prodApi.updateProductoGeneral)
+
   // ── Cotizaciones ──────────────────────────────────────────────────────────
   const iniciarCotizacion  = wrap(api.iniciarCotizacion)
   const agregarPartida     = wrap(api.agregarPartida)
@@ -193,7 +222,7 @@ export function CotizacionProvider({ children }) {
     const found = preciosProceso.find(
       p => p.id_proceso === id_proceso &&
            p.id_nivel_precio === id_nivel_precio &&
-           p.id_espesor === id_espesor
+           (id_espesor === null ? true : p.id_espesor === id_espesor)
     )
     return found ? Number(found.precio_unitario) : null
   }
@@ -255,6 +284,13 @@ export function CotizacionProvider({ children }) {
       iniciarCotizacion, agregarPartida, finalizarCotizacion, cancelarCotizacion,
       getCotizaciones, getDetalleCotizacion,
       getPrecioVidrio, getPrecioProceso, getPrecioProcesoEspecial,
+      iniciarCotizacionMaquila, agregarPartidaMaquila, eliminarPartidaMaquila,
+      finalizarCotizacionMaquila, getTicketMaquila, getCotizacionesMaquila,
+      getDetalleCotizacionMaquila, reabrirCotizacion, convertirMaquilaAPedido,
+      getPedidosPendientesMaquila, getDetallePedidoMaquila,
+      entregarPartidaMaquila, marcarAnticipoLiquidadoMaquila,
+      getInventarioVidrio, registrarInventarioVidrio, ajustarInventario, getMovimientosInventario,
+      getProductosGenerales, createProductoGeneral, updateProductoGeneral,
       recargar: loadAll,
     }}>
       {children}

@@ -24,6 +24,9 @@ import CotizacionRegistrado     from './pages/Cotizacion/CotizacionRegistrado'
 import Empleados                from './pages/Personal/Empleados'
 import RegistroSemanal          from './pages/Personal/RegistroSemanal'
 import ResumenSemanal           from './pages/Personal/ResumenSemanal'
+import InventarioVidrio         from './pages/Cotizacion/InventarioVidrio'
+import HistorialMaquila         from './pages/Cotizacion/HistorialMaquila'
+import ProductosGenerales       from './pages/Herraje/ProductosGenerales'
 
 export default function App() {
   return (
@@ -58,6 +61,9 @@ export default function App() {
                   <Route path="cot/historial"           element={<HistorialCotizaciones />} />
                   <Route path="cot/pedidos-pendientes"  element={<PedidosPendientes />} />
                   <Route path="cot/ventas"              element={<HistorialVentas />} />
+                  <Route path="cot/inventario"           element={<InventarioVidrio />} />
+                  <Route path="cot/maquila/historial"    element={<HistorialMaquila />} />
+                  <Route path="productos-generales"      element={<ProductosGenerales />} />
 
                   {/* ── Módulo de Gestión de Personal ── */}
                   <Route path="personal/empleados" element={<Empleados />} />
