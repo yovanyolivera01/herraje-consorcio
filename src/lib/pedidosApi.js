@@ -56,28 +56,32 @@ export const crearPedidoDirecto = async ({ id_cliente, id_nivel_precio, partidas
 
 // ── Pedidos pendientes  (HU-10) ───────────────────────────────────────────
 //
-//  SP: sp_obtener_pedidos_pendientes()
-//  Incluye campos calculados: dias_pendiente, num_partidas
+//  SP: sp_obtener_pedidos_pendientes(p_tipo_pedido)
+//  Sprint 4: SP ahora requiere tipo_pedido y retorna nuevos campos.
 
 export const getPedidosPendientes = async () => {
-  const { data, error } = await supabase.rpc('sp_obtener_pedidos_pendientes')
+  const { data, error } = await supabase.rpc('sp_obtener_pedidos_pendientes', {
+    p_tipo_pedido: 'VIDRIO',
+  })
   if (error) throw error
   return (data ?? []).map(row => {
-    const { fecha, hora } = formatearFechaHora(row.fecha_creacion)
+    const { fecha, hora } = formatearFechaHora(row.fecha_pedido)
     return {
-      id:              row.id_pedido,
-      folio:           row.folio,
+      id:                 row.id_pedido,
+      folio:              row.folio,
       fecha,
       hora,
-      fechaCreacionISO: row.fecha_creacion,
-      clienteNombre:   row.cliente ?? 'Mostrador',
-      telefono:        row.telefono_cliente ?? '',
-      total:           Number(row.total),
-      anticipo:        Number(row.monto_anticipo),
-      saldo:           Number(row.saldo_pendiente),
-      diasPendiente:   row.dias_pendiente ?? 0,
-      numPartidas:     Number(row.num_partidas ?? 0),
-      observaciones:   row.observaciones ?? '',
+      fechaCreacionISO:   row.fecha_pedido,
+      clienteNombre:      row.cliente ?? 'Mostrador',
+      telefono:           '',
+      total:              Number(row.total),
+      anticipo:           Number(row.monto_anticipo),
+      saldo:              Number(row.saldo_pendiente),
+      estatus:            row.estatus,
+      diasPendiente:      0,
+      numPartidas:        Number(row.partidas_total     ?? 0),
+      partidasPendientes: Number(row.partidas_pendientes ?? 0),
+      observaciones:      '',
     }
   })
 }
@@ -201,6 +205,40 @@ export const marcarComoEntregado = async (id_pedido, monto_cobrado) => {
   if (error) throw error
   const row = Array.isArray(data) ? data[0] : data
   if (!row?.exito) throw new Error(row?.mensaje ?? 'Error al registrar la entrega')
+  return true
+}
+
+// ── Entregar línea específica del pedido (Sprint 4 US-03) ────────────────
+//
+//  SP: sp_entregar_partida_pedido(p_id_partida_pedido)
+//  Marca la línea como ENTREGADO y recalcula estatus del pedido padre.
+
+export const entregarPartidaPedido = async (id_partida_pedido) => {
+  const { data, error } = await supabase.rpc('sp_entregar_partida_pedido', {
+    p_id_partida_pedido: id_partida_pedido,
+  })
+  if (error) throw error
+  const row = Array.isArray(data) ? data[0] : data
+  if (row?.p_mensaje?.includes('ya entregada') || row?.p_mensaje?.includes('no encontrad')) {
+    throw new Error(row.p_mensaje)
+  }
+  return true
+}
+
+// ── Marcar anticipo como liquidado (Sprint 4 US-12) ──────────────────────
+//
+//  SP: sp_marcar_anticipo_liquidado(p_id_pedido)
+//  Cambia estatus PENDIENTE/PARCIAL → ANTICIPO_LIQUIDADO.
+
+export const marcarAnticipoLiquidado = async (id_pedido) => {
+  const { data, error } = await supabase.rpc('sp_marcar_anticipo_liquidado', {
+    p_id_pedido: id_pedido,
+  })
+  if (error) throw error
+  const row = Array.isArray(data) ? data[0] : data
+  if (row?.p_mensaje?.includes('no encontrado') || row?.p_mensaje?.includes('incorrecto')) {
+    throw new Error(row.p_mensaje)
+  }
   return true
 }
 

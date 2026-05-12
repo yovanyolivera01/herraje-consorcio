@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import { useCotizacion } from '../../context/CotizacionContext'
 import { crearPedidoDirecto, getDetallePedido } from '../../lib/pedidosApi'
 import { printTicketVidrio } from '../../utils/ticket'
+import MaquilaSection from './_MaquilaSection'
 
 // ── Parser de notacion {piezas}-{largo}x{ancho} ───────────────────────────
 function parseNotacion(texto) {
@@ -130,11 +131,34 @@ function TicketPedidoRapido({ detalle }) {
   )
 }
 
+// ── Tab selector ─────────────────────────────────────────────────────────
+function ModoTab({ modo, onChangeModo }) {
+  return (
+    <div style={{ display:'flex', gap:6, marginBottom:16 }}>
+      {[['vidrio','◻ Vidrio'],['maquila','🔨 Maquila']].map(([m, label]) => (
+        <button key={m} onClick={() => onChangeModo(m)}
+          style={{
+            padding:'6px 16px', borderRadius:8, fontSize:13, cursor:'pointer', fontWeight:600,
+            border:`2px solid ${modo===m ? 'var(--accent)' : 'var(--border)'}`,
+            background: modo===m ? 'var(--accent)' : 'white',
+            color: modo===m ? 'white' : 'var(--text)',
+            transition:'all 0.15s',
+          }}>
+          {label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 // ── Pagina Nueva Cotizacion ───────────────────────────────────────────────
 export default function NuevaCotizacion() {
+  const [modo, setModo] = useState('vidrio')
+
   const {
     tiposVidrio, nivelesPrecio, clientes, procesos, barrenos, saques,
     getPrecioVidrio, getPrecioProceso, getPrecioProcesoEspecial,
+    getPreciosClienteRegistrado,
     iniciarCotizacion, agregarPartida, finalizarCotizacion, // usados solo por "Solo cotizar"
   } = useCotizacion()
 
@@ -142,6 +166,8 @@ export default function NuevaCotizacion() {
   const [nivelId,      setNivelId]      = useState('')
   const [clienteId,    setClienteId]    = useState('')
   const [observaciones, setObservaciones] = useState('')
+  const [preciosCli,   setPreciosCli]   = useState([])
+  const [cargandoCli,  setCargandoCli]  = useState(false)
 
   // ── Estado de la calculadora ─────────────────────────────────────────────
   const [notacion,     setNotacion]     = useState('')
@@ -186,20 +212,50 @@ export default function NuevaCotizacion() {
   const tipoSeleccionado    = tiposVidrio.find(t => t.id_tipo_vidrio === Number(tipoVidrioId))
   const tiposActivos        = tiposVidrio.filter(t => t.activo)
   const procesosActivos     = procesos.filter(p => p.activo)
+  // Cuando hay precios especiales del cliente, no se requiere nivel de precio
+  const usarPreciosCli      = Boolean(clienteId && preciosCli.length > 0)
 
   // ── Preview en vivo ──────────────────────────────────────────────────────
   const preview = useMemo(() => {
-    if (!notacion.trim() || !tipoVidrioId || !nivelId) return null
+    if (!notacion.trim() || !tipoVidrioId) return null
+    // Si hay cliente seleccionado, esperar a que carguen sus precios antes de calcular
+    if (clienteId && cargandoCli) return null
+    if (!usarPreciosCli && !nivelId) return null
     const parsed = parseNotacion(notacion)
     if (parsed.error) return null
-
-    const nivel = nivelesPrecio.find(n => n.id_nivel_precio === Number(nivelId))
-    if (!nivel) return null
 
     const tipo = tiposVidrio.find(t => t.id_tipo_vidrio === Number(tipoVidrioId))
     if (!tipo) return null
 
-    const precio_m2 = getPrecioVidrio(tipo.id_tipo_vidrio, Number(nivelId))
+    const fallbackNivel = clienteSeleccionado?.id_nivel_precio ?? null
+
+    // Helpers de precio según modo (cliente registrado vs. nivel general)
+    const getPrecioVid = (id_tv) => {
+      if (usarPreciosCli) {
+        const c = preciosCli.find(p => p.id_tipo_vidrio === id_tv && (p.id_proceso ?? null) === null)
+        if (c) return Number(c.precio_m2)
+        return fallbackNivel ? getPrecioVidrio(id_tv, fallbackNivel) : null
+      }
+      return getPrecioVidrio(id_tv, Number(nivelId))
+    }
+    const getPrecioProc = (id_p, id_esp) => {
+      if (usarPreciosCli) {
+        const c = preciosCli.find(p => (p.id_tipo_vidrio ?? null) === null && p.id_proceso === id_p)
+        if (c) return Number(c.precio_m2)
+        return fallbackNivel ? getPrecioProceso(id_p, fallbackNivel, id_esp) : null
+      }
+      return getPrecioProceso(id_p, Number(nivelId), id_esp)
+    }
+    const getPrecioEsp = (id_p) => {
+      if (usarPreciosCli) {
+        const c = preciosCli.find(p => (p.id_tipo_vidrio ?? null) === null && p.id_proceso === id_p)
+        if (c) return Number(c.precio_m2)
+        return fallbackNivel ? getPrecioProcesoEspecial(id_p, fallbackNivel) : null
+      }
+      return getPrecioProcesoEspecial(id_p, Number(nivelId))
+    }
+
+    const precio_m2 = getPrecioVid(tipo.id_tipo_vidrio)
     if (precio_m2 === null) return { sinPrecio: true, tipo }
 
     const esHojaCompleta = false
@@ -219,14 +275,11 @@ export default function NuevaCotizacion() {
       const unidadLow = unidad.toLowerCase()
       let cantidad
       if (unidadLow === 'm2' || unidadLow === 'm²' || unidadLow.includes('cuadrado')) {
-        // Cobrar por metro cuadrado
         cantidad = metros2_total
       } else {
-        // Cobrar por metro lineal: perímetro (largo + ancho) × 2, convertido de cm a metros, × piezas
         cantidad = ((largo + ancho) * 2 / 100) * parsed.piezas
       }
-      // Precio por nivel+espesor primero; si no hay, usa el precio base del proceso
-      const precioNivel = getPrecioProceso(proc.id_proceso, Number(nivelId), tipo?.espesor?.id_espesor ?? null)
+      const precioNivel = getPrecioProc(proc.id_proceso, tipo?.espesor?.id_espesor ?? null)
       const precio_unitario = precioNivel !== null ? precioNivel : Number(proc.precio_unitario)
       const subtotal = cantidad * precio_unitario
       subtotal_procesos += subtotal
@@ -237,7 +290,7 @@ export default function NuevaCotizacion() {
     barrenosSeleccionados.forEach(bs => {
       const proc = barrenos.find(b => b.id_proceso === bs.id_proceso)
       if (!proc || bs.cantidad <= 0) return
-      const precio_unitario = getPrecioProcesoEspecial(proc.id_proceso, Number(nivelId)) ?? 0
+      const precio_unitario = getPrecioEsp(proc.id_proceso) ?? 0
       const subtotal = bs.cantidad * precio_unitario
       subtotal_procesos += subtotal
       procesosCalc.push({
@@ -255,7 +308,7 @@ export default function NuevaCotizacion() {
     if (saqueId) {
       const proc = saques.find(s => s.id_proceso === Number(saqueId))
       if (proc) {
-        const precio_unitario = getPrecioProcesoEspecial(proc.id_proceso, Number(nivelId)) ?? 0
+        const precio_unitario = getPrecioEsp(proc.id_proceso) ?? 0
         subtotal_procesos += precio_unitario
         procesosCalc.push({
           id_proceso:      proc.id_proceso,
@@ -281,17 +334,23 @@ export default function NuevaCotizacion() {
       esHojaCompleta,
       procesosCalc,
     }
-  }, [notacion, tipoVidrioId, nivelId, procesosSeleccionados, barrenosSeleccionados, saqueId,
-      tiposVidrio, nivelesPrecio, procesosActivos, barrenos, saques,
-      getPrecioVidrio, getPrecioProceso, getPrecioProcesoEspecial])
+  }, [notacion, tipoVidrioId, nivelId, usarPreciosCli, preciosCli, cargandoCli, clienteId, procesosSeleccionados, barrenosSeleccionados, saqueId,
+      tiposVidrio, procesosActivos, barrenos, saques,
+      getPrecioVidrio, getPrecioProceso, getPrecioProcesoEspecial]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Manejo de cambio de cliente ───────────────────────────────────────────
   const handleClienteChange = (e) => {
     const cid = e.target.value
     setClienteId(cid)
+    setPreciosCli([])
     if (cid) {
       const cl = clientes.find(c => c.id_cliente === Number(cid))
       setNivelId(cl?.id_nivel_precio ? String(cl.id_nivel_precio) : '')
+      setCargandoCli(true)
+      getPreciosClienteRegistrado(Number(cid))
+        .then(data => setPreciosCli(data ?? []))
+        .catch(() => setPreciosCli([]))
+        .finally(() => setCargandoCli(false))
     } else {
       setNivelId('')
     }
@@ -302,7 +361,7 @@ export default function NuevaCotizacion() {
     const parsed = parseNotacion(notacion)
     if (parsed.error) { setNotError(parsed.error); return }
     if (!tipoVidrioId) { setNotError('Selecciona un tipo de vidrio'); return }
-    if (!nivelId)      { setNotError('Selecciona un nivel de precio'); return }
+    if (!nivelId && !usarPreciosCli) { setNotError('Selecciona un nivel de precio'); return }
     if (!preview || preview.sinPrecio) {
       setNotError('No hay precio configurado para este tipo y nivel')
       return
@@ -379,14 +438,18 @@ export default function NuevaCotizacion() {
 
   // ── Finalizar cotizacion ──────────────────────────────────────────────────
   const handleFinalizar = async () => {
-    if (!nivelId)       { setSaveError('Selecciona un nivel de precio'); return }
+    if (!nivelId && !usarPreciosCli) { setSaveError('Selecciona un nivel de precio'); return }
     if (!partidas.length) { setSaveError('Agrega al menos una partida'); return }
     setSaving(true)
     setSaveError(null)
 
+    const nivelParaGuardar = usarPreciosCli
+      ? (clienteSeleccionado?.id_nivel_precio ?? null)
+      : Number(nivelId)
+
     // 1. Crear cabecera
     const { data: cot, error: cotErr } = await iniciarCotizacion({
-      id_nivel_precio: Number(nivelId),
+      id_nivel_precio: nivelParaGuardar,
       id_cliente:      clienteId ? Number(clienteId) : null,
       observaciones:   null,
     })
@@ -407,7 +470,7 @@ export default function NuevaCotizacion() {
       id:            cot.id_cotizacion,
       folio:         cot.folio,
       clienteNombre: clienteSeleccionado?.nombre ?? null,
-      nivelNombre:   nivelSeleccionado?.es_hoja_completa ? 'POR HOJA' : (nivelSeleccionado?.nombre ?? ''),
+      nivelNombre:   usarPreciosCli ? 'Precio especial' : (nivelSeleccionado?.es_hoja_completa ? 'POR HOJA' : (nivelSeleccionado?.nombre ?? '')),
       observaciones: null,
       partidas:      partidas,
       total:         totalGeneral,
@@ -437,7 +500,7 @@ export default function NuevaCotizacion() {
   // Crea el pedido directamente sin pasar por cotización
   const handleCotizarYConvertir = async () => {
     const antN = parseFloat(modalAnticipoStr) || 0
-    if (!nivelId)         { setModalError('Selecciona un nivel de precio'); return }
+    if (!nivelId && !usarPreciosCli) { setModalError('Selecciona un nivel de precio'); return }
     if (!partidas.length) { setModalError('Agrega al menos una partida'); return }
     if (modalFormaPago === 'ANTICIPO') {
       if (antN <= 0)            { setModalError('Ingresa un monto de anticipo valido'); return }
@@ -445,11 +508,14 @@ export default function NuevaCotizacion() {
     }
     setModalConvertiendo(true)
     setModalError(null)
+    const nivelParaGuardar = usarPreciosCli
+      ? (clienteSeleccionado?.id_nivel_precio ?? null)
+      : Number(nivelId)
     try {
       const monto    = modalFormaPago === 'LIQUIDADO' ? totalGeneral : antN
       const idPedido = await crearPedidoDirecto({
         id_cliente:      clienteId ? Number(clienteId) : null,
-        id_nivel_precio: Number(nivelId),
+        id_nivel_precio: nivelParaGuardar,
         partidas,
         tipo_pago:       modalFormaPago,
         monto_anticipo:  monto,
@@ -474,6 +540,7 @@ export default function NuevaCotizacion() {
     setPartidas([])
     setNivelId('')
     setClienteId('')
+    setPreciosCli([])
     setObservaciones('')
     setNotacion('')
     setProcesosSeleccionados([])
@@ -575,6 +642,21 @@ export default function NuevaCotizacion() {
     )
   }
 
+  // ── Modo maquila ──────────────────────────────────────────────────────────
+  if (modo === 'maquila') {
+    return (
+      <>
+        <div className="page-header">
+          <div className="page-title">Nueva Cotizacion</div>
+        </div>
+        <div className="page-body">
+          <ModoTab modo={modo} onChangeModo={setModo} />
+          <MaquilaSection />
+        </div>
+      </>
+    )
+  }
+
   // ── Formulario de cotizacion ──────────────────────────────────────────────
   return (
     <>
@@ -604,6 +686,7 @@ export default function NuevaCotizacion() {
       </div>
 
       <div className="page-body">
+        <ModoTab modo={modo} onChangeModo={setModo} />
         {saveError && <div className="alert alert-error">❌ {saveError}</div>}
 
         <div className="venta-grid">
@@ -615,52 +698,67 @@ export default function NuevaCotizacion() {
             <div className="card" style={{ marginBottom: 16 }}>
               <div style={{ fontWeight: 600, marginBottom: 12, fontSize: 15 }}>Datos de la cotizacion</div>
               <div className="form-row">
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label required">Nivel de precio</label>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
-                    {nivelesPrecio.map(n => {
-                      const activo  = nivelId === String(n.id_nivel_precio)
-                      const precioM2 = tipoVidrioId
-                        ? getPrecioVidrio(Number(tipoVidrioId), n.id_nivel_precio)
-                        : null
-                      return (
-                        <button
-                          key={n.id_nivel_precio}
-                          type="button"
-                          onClick={() => setNivelId(String(n.id_nivel_precio))}
-                          style={{
-                            padding: '7px 14px', borderRadius: 8, fontSize: 14, cursor: 'pointer',
-                            border: `2px solid ${activo ? 'var(--accent)' : 'var(--border)'}`,
-                            background: activo ? 'var(--accent)' : 'white',
-                            color: activo ? 'white' : 'var(--text)',
-                            fontWeight: activo ? 700 : 400,
-                            transition: 'all 0.15s',
-                            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1,
-                          }}
-                        >
-                          <span>{n.es_hoja_completa ? 'POR HOJA' : n.nombre}</span>
-                          {precioM2 !== null && (
-                            <span style={{ fontSize: 11, opacity: 0.85, fontWeight: 600 }}>
-                              ${precioM2.toFixed(2)}/m²
-                            </span>
-                          )}
-                        </button>
-                      )
-                    })}
+                {!usarPreciosCli && (
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label className="form-label required">Nivel de precio</label>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+                      {nivelesPrecio.map(n => {
+                        const activo  = nivelId === String(n.id_nivel_precio)
+                        const precioM2 = tipoVidrioId
+                          ? getPrecioVidrio(Number(tipoVidrioId), n.id_nivel_precio)
+                          : null
+                        return (
+                          <button
+                            key={n.id_nivel_precio}
+                            type="button"
+                            onClick={() => setNivelId(String(n.id_nivel_precio))}
+                            style={{
+                              padding: '7px 14px', borderRadius: 8, fontSize: 14, cursor: 'pointer',
+                              border: `2px solid ${activo ? 'var(--accent)' : 'var(--border)'}`,
+                              background: activo ? 'var(--accent)' : 'white',
+                              color: activo ? 'white' : 'var(--text)',
+                              fontWeight: activo ? 700 : 400,
+                              transition: 'all 0.15s',
+                              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1,
+                            }}
+                          >
+                            <span>{n.es_hoja_completa ? 'POR HOJA' : n.nombre}</span>
+                            {precioM2 !== null && (
+                              <span style={{ fontSize: 11, opacity: 0.85, fontWeight: 600 }}>
+                                ${precioM2.toFixed(2)}/m²
+                              </span>
+                            )}
+                          </button>
+                        )
+                      })}
+                    </div>
                   </div>
-                </div>
+                )}
+                {usarPreciosCli && (
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label className="form-label">Nivel de precio</label>
+                    <div style={{
+                      padding: '8px 12px', borderRadius: 8, background: '#ede9fe',
+                      border: '1.5px solid var(--accent)', fontSize: 13, color: 'var(--accent)', fontWeight: 600,
+                    }}>
+                      ✓ Precios especiales del cliente ({preciosCli.length} configurados)
+                    </div>
+                  </div>
+                )}
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label">Cliente (opcional)</label>
                   <select
                     className="form-select"
                     value={clienteId}
                     onChange={handleClienteChange}
+                    disabled={cargandoCli}
                   >
                     <option value="">-- Mostrador --</option>
                     {clientes.filter(c => c.activo).map(c => (
                       <option key={c.id_cliente} value={c.id_cliente}>{c.nombre}</option>
                     ))}
                   </select>
+                  {cargandoCli && <div className="form-hint">Cargando precios...</div>}
                 </div>
               </div>
             </div>
@@ -768,9 +866,13 @@ export default function NuevaCotizacion() {
                                 value={sel.cantidad}
                                 onChange={e => updateBarrenoCantidad(b.id_proceso, parseInt(e.target.value))}
                               />
-                              {nivelId && (
+                              {(nivelId || usarPreciosCli) && (
                                 <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                                  ${(getPrecioProcesoEspecial(b.id_proceso, Number(nivelId)) ?? 0).toFixed(2)}/pza
+                                  ${(usarPreciosCli
+                                    ? (preciosCli.find(p => (p.id_tipo_vidrio ?? null) === null && p.id_proceso === b.id_proceso)?.precio_m2
+                                       ?? getPrecioProcesoEspecial(b.id_proceso, clienteSeleccionado?.id_nivel_precio ?? 0) ?? 0)
+                                    : (getPrecioProcesoEspecial(b.id_proceso, Number(nivelId)) ?? 0)
+                                  ).toFixed(2)}/pza
                                 </span>
                               )}
                             </div>
@@ -809,9 +911,13 @@ export default function NuevaCotizacion() {
                         }}>
                           <input type="radio" name="saqueOpt" value={s.id_proceso} checked={sel} onChange={() => setSaqueId(String(s.id_proceso))} style={{ display: 'none' }} />
                           {sel ? '✅' : '⬜'} {s.nombre}
-                          {nivelId && (
+                          {(nivelId || usarPreciosCli) && (
                             <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 2 }}>
-                              (${(getPrecioProcesoEspecial(s.id_proceso, Number(nivelId)) ?? 0).toFixed(2)})
+                              (${(usarPreciosCli
+                                ? (preciosCli.find(p => (p.id_tipo_vidrio ?? null) === null && p.id_proceso === s.id_proceso)?.precio_m2
+                                   ?? getPrecioProcesoEspecial(s.id_proceso, clienteSeleccionado?.id_nivel_precio ?? 0) ?? 0)
+                                : (getPrecioProcesoEspecial(s.id_proceso, Number(nivelId)) ?? 0)
+                              ).toFixed(2)})
                             </span>
                           )}
                         </label>
@@ -910,7 +1016,7 @@ export default function NuevaCotizacion() {
                 </div>
               )}
 
-              {!nivelId && notacion && (
+              {!nivelId && !usarPreciosCli && notacion && (
                 <div className="alert alert-warning">⚠️ Selecciona un nivel de precio para calcular</div>
               )}
 
@@ -918,7 +1024,7 @@ export default function NuevaCotizacion() {
                 className="btn btn-primary"
                 style={{ width: '100%', justifyContent: 'center', marginTop: 12 }}
                 onClick={handleAgregarPartida}
-                disabled={!notacion || !tipoVidrioId || !nivelId}
+                disabled={!notacion || !tipoVidrioId || (!nivelId && !usarPreciosCli)}
               >
                 ➕ Agregar partida
               </button>

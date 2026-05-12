@@ -493,7 +493,7 @@ export function printTicket(venta, modo = '80mm') {
 </head>
 <body>
   <div class="header center">
-    <h1>HERRAJES CONSORCIO</h1>
+    <h1>TEMPLADOS CONSORCIO</h1>
     <p class="bold">ARTE EN VIDRIO</p>
     <p class="bold">Pedido herraje</p>
   </div>

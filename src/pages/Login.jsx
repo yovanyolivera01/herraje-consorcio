@@ -42,7 +42,7 @@ export default function Login() {
 
         <div style={{ textAlign: 'center', marginBottom: 32, color: '#fff' }}>
           <div style={{ fontSize: 48, marginBottom: 8 }}>🔩</div>
-          <h1 style={{ fontSize: 26, fontWeight: 900, letterSpacing: 2, margin: 0 }}>HERRAJE</h1>
+          <h1 style={{ fontSize: 26, fontWeight: 900, letterSpacing: 2, margin: 0 }}>TEMPLADOS</h1>
           <p style={{ fontSize: 13, color: 'rgba(180,210,255,.8)', margin: '4px 0 0', letterSpacing: 4 }}>
             C O N S O R C I O
           </p>
@@ -105,7 +105,7 @@ export default function Login() {
         </div>
 
         <p style={{ textAlign: 'center', color: 'rgba(180,210,255,.4)', fontSize: 11, marginTop: 24 }}>
-          Herraje Consorcio · Sistema interno
+          Templados Consorcio · Sistema interno
         </p>
       </div>
     </div>

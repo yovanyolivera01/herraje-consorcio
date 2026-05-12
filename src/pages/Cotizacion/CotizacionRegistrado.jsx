@@ -216,6 +216,8 @@ export default function CotizacionRegistrado() {
   const getPrecioProcesoCliente = (id_tipo_vidrio, id_proceso) => {
     const custom = preciosCli.find(p => p.id_tipo_vidrio === id_tipo_vidrio && p.id_proceso === id_proceso)
     if (custom) return Number(custom.precio_m2)
+    const generic = preciosCli.find(p => (p.id_tipo_vidrio ?? null) === null && p.id_proceso === id_proceso)
+    if (generic) return Number(generic.precio_m2)
     if (clienteSeleccionado?.id_nivel_precio)
       return getPrecioProceso(id_proceso, clienteSeleccionado.id_nivel_precio, tipoSeleccionado?.espesor?.id_espesor ?? null)
     return null
@@ -239,6 +241,7 @@ export default function CotizacionRegistrado() {
 
   const preview = useMemo(() => {
     if (!notacion.trim() || !tipoVidrioId || !clienteId) return null
+    if (cargandoPr) return null  // esperar a que carguen los precios del cliente
     const parsed = parseNotacion(notacion)
     if (parsed.error) return { error: parsed.error }
     const precio_m2 = getPrecioVidrioCliente(Number(tipoVidrioId))
@@ -261,7 +264,7 @@ export default function CotizacionRegistrado() {
       return { id_proceso: proc.id_proceso, id_unidad_cobro: proc.id_unidad_cobro, nombre: proc.nombre, unidad, cantidad, precio_unitario, subtotal }
     }).filter(Boolean)
     return { piezas, largo, ancho, metros2_total, precio_m2, subtotal_vidrio, subtotal_procesos, subtotal_total: subtotal_vidrio + subtotal_procesos, procesosCalc }
-  }, [notacion, tipoVidrioId, clienteId, procesosSeleccionados]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [notacion, tipoVidrioId, clienteId, procesosSeleccionados, preciosCli, cargandoPr]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleAgregarPartida = () => {
     const parsed = parseNotacion(notacion)
