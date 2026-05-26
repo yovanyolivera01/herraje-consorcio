@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { fmt5 } from '../../lib/utils'
 import { useCotizacion } from '../../context/CotizacionContext'
 
 // ── Parser (mismo que vidrio) ─────────────────────────────────────────────
@@ -33,10 +34,9 @@ function TicketMaquila({ cotizacion }) {
       {cotizacion.partidas.map((p, i) => (
         <div key={p._key ?? i} style={{ marginBottom: 8 }}>
           <div className="ticket-row" style={{ fontWeight: 600, fontSize: 12 }}>
-            <span>{p.cantidad} pza{p.cantidad > 1 ? 's' : ''} — {p.largo_cm}×{p.ancho_cm} cm</span>
-            <span>${p.subtotal.toFixed(2)}</span>
+            <span>{p.cantidad} - {p.largo_cm}x{p.ancho_cm}{p.descripcion ? ' ' + p.descripcion : ''}</span>
+            <span>${fmt5(p.subtotal)}</span>
           </div>
-          {p.descripcion && <div style={{ fontSize: 11, color: 'var(--text-muted)', paddingLeft: 12 }}>{p.descripcion}</div>}
           {p.procesos?.map((pr, j) => (
             <div key={j} className="ticket-row" style={{ fontSize: 11, paddingLeft: 10 }}>
               <span>+ {pr.nombre}</span>
@@ -47,7 +47,7 @@ function TicketMaquila({ cotizacion }) {
       <hr className="ticket-divider" />
       <div className="ticket-total">
         <span>TOTAL</span>
-        <span>${cotizacion.partidas.reduce((s, p) => s + p.subtotal, 0).toFixed(2)}</span>
+        <span>${fmt5(cotizacion.partidas.reduce((s, p) => s + p.subtotal, 0))}</span>
       </div>
       <hr className="ticket-divider" />
       <div style={{ textAlign: 'center', fontSize: 11, color: 'var(--text-muted)', marginTop: 8 }}>
@@ -70,7 +70,7 @@ function TicketPedidoMaquila({ pedido, total, clienteNombre, nivelNombre }) {
       <div className="ticket-row"><span>Fecha:</span><span>{new Date().toLocaleDateString('es-MX')}</span></div>
       {clienteNombre && <div className="ticket-row"><span>Cliente:</span><span>{clienteNombre}</span></div>}
       <hr className="ticket-divider" />
-      <div className="ticket-total"><span>TOTAL</span><span>${total.toFixed(2)}</span></div>
+      <div className="ticket-total"><span>TOTAL</span><span>${fmt5(total)}</span></div>
       <div className="ticket-row" style={{ marginTop: 6 }}>
         <span>Forma de pago:</span><span>{pedido.tipo_pago === 'CONTADO' ? 'Liquidado' : 'Anticipo'}</span>
       </div>
@@ -148,27 +148,31 @@ export default function MaquilaSection() {
   // Preview de procesos (cliente-side, igual que vidrio)
   const previewProcesos = useMemo(() => {
     if (!nivelId || metros2Preview === null) return []
+    const perimetroML = parsed.error ? 0 : parsed.piezas * 2 * (parsed.largo + parsed.ancho) / 100
     return procesosSelec.map(sel => {
       const proc = activos.find(p => p.id_proceso === sel.id_proceso)
       if (!proc) return null
-      const unidad    = (proc.unidad_cobro?.nombre ?? '').toLowerCase()
-      const esPorPza  = unidad.includes('pza') || unidad.includes('pieza')
-      const esPorM2   = !esPorPza
+      const unidad   = (proc.unidad_cobro?.nombre ?? '').toLowerCase()
+      const esPorPza = unidad.includes('pza') || unidad.includes('pieza')
+      const esPorML  = !esPorPza && (unidad.includes('ml') || unidad.includes('metro l'))
       let cantidad, precio_unitario
       if (esPorPza) {
         cantidad        = sel.cantidad !== '' ? Number(sel.cantidad) : 1
         precio_unitario = getPrecioProcesoEspecial(proc.id_proceso, Number(nivelId)) ?? 0
+      } else if (esPorML) {
+        cantidad        = perimetroML
+        precio_unitario = getPrecioProceso(proc.id_proceso, Number(nivelId), null) ?? 0
       } else {
         cantidad        = metros2Preview
         precio_unitario = getPrecioProceso(proc.id_proceso, Number(nivelId), null) ?? 0
       }
       return {
         id_proceso: proc.id_proceso, nombre: proc.nombre,
-        unidad: proc.unidad_cobro?.nombre ?? '', esPorM2,
+        unidad: proc.unidad_cobro?.nombre ?? '', esPorM2: !esPorPza && !esPorML,
         cantidad, precio_unitario, subtotal: cantidad * precio_unitario,
       }
     }).filter(Boolean)
-  }, [nivelId, metros2Preview, procesosSelec, activos, getPrecioProceso, getPrecioProcesoEspecial])
+  }, [nivelId, metros2Preview, parsed, procesosSelec, activos, getPrecioProceso, getPrecioProcesoEspecial])
 
   const subtotalPreview = previewProcesos.reduce((s, p) => s + p.subtotal, 0)
 
@@ -469,7 +473,7 @@ export default function MaquilaSection() {
                     ['Piezas',    parsed.piezas,                   ''],
                     ['Medida',    `${parsed.largo}×${parsed.ancho}`, ''],
                     ['Total m²',  metros2Preview.toFixed(4),        ''],
-                    ['Subtotal',  `$${subtotalPreview.toFixed(2)}`,  'var(--accent)'],
+                    ['Subtotal',  `$${fmt5(subtotalPreview)}`,  'var(--accent)'],
                   ].map(([label, val, color]) => (
                     <div key={label} style={{ textAlign:'center' }}>
                       <div style={{ fontSize:12, color:'var(--text-muted)', marginBottom:2 }}>{label}</div>
@@ -488,7 +492,7 @@ export default function MaquilaSection() {
                             ? ` (${pc.cantidad.toFixed(4)} m² × $${pc.precio_unitario.toFixed(2)})`
                             : ` (${pc.cantidad} × $${pc.precio_unitario.toFixed(2)})`}
                         </span>
-                        <span>${pc.subtotal.toFixed(2)}</span>
+                        <span>${fmt5(pc.subtotal)}</span>
                       </div>
                     ))}
                   </div>
@@ -520,11 +524,8 @@ export default function MaquilaSection() {
                 <div key={p._key} className="cot-partida-item">
                   <div style={{ flex:1 }}>
                     <div style={{ fontWeight:600, fontSize:15 }}>
-                      {p.cantidad} pza{p.cantidad > 1 ? 's' : ''} · {p.largo_cm}×{p.ancho_cm} cm · {p.metros2.toFixed(4)} m²
+                      {p.cantidad} - {p.largo_cm}x{p.ancho_cm}{p.descripcion ? ' ' + p.descripcion : ''}
                     </div>
-                    {p.descripcion && (
-                      <div style={{ fontSize:13, color:'var(--text-muted)' }}>{p.descripcion}</div>
-                    )}
                     {p.procesos?.length > 0 && (
                       <div style={{ marginTop:3 }}>
                         {p.procesos.map((pr, j) => (
@@ -536,7 +537,7 @@ export default function MaquilaSection() {
                     )}
                   </div>
                   <div style={{ fontWeight:700, fontSize:16, color:'var(--accent)', minWidth:80, textAlign:'right' }}>
-                    ${p.subtotal.toFixed(2)}
+                    ${fmt5(p.subtotal)}
                   </div>
                   <button
                     className="btn-icon danger"
@@ -550,7 +551,7 @@ export default function MaquilaSection() {
               ))}
               <div className="venta-total-bar" style={{ marginTop:12 }}>
                 <span>Total de la cotizacion</span>
-                <strong>${totalGeneral.toFixed(2)}</strong>
+                <strong>${fmt5(totalGeneral)}</strong>
               </div>
             </div>
           ) : (
@@ -592,7 +593,7 @@ export default function MaquilaSection() {
 
             <div style={{ display:'flex', justifyContent:'space-between', fontSize:16, fontWeight:700 }}>
               <span>Total</span>
-              <span style={{ color:'var(--accent)' }}>${totalGeneral.toFixed(2)}</span>
+              <span style={{ color:'var(--accent)' }}>${fmt5(totalGeneral)}</span>
             </div>
 
             <button
@@ -631,7 +632,7 @@ export default function MaquilaSection() {
               Total · {partidas.length} partida{partidas.length !== 1 ? 's' : ''}
             </div>
             <div style={{ fontSize:22, fontWeight:800, color:'var(--accent)', lineHeight:1.1 }}>
-              ${totalGeneral.toFixed(2)}
+              ${fmt5(totalGeneral)}
             </div>
           </div>
           <button className="btn btn-outline" style={{ justifyContent:'center' }}
@@ -656,7 +657,7 @@ export default function MaquilaSection() {
                 <div>
                   <div className="modal-title">Convertir a pedido — Maquila</div>
                   <div style={{ fontSize:12, color:'var(--text-muted)', marginTop:2 }}>
-                    Total: ${totalGeneral.toFixed(2)}
+                    Total: ${fmt5(totalGeneral)}
                   </div>
                 </div>
                 <button className="btn-icon" onClick={() => setShowModal(false)}>✕</button>
@@ -689,7 +690,7 @@ export default function MaquilaSection() {
                       placeholder="0.00" autoFocus />
                     {antN > 0 && antN < totalGeneral && (
                       <div className="form-hint">
-                        Saldo pendiente: <strong>${(totalGeneral - antN).toFixed(2)}</strong>
+                        Saldo pendiente: <strong>${fmt5(totalGeneral - antN)}</strong>
                       </div>
                     )}
                   </div>

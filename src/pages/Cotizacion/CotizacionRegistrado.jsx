@@ -1,10 +1,12 @@
 import { useState, useMemo, useEffect } from 'react'
+import { fmt5 } from '../../lib/utils'
 import { useCotizacion } from '../../context/CotizacionContext'
+import { useApp } from '../../context/AppContext'
 import { convertirCotizacionAPedido, getDetallePedido } from '../../lib/pedidosApi'
 import { printCotizacionCarta, printTicketVidrio } from '../../utils/ticket'
 import { exportCotizacionPDF } from '../../utils/pdf'
 
-// ── Parser notacion ───────────────────────────────────────────────────────
+// ── Parser notacion vidrio ────────────────────────────────────────────────
 function parseNotacion(texto) {
   if (!texto?.trim()) return { error: 'Ingresa una medida (ej. 3-22x45)' }
   const limpio = texto.trim().replace(/\s/g, '')
@@ -17,15 +19,14 @@ function parseNotacion(texto) {
   return { piezas, largo, ancho }
 }
 
-// ── Ticket de cotización (pantalla) ───────────────────────────────────────
+// ── Ticket en pantalla ────────────────────────────────────────────────────
 function TicketCotizacion({ cot }) {
-  const total = cot.partidas.reduce((s, p) => s + p.subtotal_partida, 0)
   return (
     <div className="ticket-preview">
       <div className="ticket-header">
         <h2>TEMPLADOS CONSORCIO</h2>
         <p style={{ fontWeight: 700 }}>ARTE EN VIDRIO</p>
-        <p style={{ fontWeight: 600 }}>Cotizacion de Vidrio</p>
+        <p style={{ fontWeight: 600 }}>Cotizacion</p>
       </div>
       <hr className="ticket-divider" />
       <div className="ticket-row"><span>Folio:</span><strong>{cot.folio}</strong></div>
@@ -33,31 +34,55 @@ function TicketCotizacion({ cot }) {
       <div className="ticket-row"><span>Cliente:</span><strong>{cot.clienteNombre}</strong></div>
       {cot.clienteTel && <div className="ticket-row"><span>Tel:</span><span>{cot.clienteTel}</span></div>}
       <hr className="ticket-divider" />
-      {cot.partidas.map((p, i) => (
-        <div key={i} style={{ marginBottom: 8 }}>
-          <div className="ticket-row" style={{ fontWeight: 600, fontSize: 12 }}>
-            <span>{p.piezas} pza{p.piezas > 1 ? 's' : ''} — {p.tipoClaveLabel} · {p.largo_cm}×{p.ancho_cm} cm</span>
-            <span>${p.subtotal_vidrio.toFixed(2)}</span>
-          </div>
-          <div className="ticket-row" style={{ fontSize: 11, color: '#555' }}>
-            <span>{p.metros2.toFixed(4)} m² · ${p.precio_m2_aplicado.toFixed(2)}/m²</span>
-          </div>
-          {p.procesos?.map((pr, j) => (
-            <div key={j} className="ticket-row" style={{ fontSize: 11, paddingLeft: 10 }}>
-              <span>+ {pr.nombre}</span>
-              <span>${pr.subtotal.toFixed(2)}</span>
+
+      {cot.partidas.filter(p => p.tipo === 'VIDRIO').length > 0 && (
+        <>
+          <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '1px dashed #aaa', paddingBottom: 2, margin: '5px 0 3px' }}>Vidrio</div>
+          {cot.partidas.filter(p => p.tipo === 'VIDRIO').map((p, i) => (
+            <div key={i} style={{ marginBottom: 6 }}>
+              <div className="ticket-row" style={{ fontWeight: 600, fontSize: 12 }}>
+                <span>{p.piezas} · {p.tipoClaveLabel} · {p.largo_cm}×{p.ancho_cm}</span>
+                <span>${fmt5(p.subtotal_vidrio)}</span>
+              </div>
+              {p.procesos?.map((pr, j) => (
+                <div key={j} className="ticket-row" style={{ fontSize: 11, paddingLeft: 10 }}>
+                  <span>+ {pr.nombre}</span><span>${fmt5(pr.subtotal)}</span>
+                </div>
+              ))}
+              {p.procesos?.length > 0 && (
+                <div className="ticket-row" style={{ fontWeight: 600, fontSize: 12 }}>
+                  <span>Subtotal partida</span><span>${fmt5(p.subtotal_partida)}</span>
+                </div>
+              )}
             </div>
           ))}
-          {p.procesos?.length > 0 && (
-            <div className="ticket-row" style={{ fontWeight: 600, fontSize: 12 }}>
-              <span>Subtotal partida</span>
-              <span>${p.subtotal_partida.toFixed(2)}</span>
+        </>
+      )}
+      {cot.partidas.filter(p => p.tipo === 'MAQUILA').length > 0 && (
+        <>
+          <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '1px dashed #aaa', paddingBottom: 2, margin: '5px 0 3px' }}>Maquila</div>
+          {cot.partidas.filter(p => p.tipo === 'MAQUILA').map((p, i) => (
+            <div key={i} className="ticket-row" style={{ fontSize: 12, marginBottom: 4 }}>
+              <span>{p.cantidad} {p.unidad} — {p.descripcion}</span>
+              <span style={{ fontWeight: 700 }}>${fmt5(p.subtotal_partida)}</span>
             </div>
-          )}
-        </div>
-      ))}
+          ))}
+        </>
+      )}
+      {cot.partidas.filter(p => p.tipo === 'HERRAJE' || p.tipo === 'PRODUCTO').length > 0 && (
+        <>
+          <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '1px dashed #aaa', paddingBottom: 2, margin: '5px 0 3px' }}>Herraje</div>
+          {cot.partidas.filter(p => p.tipo === 'HERRAJE' || p.tipo === 'PRODUCTO').map((p, i) => (
+            <div key={i} className="ticket-row" style={{ fontSize: 12, marginBottom: 4 }}>
+              <span>{p.cantidad} · {p.descripcion}</span>
+              <span style={{ fontWeight: 700 }}>${fmt5(p.subtotal_partida)}</span>
+            </div>
+          ))}
+        </>
+      )}
+
       <hr className="ticket-divider" />
-      <div className="ticket-total"><span>TOTAL</span><span>${total.toFixed(2)}</span></div>
+      <div className="ticket-total"><span>TOTAL</span><span>${fmt5(cot.total)}</span></div>
       <hr className="ticket-divider" />
       <div style={{ textAlign: 'center', fontSize: 11, color: '#666', marginTop: 6 }}>
         Cotizacion con vigencia de 15 dias.
@@ -72,6 +97,7 @@ function ConvertirModal({ cotizacion, onClose, onCreado }) {
   const [anticipo,  setAnticipo]  = useState('')
   const [saving,    setSaving]    = useState(false)
   const [error,     setError]     = useState(null)
+  const { addVenta } = useApp()
 
   const anticipoNum = parseFloat(anticipo) || 0
   const saldo = formaPago === 'ANTICIPO' ? cotizacion.total - anticipoNum : 0
@@ -86,7 +112,30 @@ function ConvertirModal({ cotizacion, onClose, onCreado }) {
     try {
       const monto    = formaPago === 'LIQUIDADO' ? cotizacion.total : parseFloat(anticipo)
       const idPedido = await convertirCotizacionAPedido(cotizacion.id, formaPago, monto)
-      const detalle  = await getDetallePedido(idPedido)
+
+      // Registrar productos herraje como venta en historial de ventas
+      if (formaPago === 'LIQUIDADO') {
+        const prodExtras = (cotizacion.partidas ?? []).filter(p => p.tipo === 'PRODUCTO')
+        if (prodExtras.length > 0) {
+          const ventaPartidas = prodExtras.map(p => ({
+            key:               `cot-prod-${p._key ?? p.id_producto_general}`,
+            tipo:              'GENERAL',
+            productoId:        null,
+            idProductoGeneral: p.id_producto_general,
+            codigoProducto:    p.descripcion,
+            descripcion:       p.descripcion,
+            tono:              '',
+            precioUnitario:    Number(p.precio_unitario),
+            cantidad:          Number(p.cantidad),
+            subtotal:          Number(p.subtotal_partida),
+            stockDisponible:   null,
+          }))
+          const ventaRes = await addVenta(ventaPartidas)
+          if (ventaRes?.error) throw new Error('Pedido creado. Error al registrar venta herraje: ' + ventaRes.error)
+        }
+      }
+
+      const detalle = await getDetallePedido(idPedido)
       onCreado(detalle)
     } catch (err) {
       setError(err.message || 'Error al crear el pedido')
@@ -101,7 +150,7 @@ function ConvertirModal({ cotizacion, onClose, onCreado }) {
           <div>
             <div className="modal-title">Convertir a pedido</div>
             <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-              {cotizacion.folio} · ${cotizacion.total.toFixed(2)}
+              {cotizacion.folio} · ${fmt5(cotizacion.total)}
             </div>
           </div>
           <button className="btn-icon" onClick={onClose}>✕</button>
@@ -154,36 +203,70 @@ function ConvertirModal({ cotizacion, onClose, onCreado }) {
   )
 }
 
-// ── Pagina CotizacionRegistrado ───────────────────────────────────────────
+// ── Badge de tipo ─────────────────────────────────────────────────────────
+const TIPO_META = {
+  VIDRIO:   { label: 'Vidrio',   bg: '#dbeafe', color: '#1d4ed8' },
+  MAQUILA:  { label: 'Maquila',  bg: '#fef3c7', color: '#b45309' },
+  PRODUCTO: { label: 'Herraje',  bg: '#dcfce7', color: '#15803d' },
+}
+
+// ── Pagina principal ──────────────────────────────────────────────────────
 export default function CotizacionRegistrado() {
   const {
     clientes, tiposVidrio, procesos,
     getPrecioVidrio, getPrecioProceso,
     getPreciosClienteRegistrado, getPreciosEmpresa, getEmpresaDeCliente,
-    iniciarCotizacion, agregarPartida, finalizarCotizacion,
+    iniciarCotizacion, agregarPartida, agregarPartidaExtra, finalizarCotizacion,
+    getProductosGenerales,
   } = useCotizacion()
 
-  const [clienteId,             setClienteId]             = useState('')
-  const [preciosCli,            setPreciosCli]            = useState([])
-  const [preciosEmp,            setPreciosEmp]            = useState([])
-  const [empresaCli,            setEmpresaCli]            = useState(null)
-  const [cargandoPr,            setCargandoPr]            = useState(false)
+  // ── Cliente ───────────────────────────────────────────────────────────────
+  const [clienteId,   setClienteId]   = useState('')
+  const [preciosCli,  setPreciosCli]  = useState([])
+  const [preciosEmp,  setPreciosEmp]  = useState([])
+  const [empresaCli,  setEmpresaCli]  = useState(null)
+  const [cargandoPr,  setCargandoPr]  = useState(false)
+
+  // ── Tipo de partida activa ────────────────────────────────────────────────
+  const [tipoPartida, setTipoPartida] = useState('VIDRIO')
+
+  // ── Vidrio form ───────────────────────────────────────────────────────────
   const [tipoVidrioId,          setTipoVidrioId]          = useState('')
   const [notacion,              setNotacion]              = useState('')
   const [notError,              setNotError]              = useState('')
   const [procesosSeleccionados, setProcesosSeleccionados] = useState([])
-  const [partidas,              setPartidas]              = useState([])
-  const [cotCreada,             setCotCreada]             = useState(null)
-  const [saving,                setSaving]                = useState(false)
-  const [saveError,             setSaveError]             = useState(null)
-  const [convertirModal,        setConvertirModal]        = useState(false)
-  const [pedidoCreado,          setPedidoCreado]          = useState(null)
 
-  const clienteSeleccionado = clientes.find(c => c.id_cliente === Number(clienteId)) ?? null
-  const tiposActivos        = tiposVidrio.filter(t => t.activo)
-  const tipoSeleccionado    = tiposActivos.find(t => t.id_tipo_vidrio === Number(tipoVidrioId)) ?? null
-  const procesosActivos     = procesos.filter(p => p.activo)
+  // ── Maquila/Servicio form ─────────────────────────────────────────────────
+  const [maqDesc,     setMaqDesc]     = useState('')
+  const [maqCantidad, setMaqCantidad] = useState('')
+  const [maqPrecio,   setMaqPrecio]   = useState('')
+  const [maqUnidad,   setMaqUnidad]   = useState('pza')
+  const [maqError,    setMaqError]    = useState('')
 
+  // ── Producto form ─────────────────────────────────────────────────────────
+  const [productos,    setProductos]    = useState([])
+  const [prodId,       setProdId]       = useState('')
+  const [prodCantidad, setProdCantidad] = useState('')
+  const [prodPrecio,   setProdPrecio]   = useState('')
+  const [prodError,    setProdError]    = useState('')
+
+  // ── Partidas + guardado ───────────────────────────────────────────────────
+  const [partidas,       setPartidas]       = useState([])
+  const [cotCreada,      setCotCreada]      = useState(null)
+  const [saving,         setSaving]         = useState(false)
+  const [saveError,      setSaveError]      = useState(null)
+  const [convertirModal, setConvertirModal] = useState(false)
+  const [pedidoCreado,   setPedidoCreado]   = useState(null)
+  const [generandoPDF,   setGenerandoPDF]   = useState(false)
+
+  // ── Cargar productos generales ────────────────────────────────────────────
+  useEffect(() => {
+    getProductosGenerales().then(res => {
+      if (!res.error) setProductos(res.data ?? [])
+    })
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Cargar precios del cliente ────────────────────────────────────────────
   useEffect(() => {
     if (!clienteId) { setPreciosCli([]); setPreciosEmp([]); setEmpresaCli(null); return }
     setCargandoPr(true)
@@ -205,6 +288,20 @@ export default function CotizacionRegistrado() {
       .finally(() => setCargandoPr(false))
   }, [clienteId]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Auto-llenar precio al seleccionar producto
+  useEffect(() => {
+    if (!prodId) { setProdPrecio(''); return }
+    const prod = productos.find(p => p.id_producto_general === Number(prodId))
+    if (prod?.precio != null) setProdPrecio(String(prod.precio))
+    else setProdPrecio('')
+  }, [prodId, productos])
+
+  const clienteSeleccionado = clientes.find(c => c.id_cliente === Number(clienteId)) ?? null
+  const tiposActivos        = tiposVidrio.filter(t => t.activo)
+  const tipoSeleccionado    = tiposActivos.find(t => t.id_tipo_vidrio === Number(tipoVidrioId)) ?? null
+  const procesosActivos     = procesos.filter(p => p.activo)
+
+  // ── Precio helpers ────────────────────────────────────────────────────────
   const getPrecioVidrioCliente = (id_tipo_vidrio) => {
     const custom = preciosCli.find(p => p.id_tipo_vidrio === id_tipo_vidrio && (p.id_proceso ?? null) === null)
     if (custom) return Number(custom.precio_m2)
@@ -239,9 +336,11 @@ export default function CotizacionRegistrado() {
     return null
   }
 
+  // ── Preview vidrio ────────────────────────────────────────────────────────
   const preview = useMemo(() => {
+    if (tipoPartida !== 'VIDRIO') return null
     if (!notacion.trim() || !tipoVidrioId || !clienteId) return null
-    if (cargandoPr) return null  // esperar a que carguen los precios del cliente
+    if (cargandoPr) return null
     const parsed = parseNotacion(notacion)
     if (parsed.error) return { error: parsed.error }
     const precio_m2 = getPrecioVidrioCliente(Number(tipoVidrioId))
@@ -264,19 +363,19 @@ export default function CotizacionRegistrado() {
       return { id_proceso: proc.id_proceso, id_unidad_cobro: proc.id_unidad_cobro, nombre: proc.nombre, unidad, cantidad, precio_unitario, subtotal }
     }).filter(Boolean)
     return { piezas, largo, ancho, metros2_total, precio_m2, subtotal_vidrio, subtotal_procesos, subtotal_total: subtotal_vidrio + subtotal_procesos, procesosCalc }
-  }, [notacion, tipoVidrioId, clienteId, procesosSeleccionados, preciosCli, cargandoPr]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [notacion, tipoVidrioId, clienteId, procesosSeleccionados, preciosCli, cargandoPr, tipoPartida]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleAgregarPartida = () => {
+  // ── Agregar partida VIDRIO ────────────────────────────────────────────────
+  const handleAgregarVidrio = () => {
     const parsed = parseNotacion(notacion)
     if (parsed.error)                         { setNotError(parsed.error); return }
     if (!tipoVidrioId)                        { setNotError('Selecciona un tipo de vidrio'); return }
     if (!clienteId)                           { setNotError('Selecciona un cliente'); return }
     if (!preview || preview.sinPrecio)        { setNotError('Sin precio para este tipo de vidrio'); return }
 
-    // Calcular precios de empresa para el Excel
-    const id_espesor   = tipoSeleccionado?.espesor?.id_espesor ?? null
-    const precio_m2_emp = getPrecioVidrioEmpresa(Number(tipoVidrioId)) ?? preview.precio_m2
-    const metros2       = preview.metros2_total
+    const id_espesor     = tipoSeleccionado?.espesor?.id_espesor ?? null
+    const precio_m2_emp  = getPrecioVidrioEmpresa(Number(tipoVidrioId)) ?? preview.precio_m2
+    const metros2        = preview.metros2_total
     let subtotal_proc_emp = 0
     const procesos_emp = preview.procesosCalc.map(pr => {
       const p_unit = getPrecioProcesoEmpresa(Number(tipoVidrioId), pr.id_proceso, id_espesor) ?? pr.precio_unitario
@@ -289,20 +388,19 @@ export default function CotizacionRegistrado() {
 
     setPartidas(prev => [...prev, {
       _key:               Date.now() + Math.random(),
+      tipo:               'VIDRIO',
       id_tipo_vidrio:     Number(tipoVidrioId),
       tipoClaveLabel:     tipoSeleccionado.clave,
       piezas:             parsed.piezas,
       largo_cm:           parsed.largo,
       ancho_cm:           parsed.ancho,
       metros2,
-      // precios cliente (ticket)
       precio_m2_aplicado: preview.precio_m2,
       subtotal_vidrio:    preview.subtotal_vidrio,
       subtotal_procesos:  preview.subtotal_procesos,
       subtotal_partida:   preview.subtotal_total,
       procesos:           preview.procesosCalc,
       es_hoja_completa:   false,
-      // precios empresa (excel)
       precio_m2_emp,
       subtotal_vidrio_emp,
       subtotal_proc_emp,
@@ -312,6 +410,46 @@ export default function CotizacionRegistrado() {
     setNotacion(''); setNotError(''); setProcesosSeleccionados([])
   }
 
+  // ── Agregar partida MAQUILA ───────────────────────────────────────────────
+  const handleAgregarMaquila = () => {
+    if (!maqDesc.trim())                            { setMaqError('Ingresa una descripcion'); return }
+    const cant = parseFloat(maqCantidad)
+    const prec = parseFloat(maqPrecio)
+    if (!cant || cant <= 0)                         { setMaqError('Ingresa una cantidad valida'); return }
+    if (isNaN(prec) || prec < 0)                    { setMaqError('Ingresa un precio valido'); return }
+    setPartidas(prev => [...prev, {
+      _key:            Date.now() + Math.random(),
+      tipo:            'MAQUILA',
+      descripcion:     maqDesc.trim(),
+      cantidad:        cant,
+      unidad:          maqUnidad,
+      precio_unitario: prec,
+      subtotal_partida: cant * prec,
+    }])
+    setMaqDesc(''); setMaqCantidad(''); setMaqPrecio(''); setMaqError('')
+  }
+
+  // ── Agregar partida PRODUCTO ──────────────────────────────────────────────
+  const handleAgregarProducto = () => {
+    const prod = productos.find(p => p.id_producto_general === Number(prodId))
+    if (!prod)                                      { setProdError('Selecciona un producto'); return }
+    const cant = parseFloat(prodCantidad)
+    const prec = parseFloat(prodPrecio)
+    if (!cant || cant <= 0)                         { setProdError('Ingresa una cantidad valida'); return }
+    if (isNaN(prec) || prec < 0)                    { setProdError('Ingresa un precio valido'); return }
+    setPartidas(prev => [...prev, {
+      _key:                Date.now() + Math.random(),
+      tipo:                'PRODUCTO',
+      id_producto_general: prod.id_producto_general,
+      descripcion:         prod.nombre,
+      cantidad:            cant,
+      unidad:              prod.unidad ?? 'pza',
+      precio_unitario:     prec,
+      subtotal_partida:    cant * prec,
+    }])
+    setProdId(''); setProdCantidad(''); setProdPrecio(''); setProdError('')
+  }
+
   const toggleProceso = (proc) =>
     setProcesosSeleccionados(prev =>
       prev.find(p => p.id_proceso === proc.id_proceso)
@@ -319,10 +457,12 @@ export default function CotizacionRegistrado() {
         : [...prev, { id_proceso: proc.id_proceso }]
     )
 
-  const quitarPartida = (idx) => requestAnimationFrame(() => setPartidas(prev => prev.filter((_, i) => i !== idx)))
+  const quitarPartida = (idx) =>
+    requestAnimationFrame(() => setPartidas(prev => prev.filter((_, i) => i !== idx)))
 
   const totalGeneral = partidas.reduce((s, p) => s + p.subtotal_partida, 0)
 
+  // ── Guardar cotizacion ────────────────────────────────────────────────────
   const handleGuardar = async () => {
     if (!clienteId)       { setSaveError('Selecciona un cliente'); return }
     if (!partidas.length) { setSaveError('Agrega al menos una partida'); return }
@@ -333,10 +473,25 @@ export default function CotizacionRegistrado() {
         id_cliente:      Number(clienteId),
       })
       if (e1) throw new Error(e1)
+
       for (const p of partidas) {
-        const { error: e2 } = await agregarPartida(cot.id_cotizacion, p)
-        if (e2) throw new Error(e2)
+        if (p.tipo === 'VIDRIO') {
+          const { error: e2 } = await agregarPartida(cot.id_cotizacion, p)
+          if (e2) throw new Error(e2)
+        } else {
+          const { error: e2 } = await agregarPartidaExtra(cot.id_cotizacion, {
+            tipo:                p.tipo,
+            descripcion:         p.descripcion,
+            unidad:              p.unidad,
+            cantidad:            p.cantidad,
+            precio_unitario:     p.precio_unitario,
+            subtotal:            p.subtotal_partida,
+            id_producto_general: p.id_producto_general ?? null,
+          })
+          if (e2) throw new Error(e2)
+        }
       }
+
       const { data: final, error: e3 } = await finalizarCotizacion(cot.id_cotizacion, totalGeneral)
       if (e3) throw new Error(e3)
       setCotCreada({
@@ -356,20 +511,45 @@ export default function CotizacionRegistrado() {
     }
   }
 
-  const [generandoPDF, setGenerandoPDF] = useState(false)
+  // ── Reset ─────────────────────────────────────────────────────────────────
+  const nueva = () => {
+    setCotCreada(null); setPedidoCreado(null); setPartidas([])
+    setSaveError(null); setTipoPartida('VIDRIO')
+    setNotacion(''); setNotError(''); setProcesosSeleccionados([]); setTipoVidrioId('')
+    setMaqDesc(''); setMaqCantidad(''); setMaqPrecio(''); setMaqError('')
+    setProdId(''); setProdCantidad(''); setProdPrecio(''); setProdError('')
+  }
 
+  // ── PDF ───────────────────────────────────────────────────────────────────
   const exportarPDF = async () => {
     if (!cotCreada) return
-    const partidasEmp = cotCreada.partidas.map(p => ({
-      piezas:           p.piezas,
-      clave:            p.tipoClaveLabel,
-      largo_cm:         p.largo_cm,
-      ancho_cm:         p.ancho_cm,
-      subtotal_vidrio:  p.subtotal_vidrio_emp ?? p.subtotal_vidrio,
-      procesos:         p.procesos_emp ?? p.procesos,
-      subtotal_partida: p.subtotal_partida_emp ?? p.subtotal_partida,
-    }))
-    const totalEmp = partidasEmp.reduce((s, p) => s + p.subtotal_partida, 0)
+    const vidrioPartidas = cotCreada.partidas
+      .filter(p => p.tipo === 'VIDRIO')
+      .map(p => ({
+        piezas:           p.piezas,
+        clave:            p.tipoClaveLabel,
+        largo_cm:         p.largo_cm,
+        ancho_cm:         p.ancho_cm,
+        subtotal_vidrio:  p.subtotal_vidrio_emp ?? p.subtotal_vidrio,
+        procesos:         p.procesos_emp ?? p.procesos,
+        subtotal_partida: p.subtotal_partida_emp ?? p.subtotal_partida,
+      }))
+    const extrasPartidas = cotCreada.partidas
+      .filter(p => p.tipo !== 'VIDRIO')
+      .map(p => ({
+        piezas:           p.cantidad,
+        clave:            p.tipo === 'MAQUILA' ? 'SRV' : 'PROD',
+        largo_cm:         0,
+        ancho_cm:         0,
+        subtotal_vidrio:  p.subtotal_partida,
+        procesos:         [],
+        subtotal_partida: p.subtotal_partida,
+        descripcion:      p.descripcion,
+        unidad:           p.unidad,
+        precio_unitario:  p.precio_unitario,
+      }))
+    const todasPartidas = [...vidrioPartidas, ...extrasPartidas]
+    const totalEmp = todasPartidas.reduce((s, p) => s + p.subtotal_partida, 0)
     setGenerandoPDF(true)
     try {
       await exportCotizacionPDF({
@@ -382,7 +562,7 @@ export default function CotizacionRegistrado() {
         nivelNombre:   cotCreada.nivelNombre,
         empresa:       cotCreada.empresa,
         total:         totalEmp,
-        partidas:      partidasEmp,
+        partidas:      todasPartidas,
       })
     } finally {
       setGenerandoPDF(false)
@@ -400,15 +580,22 @@ export default function CotizacionRegistrado() {
       clienteTel:    cotCreada.clienteTel,
       nivelNombre:   cotCreada.nivelNombre,
       total:         cotCreada.total,
-      partidas:      cotCreada.partidas.map(p => ({
-        piezas:           p.piezas,
-        clave:            p.tipoClaveLabel,
-        largo_cm:         p.largo_cm,
-        ancho_cm:         p.ancho_cm,
-        subtotal_vidrio:  p.subtotal_vidrio,
-        procesos:         p.procesos,
-        subtotal_partida: p.subtotal_partida,
-      })),
+      partidas:      cotCreada.partidas.map(p => {
+        if (p.tipo === 'VIDRIO') return {
+          tipo: 'VIDRIO',
+          piezas: p.piezas, clave: p.tipoClaveLabel,
+          largo_cm: p.largo_cm, ancho_cm: p.ancho_cm,
+          subtotal_vidrio: p.subtotal_vidrio, procesos: p.procesos,
+          subtotal_partida: p.subtotal_partida,
+        }
+        return {
+          tipo: p.tipo,
+          cantidad: p.cantidad, unidad: p.unidad,
+          descripcion: p.descripcion,
+          precio_unitario: p.precio_unitario,
+          subtotal_partida: p.subtotal_partida,
+        }
+      }),
     })
   }
 
@@ -424,25 +611,24 @@ export default function CotizacionRegistrado() {
       nivelNombre:   cotCreada.nivelNombre,
       empresa:       cotCreada.empresa,
       total:         cotCreada.total,
-      partidas:      cotCreada.partidas.map(p => ({
-        piezas:           p.piezas,
-        clave:            p.tipoClaveLabel,
-        largo_cm:         p.largo_cm,
-        ancho_cm:         p.ancho_cm,
-        subtotal_vidrio:  p.subtotal_vidrio,
-        procesos:         p.procesos,
-        subtotal_partida: p.subtotal_partida,
-      })),
+      partidas:      cotCreada.partidas.map(p => {
+        if (p.tipo === 'VIDRIO') return {
+          piezas: p.piezas, clave: p.tipoClaveLabel,
+          largo_cm: p.largo_cm, ancho_cm: p.ancho_cm,
+          subtotal_vidrio: p.subtotal_vidrio, procesos: p.procesos,
+          subtotal_partida: p.subtotal_partida,
+        }
+        return {
+          piezas: p.cantidad, clave: p.descripcion ?? '',
+          largo_cm: 0, ancho_cm: 0,
+          subtotal_vidrio: p.subtotal_partida, procesos: [],
+          subtotal_partida: p.subtotal_partida,
+        }
+      }),
     })
   }
 
-  const nueva = () => {
-    setCotCreada(null); setPedidoCreado(null); setPartidas([])
-    setSaveError(null); setNotacion(''); setNotError('')
-    setProcesosSeleccionados([]); setTipoVidrioId('')
-  }
-
-  // ── Post-guardado ─────────────────────────────────────────────────────────
+  // ── Vista: pedido creado ──────────────────────────────────────────────────
   if (pedidoCreado) {
     return (
       <div className="page-body" style={{ maxWidth: 480, margin: '0 auto' }}>
@@ -459,6 +645,7 @@ export default function CotizacionRegistrado() {
     )
   }
 
+  // ── Vista: cotizacion guardada ────────────────────────────────────────────
   if (cotCreada) {
     return (
       <>
@@ -470,34 +657,21 @@ export default function CotizacionRegistrado() {
         </div>
         <div className="page-body" style={{ maxWidth: 520, margin: '0 auto' }}>
           <div className="alert alert-success" style={{ marginBottom: 16 }}>
-            ✅ Cotizacion guardada correctamente. Ya aparece en el <strong>Historial de Cotizaciones</strong>.
+            ✅ Cotizacion guardada. Ya aparece en el <strong>Historial de Cotizaciones</strong>.
           </div>
-
           <TicketCotizacion cot={cotCreada} />
-
           <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
-            <button className="btn btn-outline" style={{ flex: 1 }} onClick={nueva}>
-              Nueva cotizacion
-            </button>
-            <button className="btn btn-outline" style={{ flex: 1 }} onClick={imprimirTicket}>
-              🎫 Ticket
-            </button>
-            <button className="btn btn-outline" style={{ flex: 1 }} onClick={imprimirCotizacion}>
-              🖨️ Imprimir
-            </button>
+            <button className="btn btn-outline" style={{ flex: 1 }} onClick={nueva}>Nueva cotizacion</button>
+            <button className="btn btn-outline" style={{ flex: 1 }} onClick={imprimirTicket}>🎫 Ticket</button>
+            <button className="btn btn-outline" style={{ flex: 1 }} onClick={imprimirCotizacion}>🖨️ Imprimir</button>
             <button className="btn btn-outline" style={{ flex: 1 }} onClick={exportarPDF} disabled={generandoPDF}>
-              {generandoPDF ? 'Generando...' : '📄 Descargar PDF'}
+              {generandoPDF ? 'Generando...' : '📄 PDF'}
             </button>
-            <button
-              className="btn btn-primary"
-              style={{ flex: 1 }}
-              onClick={() => setConvertirModal(true)}
-            >
+            <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => setConvertirModal(true)}>
               ✅ Convertir a pedido
             </button>
           </div>
         </div>
-
         {convertirModal && (
           <ConvertirModal
             cotizacion={cotCreada}
@@ -515,7 +689,7 @@ export default function CotizacionRegistrado() {
       <div className="page-header">
         <div>
           <div className="page-title">Cotizacion — Cliente Registrado</div>
-          <div className="page-subtitle">Precios especiales por cliente</div>
+          <div className="page-subtitle">Vidrio · Maquila · Herraje</div>
         </div>
       </div>
 
@@ -545,7 +719,7 @@ export default function CotizacionRegistrado() {
                 ? <span>Cargando precios...</span>
                 : preciosCli.length > 0
                   ? <span style={{ color: 'var(--accent)' }}>✓ {preciosCli.length} precio(s) especial(es)</span>
-                  : <span style={{ color: 'var(--danger)' }}>⚠ Sin precios especiales configurados</span>
+                  : <span style={{ color: 'var(--danger)' }}>⚠ Sin precios especiales de vidrio</span>
               }
             </div>
           )}
@@ -554,92 +728,230 @@ export default function CotizacionRegistrado() {
         {/* 2. Agregar partida */}
         {clienteId && (
           <div className="card" style={{ marginBottom: 16 }}>
-            <div style={{ fontWeight: 600, marginBottom: 10 }}>2. Agregar partida</div>
+            <div style={{ fontWeight: 600, marginBottom: 12 }}>2. Agregar partida</div>
 
-            <div className="form-group">
-              <label className="form-label">Tipo de vidrio</label>
-              <select className="form-select" value={tipoVidrioId} onChange={e => setTipoVidrioId(e.target.value)}>
-                <option value="">-- Seleccionar --</option>
-                {tiposActivos.map(t => {
-                  const precio = getPrecioVidrioCliente(t.id_tipo_vidrio)
-                  return (
-                    <option key={t.id_tipo_vidrio} value={t.id_tipo_vidrio}>
-                      {t.clave} — {t.tono?.nombre} / {t.espesor?.etiqueta}
-                      {precio !== null ? ` · $${precio.toFixed(2)}/m²` : ' · (sin precio)'}
-                    </option>
-                  )
-                })}
-              </select>
+            {/* Selector de tipo */}
+            <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
+              {[['VIDRIO','🪟 Vidrio'],['MAQUILA','Maquila'],['PRODUCTO','🧰 Herraje']].map(([t, label]) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setTipoPartida(t)}
+                  style={{
+                    padding: '6px 14px', borderRadius: 7, fontSize: 13, cursor: 'pointer', fontWeight: 600,
+                    border: `2px solid ${tipoPartida === t ? TIPO_META[t].color : 'var(--border)'}`,
+                    background: tipoPartida === t ? TIPO_META[t].bg : 'white',
+                    color: tipoPartida === t ? TIPO_META[t].color : 'var(--text-muted)',
+                    transition: 'all 0.15s',
+                  }}
+                >{label}</button>
+              ))}
             </div>
 
-            <div className="form-group">
-              <label className="form-label">
-                Medidas <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>piezas-largoxancho (cm)</span>
-              </label>
-              <input
-                className="form-input"
-                placeholder="Ej: 3-22x45"
-                value={notacion}
-                onChange={e => { setNotacion(e.target.value); setNotError('') }}
-                onKeyDown={e => e.key === 'Enter' && handleAgregarPartida()}
-                inputMode="decimal"
-              />
-              {notError && <div className="form-error">{notError}</div>}
-            </div>
-
-            {procesosActivos.length > 0 && (
-              <div className="form-group">
-                <label className="form-label">Procesos (opcional)</label>
-                <div className="procesos-chips">
-                  {procesosActivos.map(proc => {
-                    const sel    = procesosSeleccionados.some(s => s.id_proceso === proc.id_proceso)
-                    const precio = tipoVidrioId ? getPrecioProcesoCliente(Number(tipoVidrioId), proc.id_proceso) : null
-                    return (
-                      <button
-                        key={proc.id_proceso} type="button"
-                        className={`chip${sel ? ' chip-active' : ''}`}
-                        onClick={() => toggleProceso(proc)}
-                      >
-                        {proc.nombre}{precio !== null ? ` $${precio.toFixed(2)}` : ''}
-                      </button>
-                    )
-                  })}
+            {/* ── VIDRIO ── */}
+            {tipoPartida === 'VIDRIO' && (
+              <>
+                <div className="form-group">
+                  <label className="form-label">Tipo de vidrio</label>
+                  <select className="form-select" value={tipoVidrioId} onChange={e => setTipoVidrioId(e.target.value)}>
+                    <option value="">-- Seleccionar --</option>
+                    {tiposActivos.map(t => {
+                      const precio = getPrecioVidrioCliente(t.id_tipo_vidrio)
+                      return (
+                        <option key={t.id_tipo_vidrio} value={t.id_tipo_vidrio}>
+                          {t.clave} — {t.tono?.nombre} / {t.espesor?.etiqueta}
+                          {precio !== null ? ` · $${precio.toFixed(2)}/m²` : ' · (sin precio)'}
+                        </option>
+                      )
+                    })}
+                  </select>
                 </div>
-              </div>
-            )}
-
-            {preview && !preview.error && !preview.sinPrecio && (
-              <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 8, padding: '10px 14px', marginBottom: 10, fontSize: 14 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 6, flexWrap: 'wrap' }}>
-                  <span>{preview.piezas} pza · {preview.metros2_total.toFixed(4)} m² · ${preview.precio_m2.toFixed(2)}/m²</span>
-                  <strong>${preview.subtotal_total.toFixed(2)}</strong>
+                <div className="form-group">
+                  <label className="form-label">
+                    Medidas <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>piezas-largoxancho (cm)</span>
+                  </label>
+                  <input
+                    className="form-input"
+                    placeholder="Ej: 3-22x45"
+                    value={notacion}
+                    onChange={e => { setNotacion(e.target.value); setNotError('') }}
+                    onKeyDown={e => e.key === 'Enter' && handleAgregarVidrio()}
+                    inputMode="decimal"
+                  />
+                  {notError && <div className="form-error">{notError}</div>}
                 </div>
-                {preview.procesosCalc.map(pr => (
-                  <div key={pr.id_proceso} style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                    + {pr.nombre}: ${pr.subtotal.toFixed(2)}
+                {procesosActivos.length > 0 && (
+                  <div className="form-group">
+                    <label className="form-label">Procesos (opcional)</label>
+                    <div className="procesos-chips">
+                      {procesosActivos.map(proc => {
+                        const sel    = procesosSeleccionados.some(s => s.id_proceso === proc.id_proceso)
+                        const precio = tipoVidrioId ? getPrecioProcesoCliente(Number(tipoVidrioId), proc.id_proceso) : null
+                        return (
+                          <button
+                            key={proc.id_proceso} type="button"
+                            className={`chip${sel ? ' chip-active' : ''}`}
+                            onClick={() => toggleProceso(proc)}
+                          >
+                            {proc.nombre}{precio !== null ? ` $${precio.toFixed(2)}` : ''}
+                          </button>
+                        )
+                      })}
+                    </div>
                   </div>
-                ))}
-              </div>
-            )}
-            {preview?.sinPrecio && (
-              <div className="alert alert-error" style={{ marginBottom: 8 }}>
-                Sin precio configurado para este tipo de vidrio. Configúralo en Clientes → 💲 Precios.
-              </div>
+                )}
+                {preview && !preview.error && !preview.sinPrecio && (
+                  <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 8, padding: '10px 14px', marginBottom: 10, fontSize: 14 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 6, flexWrap: 'wrap' }}>
+                      <span>{preview.piezas} pza · {preview.metros2_total.toFixed(4)} m² · ${preview.precio_m2.toFixed(2)}/m²</span>
+                      <strong>${fmt5(preview.subtotal_total)}</strong>
+                    </div>
+                    {preview.procesosCalc.map(pr => (
+                      <div key={pr.id_proceso} style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                        + {pr.nombre}: ${fmt5(pr.subtotal)}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {preview?.sinPrecio && (
+                  <div className="alert alert-error" style={{ marginBottom: 8 }}>
+                    Sin precio configurado para este tipo de vidrio.
+                  </div>
+                )}
+                <button className="btn btn-primary" onClick={handleAgregarVidrio} style={{ width: '100%' }}>
+                  + Agregar vidrio
+                </button>
+              </>
             )}
 
-            <button className="btn btn-primary" onClick={handleAgregarPartida} style={{ width: '100%' }}>
-              + Agregar partida
-            </button>
+            {/* ── MAQUILA / SERVICIO ── */}
+            {tipoPartida === 'MAQUILA' && (
+              <>
+                <div className="form-group">
+                  <label className="form-label">Descripcion del servicio *</label>
+                  <input
+                    className="form-input"
+                    placeholder="Ej: Biselado espejo, Perforacion, Instalacion..."
+                    value={maqDesc}
+                    onChange={e => { setMaqDesc(e.target.value); setMaqError('') }}
+                  />
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+                  <div className="form-group">
+                    <label className="form-label">Cantidad *</label>
+                    <input
+                      className="form-input"
+                      type="number" min="0.01" step="0.01"
+                      placeholder="1"
+                      value={maqCantidad}
+                      onChange={e => { setMaqCantidad(e.target.value); setMaqError('') }}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Unidad</label>
+                    <select className="form-select" value={maqUnidad} onChange={e => setMaqUnidad(e.target.value)}>
+                      {['pza','m²','ml','m','kg','hora','jgo','lote'].map(u => (
+                        <option key={u} value={u}>{u}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Precio / {maqUnidad} *</label>
+                    <input
+                      className="form-input"
+                      type="number" min="0" step="0.01"
+                      placeholder="0.00"
+                      value={maqPrecio}
+                      onChange={e => { setMaqPrecio(e.target.value); setMaqError('') }}
+                    />
+                  </div>
+                </div>
+                {maqCantidad && maqPrecio && parseFloat(maqCantidad) > 0 && parseFloat(maqPrecio) >= 0 && (
+                  <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: '8px 14px', marginBottom: 10, fontSize: 14, display: 'flex', justifyContent: 'space-between' }}>
+                    <span>{parseFloat(maqCantidad)} {maqUnidad} × ${parseFloat(maqPrecio).toFixed(2)}</span>
+                    <strong>${(parseFloat(maqCantidad) * parseFloat(maqPrecio)).toFixed(2)}</strong>
+                  </div>
+                )}
+                {maqError && <div className="form-error" style={{ marginBottom: 8 }}>{maqError}</div>}
+                <button className="btn btn-primary" onClick={handleAgregarMaquila} style={{ width: '100%' }}>
+                  + Agregar servicio
+                </button>
+              </>
+            )}
+
+            {/* ── PRODUCTO ── */}
+            {tipoPartida === 'PRODUCTO' && (
+              <>
+                {productos.length === 0 ? (
+                  <div className="alert alert-warning">
+                    No hay productos en el catalogo. Agrega productos en el modulo de Productos.
+                  </div>
+                ) : (
+                  <>
+                    <div className="form-group">
+                      <label className="form-label">Producto *</label>
+                      <select
+                        className="form-select"
+                        value={prodId}
+                        onChange={e => { setProdId(e.target.value); setProdError('') }}
+                      >
+                        <option value="">-- Seleccionar producto --</option>
+                        {productos.map(p => (
+                          <option key={p.id_producto_general} value={p.id_producto_general}>
+                            {p.nombre}
+                            {p.precio != null ? ` · $${Number(p.precio).toFixed(2)}` : ''}
+                            {p.unidad ? ` / ${p.unidad}` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                      <div className="form-group">
+                        <label className="form-label">Cantidad *</label>
+                        <input
+                          className="form-input"
+                          type="number" min="0.01" step="0.01"
+                          placeholder="1"
+                          value={prodCantidad}
+                          onChange={e => { setProdCantidad(e.target.value); setProdError('') }}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">Precio unitario *</label>
+                        <input
+                          className="form-input"
+                          type="number" min="0" step="0.01"
+                          placeholder="0.00"
+                          value={prodPrecio}
+                          onChange={e => { setProdPrecio(e.target.value); setProdError('') }}
+                        />
+                      </div>
+                    </div>
+                    {prodId && prodCantidad && prodPrecio && parseFloat(prodCantidad) > 0 && (
+                      <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 8, padding: '8px 14px', marginBottom: 10, fontSize: 14, display: 'flex', justifyContent: 'space-between' }}>
+                        <span>{parseFloat(prodCantidad)} × ${parseFloat(prodPrecio).toFixed(2)}</span>
+                        <strong>${(parseFloat(prodCantidad) * parseFloat(prodPrecio)).toFixed(2)}</strong>
+                      </div>
+                    )}
+                    {prodError && <div className="form-error" style={{ marginBottom: 8 }}>{prodError}</div>}
+                    <button className="btn btn-primary" onClick={handleAgregarProducto} style={{ width: '100%' }}>
+                      + Agregar producto
+                    </button>
+                  </>
+                )}
+              </>
+            )}
           </div>
         )}
 
         {/* 3. Resumen de partidas */}
         {partidas.length > 0 && (
           <div className="card" style={{ marginBottom: 16, padding: 0, overflow: 'hidden' }}>
-            <div style={{ padding: '12px 16px', fontWeight: 600, borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between' }}>
+            <div style={{ padding: '12px 16px', fontWeight: 600, borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span>Partidas ({partidas.length})</span>
-              <span style={{ color: 'var(--text-muted)', fontWeight: 400, fontSize: 13 }}>
-                {partidas.reduce((s, p) => s + p.metros2, 0).toFixed(3)} m² total
+              <span style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 400 }}>
+                {partidas.filter(p => p.tipo === 'VIDRIO').length > 0 &&
+                  `${partidas.filter(p => p.tipo === 'VIDRIO').reduce((s, p) => s + p.metros2, 0).toFixed(3)} m² vidrio`}
               </span>
             </div>
             <table className="table" style={{ marginBottom: 0 }}>
@@ -647,30 +959,47 @@ export default function CotizacionRegistrado() {
                 <tr>
                   <th>#</th>
                   <th>Tipo</th>
-                  <th>Medidas</th>
-                  <th>m²</th>
+                  <th>Descripcion</th>
+                  <th>Cant.</th>
                   <th style={{ textAlign: 'right' }}>Subtotal</th>
                   <th></th>
                 </tr>
               </thead>
               <tbody>
-                {partidas.map((p, i) => (
-                  <tr key={p._key}>
-                    <td style={{ color: 'var(--text-muted)', fontSize: 13 }}>{i + 1}</td>
-                    <td style={{ fontWeight: 600 }}><span className="badge badge-blue">{p.tipoClaveLabel}</span></td>
-                    <td style={{ fontSize: 13 }}>{p.piezas}pz · {p.largo_cm}×{p.ancho_cm}</td>
-                    <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{p.metros2.toFixed(3)}</td>
-                    <td style={{ textAlign: 'right', fontWeight: 600 }}>${p.subtotal_partida.toFixed(2)}</td>
-                    <td>
-                      <button className="btn-icon" title="Quitar"
-                        onPointerDown={e => { e.preventDefault(); quitarPartida(i) }}>🗑️</button>
-                    </td>
-                  </tr>
-                ))}
+                {partidas.map((p, i) => {
+                  const meta = TIPO_META[p.tipo]
+                  return (
+                    <tr key={p._key}>
+                      <td style={{ color: 'var(--text-muted)', fontSize: 13 }}>{i + 1}</td>
+                      <td>
+                        <span style={{ padding: '2px 7px', borderRadius: 5, fontSize: 11, fontWeight: 700, background: meta.bg, color: meta.color }}>
+                          {meta.label}
+                        </span>
+                      </td>
+                      <td style={{ fontSize: 13 }}>
+                        {p.tipo === 'VIDRIO'
+                          ? <><span className="badge badge-blue" style={{ marginRight: 4 }}>{p.tipoClaveLabel}</span>{p.piezas}pz · {p.largo_cm}×{p.ancho_cm}</>
+                          : p.descripcion
+                        }
+                        {p.tipo !== 'VIDRIO' && (
+                          <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>${p.precio_unitario.toFixed(2)} / {p.unidad}</div>
+                        )}
+                      </td>
+                      <td style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+                        {p.tipo === 'VIDRIO' ? `${p.metros2.toFixed(3)} m²` : `${p.cantidad} ${p.unidad}`}
+                      </td>
+                      <td style={{ textAlign: 'right', fontWeight: 600 }}>${fmt5(p.subtotal_partida)}</td>
+                      <td>
+                        <button className="btn-icon" title="Quitar"
+                          onPointerDown={e => { e.preventDefault(); quitarPartida(i) }}>🗑️</button>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
             <div style={{ padding: '12px 16px', display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--border)', fontWeight: 700, fontSize: 17, color: 'var(--accent)' }}>
-              Total: ${totalGeneral.toFixed(2)}
+              Total: ${fmt5(totalGeneral)}
             </div>
           </div>
         )}

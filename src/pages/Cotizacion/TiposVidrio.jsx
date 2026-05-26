@@ -119,7 +119,7 @@ function EspesorInlineModal({ onClose, onCreated }) {
 
 // ── Modal principal de Tipo de Vidrio ─────────────────────────────────────
 function TipoVidrioModal({ tipo, onClose, onSave }) {
-  const { tonos, espesores } = useCotizacion()
+  const { tonos, espesores, tiposVidrio } = useCotizacion()
   const [form, setForm] = useState({
     id_tono:     tipo?.id_tono    ?? '',
     id_espesor:  tipo?.id_espesor ?? '',
@@ -144,6 +144,14 @@ function TipoVidrioModal({ tipo, onClose, onSave }) {
     const e = {}
     if (!form.id_tono)    e.id_tono    = 'Selecciona un tono'
     if (!form.id_espesor) e.id_espesor = 'Selecciona un espesor'
+    if (form.id_tono && form.id_espesor) {
+      const duplicado = tiposVidrio.find(t =>
+        t.id_tono    === Number(form.id_tono) &&
+        t.id_espesor === Number(form.id_espesor) &&
+        t.id_tipo_vidrio !== tipo?.id_tipo_vidrio
+      )
+      if (duplicado) e.id_espesor = `Ya existe "${duplicado.clave}"`
+    }
     return e
   }
 
