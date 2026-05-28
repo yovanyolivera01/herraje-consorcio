@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { fmt5 } from '../../lib/utils'
 import { useCotizacion } from '../../context/CotizacionContext'
 
 // ── Ticket preview ────────────────────────────────────────────────────────
@@ -37,19 +38,19 @@ function TicketMaquila({ detalle, onConvertir, convirtiendo }) {
             {p.procesos.map((pr, j) => (
               <div key={j} className="ticket-row" style={{ fontSize: 11, paddingLeft: 10 }}>
                 <span>+ {pr.nombre}</span>
-                <span>${pr.subtotal.toFixed(2)}</span>
+                <span>${fmt5(pr.subtotal)}</span>
               </div>
             ))}
             <div className="ticket-row" style={{ fontWeight: 600, fontSize: 12 }}>
               <span>Subtotal</span>
-              <span>${p.subtotal_partida.toFixed(2)}</span>
+              <span>${fmt5(p.subtotal_partida)}</span>
             </div>
           </div>
         ))}
         <hr className="ticket-divider" />
         <div className="ticket-total">
           <span>TOTAL</span>
-          <span>${detalle.total.toFixed(2)}</span>
+          <span>${fmt5(detalle.total)}</span>
         </div>
       </div>
       <button
@@ -98,7 +99,7 @@ function ConvertirModal({ cotizacion, onClose, onConvertido }) {
         <div className="modal-body">
           <div style={{ background: 'var(--bg)', borderRadius: 8, padding: '10px 14px', marginBottom: 14 }}>
             <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>Total cotización</div>
-            <div style={{ fontWeight: 700, fontSize: 22 }}>${cotizacion.total.toFixed(2)}</div>
+            <div style={{ fontWeight: 700, fontSize: 22 }}>${fmt5(cotizacion.total)}</div>
           </div>
           <div className="form-group">
             <label className="form-label">Tipo de pago</label>
@@ -338,12 +339,12 @@ export default function NuevaCotizacionMaquila() {
         <div className="page-header">
           <div>
             <div className="page-title">Cotización finalizada</div>
-            <div className="page-subtitle">{detalle.folio} · ${detalle.total.toFixed(2)}</div>
+            <div className="page-subtitle">{detalle.folio} · ${fmt5(detalle.total)}</div>
           </div>
           <button className="btn btn-outline" onClick={handleReset}>+ Nueva cotización</button>
         </div>
         <div className="page-body">
-          <div className="alert alert-success">✅ Cotización finalizada. Total: <strong>${detalle.total.toFixed(2)}</strong></div>
+          <div className="alert alert-success">✅ Cotización finalizada. Total: <strong>${fmt5(detalle.total)}</strong></div>
           <TicketMaquila
             detalle={detalle}
             onConvertir={() => setModalConv(true)}
@@ -375,7 +376,7 @@ export default function NuevaCotizacionMaquila() {
             onClick={handleFinalizar}
             disabled={finalizando || partidas.length === 0}
           >
-            {finalizando ? 'Finalizando...' : `✅ Finalizar — $${totalParcial.toFixed(2)}`}
+            {finalizando ? 'Finalizando...' : `✅ Finalizar — $${fmt5(totalParcial)}`}
           </button>
         </div>
 
@@ -415,7 +416,7 @@ export default function NuevaCotizacionMaquila() {
                       )}
                     </div>
                     <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--accent)', flexShrink: 0 }}>
-                      ${p.subtotal.toFixed(2)}
+                      ${fmt5(p.subtotal)}
                     </div>
                     <button
                       className="btn-icon"
@@ -429,7 +430,7 @@ export default function NuevaCotizacionMaquila() {
                 ))}
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8, fontWeight: 700, fontSize: 15 }}>
-                Total parcial: <span style={{ marginLeft: 8, color: 'var(--accent)' }}>${totalParcial.toFixed(2)}</span>
+                Total parcial: <span style={{ marginLeft: 8, color: 'var(--accent)' }}>${fmt5(totalParcial)}</span>
               </div>
             </div>
           )}

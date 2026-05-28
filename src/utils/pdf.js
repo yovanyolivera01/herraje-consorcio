@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
+import { r5 } from '../lib/utils'
 
 function buildCotizacionHTML(detalle) {
   const titulo    = detalle.tipo === 'pedido' ? 'PEDIDO DE VIDRIO' : 'COTIZACIÓN DE VIDRIO'
@@ -9,7 +10,7 @@ function buildCotizacionHTML(detalle) {
   const filas = detalle.partidas.map((p, idx) => {
     const pzas     = p.piezas ?? 1
     const m2       = (pzas * p.largo_cm * p.ancho_cm / 10000).toFixed(4)
-    const procesos = (p.procesos ?? []).map(pr => pr.nombre).join(', ') || '—'
+    const procesos = (p.procesos ?? []).map(pr => pr.nombre).join('<br>') || '—'
     const precioPza = (Number(p.subtotal_partida) / pzas).toFixed(2)
     return `
       <tr style="background:${idx % 2 === 0 ? '#fff' : '#fafafa'}">
@@ -18,7 +19,7 @@ function buildCotizacionHTML(detalle) {
         <td style="color:#555;font-size:11px">${procesos}</td>
         <td style="color:#555;font-size:11px;text-align:center">${m2} m²</td>
         <td style="text-align:right;font-size:11px">$${precioPza}</td>
-        <td style="text-align:right;font-weight:600">$${Number(p.subtotal_partida).toFixed(2)}</td>
+        <td style="text-align:right;font-weight:600">$${r5(Number(p.subtotal_partida)).toFixed(2)}</td>
       </tr>`
   }).join('')
 
@@ -103,14 +104,13 @@ function buildCotizacionHTML(detalle) {
     <tbody>${filas}</tbody>
   </table>
   <div class="total-box">
-    <div class="total-inner">TOTAL: $${Number(detalle.total).toFixed(2)}</div>
+    <div class="total-inner">TOTAL: $${r5(Number(detalle.total)).toFixed(2)}</div>
   </div>
   <div class="footer">${pie}<br>Templados Consorcio · Arte en Vidrio</div>
 </body></html>`
 }
 
 export async function exportCotizacionPDF(detalle) {
-  // Renderizar HTML en un contenedor oculto fuera de la pantalla
   const contenedor = document.createElement('div')
   contenedor.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px;background:#fff;padding:32px 36px;'
   contenedor.innerHTML = buildCotizacionHTML(detalle)
@@ -124,28 +124,32 @@ export async function exportCotizacionPDF(detalle) {
       logging: false,
     })
 
-    const imgData = canvas.toDataURL('image/png')
-    const pdf     = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' })
-
+    const pdf    = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' })
     const pageW  = pdf.internal.pageSize.getWidth()
     const pageH  = pdf.internal.pageSize.getHeight()
     const margin = 10
     const maxW   = pageW - margin * 2
     const maxH   = pageH - margin * 2
 
-    const ratio  = canvas.width / canvas.height
-    let imgW     = maxW
-    let imgH     = imgW / ratio
+    // How many canvas pixels fit in one PDF page height
+    const pxPerMM     = canvas.width / maxW
+    const pageHeightPx = maxH * pxPerMM
+    const totalPages  = Math.ceil(canvas.height / pageHeightPx)
 
-    // Si el contenido es más alto que una página, escalarlo para que entre
-    if (imgH > maxH) {
-      imgH = maxH
-      imgW = imgH * ratio
+    for (let i = 0; i < totalPages; i++) {
+      if (i > 0) pdf.addPage()
+
+      const srcY = Math.round(i * pageHeightPx)
+      const srcH = Math.min(Math.round(pageHeightPx), canvas.height - srcY)
+
+      const slice = document.createElement('canvas')
+      slice.width  = canvas.width
+      slice.height = srcH
+      slice.getContext('2d').drawImage(canvas, 0, srcY, canvas.width, srcH, 0, 0, canvas.width, srcH)
+
+      pdf.addImage(slice.toDataURL('image/png'), 'PNG', margin, margin, maxW, srcH / pxPerMM)
     }
 
-    const offsetX = margin + (maxW - imgW) / 2
-
-    pdf.addImage(imgData, 'PNG', offsetX, margin, imgW, imgH)
     pdf.save(`Cotizacion_${detalle.folio ?? 'vidrio'}_${(detalle.fecha ?? '').replace(/\//g, '-')}.pdf`)
   } finally {
     document.body.removeChild(contenedor)

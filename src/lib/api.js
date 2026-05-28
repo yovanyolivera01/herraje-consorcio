@@ -233,19 +233,55 @@ export const createVenta = async (partidas) => {
     .single()
   if (ventaErr) throw ventaErr
 
-  // 2. Insert detalle_venta rows (triggers: descuenta stock + actualiza total)
-  const detalles = partidas.map(p => ({
-    venta_id:        venta.id,
-    producto_id:     p.productoId,
-    cantidad:        p.cantidad,
-    precio_unitario: p.precioUnitario,
-  }))
-  const { error: detErr } = await supabase
-    .from('detalle_venta')
-    .insert(detalles)
-  if (detErr) throw detErr
+  // 2. Separar partidas por tipo
+  const herrajeItems  = partidas.filter(p => p.tipo !== 'GENERAL')
+  const generalItems  = partidas.filter(p => p.tipo === 'GENERAL')
 
-  // 3. Re-fetch venta para obtener el total calculado por trigger
+  // 3. Insertar productos de herraje (trigger descuenta stock y actualiza total)
+  if (herrajeItems.length > 0) {
+    const detalles = herrajeItems.map(p => ({
+      venta_id:        venta.id,
+      producto_id:     p.productoId,
+      cantidad:        p.cantidad,
+      precio_unitario: p.precioUnitario,
+    }))
+    const { error: detErr } = await supabase.from('detalle_venta').insert(detalles)
+    if (detErr) throw detErr
+  }
+
+  // 4. Insertar productos generales (stock y total se manejan manualmente)
+  if (generalItems.length > 0) {
+    const detallesGen = generalItems.map(p => ({
+      venta_id:              venta.id,
+      id_producto_general:   p.idProductoGeneral,
+      producto_id:           null,
+      cantidad:              p.cantidad,
+      precio_unitario:       p.precioUnitario,
+    }))
+    const { error: detGenErr } = await supabase.from('detalle_venta').insert(detallesGen)
+    if (detGenErr) throw detGenErr
+
+    // Descontar stock de cada producto general
+    for (const p of generalItems) {
+      const { data: pg, error: pgErr } = await supabase
+        .from('producto_general')
+        .select('existencias')
+        .eq('id_producto_general', p.idProductoGeneral)
+        .single()
+      if (!pgErr && pg) {
+        await supabase
+          .from('producto_general')
+          .update({ existencias: Math.max(0, (pg.existencias ?? 0) - p.cantidad) })
+          .eq('id_producto_general', p.idProductoGeneral)
+      }
+    }
+  }
+
+  // 5. Actualizar total manualmente (cubre el caso en que el trigger no incluya productos generales)
+  const totalCalculado = partidas.reduce((s, p) => s + Number(p.subtotal), 0)
+  await supabase.from('ventas').update({ total: totalCalculado }).eq('id', venta.id)
+
+  // 6. Re-fetch venta final
   const { data: final, error: finalErr } = await supabase
     .from('ventas')
     .select('*')
@@ -261,7 +297,6 @@ export const createVenta = async (partidas) => {
     hora:     hora,
     fechaISO: final.fecha_hora,
     total:    Number(final.total),
-    // Conservar las partidas tal como las ingresó el usuario (para el ticket inmediato)
     partidas: partidas.map(p => ({
       codigoProducto:  p.codigoProducto,
       descripcion:     p.descripcion,
@@ -282,7 +317,7 @@ export const getDetalleVenta = async (ventaId) => {
       .single(),
     supabase
       .from('detalle_venta')
-      .select('cantidad, precio_unitario, subtotal, productos(codigo, descripcion, tono)')
+      .select('cantidad, precio_unitario, subtotal, productos(codigo, descripcion, tono), producto_general(nombre, unidad)')
       .eq('venta_id', ventaId),
   ])
 
@@ -299,8 +334,8 @@ export const getDetalleVenta = async (ventaId) => {
     total:    Number(ventaRes.data.total),
     partidas: (detallesRes.data ?? []).map(row => ({
       codigoProducto: row.productos?.codigo        ?? '',
-      descripcion:    row.productos?.descripcion   ?? '',
-      tono:           row.productos?.tono          ?? '',
+      descripcion:    row.productos?.descripcion   ?? row.producto_general?.nombre ?? '',
+      tono:           row.productos?.tono          ?? (row.producto_general?.unidad ? `(${row.producto_general.unidad})` : ''),
       precioUnitario: Number(row.precio_unitario),
       cantidad:       row.cantidad,
       subtotal:       Number(row.subtotal),

@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import * as api from '../lib/api'
+import * as pgApi from '../lib/productosGeneralesApi'
 import { supabaseConfigured } from '../lib/supabase'
 
 const AppContext = createContext()
@@ -83,23 +84,26 @@ function ErrorScreen({ message, onRetry }) {
 
 // ── Provider ──────────────────────────────────────────────────────────────
 export function AppProvider({ children }) {
-  const [proveedores, setProveedores] = useState([])
-  const [productos,   setProductos]   = useState([])
-  const [ventas,      setVentas]      = useState([])
-  const [loading,     setLoading]     = useState(true)
-  const [error,       setError]       = useState(null)
+  const [proveedores,        setProveedores]        = useState([])
+  const [productos,          setProductos]          = useState([])
+  const [productosGenerales, setProductosGenerales] = useState([])
+  const [ventas,             setVentas]             = useState([])
+  const [loading,            setLoading]            = useState(true)
+  const [error,              setError]              = useState(null)
 
   const loadAll = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      const [provs, prods, vents] = await Promise.all([
+      const [provs, prods, pgs, vents] = await Promise.all([
         api.getProveedores(),
         api.getProductos(),
+        pgApi.getProductosGenerales(),
         api.getVentas(),
       ])
       setProveedores(provs)
       setProductos(prods)
+      setProductosGenerales(pgs)
       setVentas(vents)
     } catch (err) {
       setError(err.message)
@@ -172,19 +176,48 @@ export function AppProvider({ children }) {
     return res
   }
 
+  // ── Productos generales ──────────────────────────────────────────────────
+  const addProductoGeneral = async (data) => {
+    const res = await wrap(pgApi.createProductoGeneral)(data)
+    if (!res.error) setProductosGenerales(await pgApi.getProductosGenerales())
+    return res
+  }
+
+  const editProductoGeneral = async (id, campos) => {
+    const res = await wrap(pgApi.updateProductoGeneral)(id, campos)
+    if (!res.error) setProductosGenerales(await pgApi.getProductosGenerales())
+    return res
+  }
+
+  const ajustarStockGeneral = async (id, delta) => {
+    const res = await wrap(pgApi.ajustarExistenciasGeneral)(id, delta)
+    if (!res.error) setProductosGenerales(await pgApi.getProductosGenerales())
+    return res
+  }
+
   // ── Ventas ───────────────────────────────────────────────────────────────
   const addVenta = async (partidas) => {
     const res = await wrap(api.createVenta)(partidas)
     if (!res.error) {
-      // Refrescar stock y historial en paralelo
-      const [prods, vents] = await Promise.all([api.getProductos(), api.getVentas()])
+      // Refrescar stock (herraje + generales) e historial
+      const [prods, pgs, vents] = await Promise.all([
+        api.getProductos(),
+        pgApi.getProductosGenerales(),
+        api.getVentas(),
+      ])
       setProductos(prods)
+      setProductosGenerales(pgs)
       setVentas(vents)
     }
     return res
   }
 
   const getDetalleVenta = async (ventaId) => wrap(api.getDetalleVenta)(ventaId)
+
+  const refreshVentas = async () => {
+    const vents = await api.getVentas()
+    setVentas(vents)
+  }
 
   // ── Render ───────────────────────────────────────────────────────────────
   if (!supabaseConfigured) return <SetupScreen />
@@ -193,9 +226,10 @@ export function AppProvider({ children }) {
 
   return (
     <AppContext.Provider value={{
-      proveedores, addProveedor, updateProveedor, deleteProveedor,
-      productos,   addProducto,  updateProducto,  deleteProducto, ajustarExistencias,
-      ventas,      addVenta,     getDetalleVenta,
+      proveedores,        addProveedor,        updateProveedor,    deleteProveedor,
+      productos,          addProducto,         updateProducto,     deleteProducto,     ajustarExistencias,
+      productosGenerales, addProductoGeneral,  editProductoGeneral, ajustarStockGeneral,
+      ventas,             addVenta,            getDetalleVenta,    refreshVentas,
     }}>
       {children}
     </AppContext.Provider>

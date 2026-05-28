@@ -193,21 +193,28 @@ export function CotizacionProvider({ children }) {
   const registrarInventarioVidrio = wrap(invApi.registrarInventarioVidrio)
   const ajustarInventario         = wrap(invApi.ajustarInventario)
   const getMovimientosInventario  = wrap(invApi.getMovimientosInventario)
+  const setLotePreferido          = wrap(invApi.setLotePreferido)
 
   // ── Productos Generales ───────────────────────────────────────────────────
   const getProductosGenerales = wrap(prodApi.getProductosGenerales)
   const createProductoGeneral = wrap(prodApi.createProductoGeneral)
   const updateProductoGeneral = wrap(prodApi.updateProductoGeneral)
 
+  // ── Partidas extra ────────────────────────────────────────────────────────
+  const agregarPartidaExtra  = wrap(api.agregarPartidaExtra)
+  const getPartidasExtra     = wrap(api.getPartidasExtra)
+  const deletePartidasExtra  = wrap(api.deletePartidasExtra)
+
   // ── Cotizaciones ──────────────────────────────────────────────────────────
-  const iniciarCotizacion  = wrap(api.iniciarCotizacion)
-  const agregarPartida     = wrap(api.agregarPartida)
-  const finalizarCotizacion = async (id, total) => {
+  const iniciarCotizacion    = wrap(api.iniciarCotizacion)
+  const agregarPartida       = wrap(api.agregarPartida)
+  const actualizarCotizacion = wrap(api.actualizarCotizacion)
+  const finalizarCotizacion  = async (id, total) => {
     const res = await wrap(api.finalizarCotizacion)(id, total)
     return res
   }
-  const cancelarCotizacion = wrap(api.cancelarCotizacion)
-  const getCotizaciones    = wrap(api.getCotizaciones)
+  const cancelarCotizacion   = wrap(api.cancelarCotizacion)
+  const getCotizaciones      = wrap(api.getCotizaciones)
   const getDetalleCotizacion = wrap(api.getDetalleCotizacion)
 
   // ── Precio lookup ─────────────────────────────────────────────────────────
@@ -236,6 +243,7 @@ export function CotizacionProvider({ children }) {
 
   const barrenos = procesos.filter(p => p.activo && p.tipo === 'BARRENO')
   const saques   = procesos.filter(p => p.activo && p.tipo === 'SAQUE')
+  const extras   = procesos.filter(p => p.activo && p.tipo === 'EXTRA')
 
   if (loading) return (
     <div style={{
@@ -268,7 +276,7 @@ export function CotizacionProvider({ children }) {
 
   return (
     <CotizacionContext.Provider value={{
-      tonos, espesores, tiposVidrio, nivelesPrecio, precios, clientes, procesos, preciosProceso, preciosProcesoEspecial, unidades, empresas, barrenos, saques,
+      tonos, espesores, tiposVidrio, nivelesPrecio, precios, clientes, procesos, preciosProceso, preciosProcesoEspecial, unidades, empresas, barrenos, saques, extras,
       addTono,      editTono,
       addEspesor,   editEspesor,
       addTipoVidrio, editTipoVidrio,
@@ -281,7 +289,8 @@ export function CotizacionProvider({ children }) {
       getPreciosClienteRegistrado: empApi.getPreciosClienteRegistrado,
       getEmpresaDeCliente:         empApi.getEmpresaDeCliente,
       getDocumentoEmpresa,
-      iniciarCotizacion, agregarPartida, finalizarCotizacion, cancelarCotizacion,
+      iniciarCotizacion, agregarPartida, agregarPartidaExtra, getPartidasExtra, deletePartidasExtra,
+      actualizarCotizacion, finalizarCotizacion, cancelarCotizacion,
       getCotizaciones, getDetalleCotizacion,
       getPrecioVidrio, getPrecioProceso, getPrecioProcesoEspecial,
       iniciarCotizacionMaquila, agregarPartidaMaquila, eliminarPartidaMaquila,
@@ -289,7 +298,7 @@ export function CotizacionProvider({ children }) {
       getDetalleCotizacionMaquila, reabrirCotizacion, convertirMaquilaAPedido,
       getPedidosPendientesMaquila, getDetallePedidoMaquila,
       entregarPartidaMaquila, marcarAnticipoLiquidadoMaquila,
-      getInventarioVidrio, registrarInventarioVidrio, ajustarInventario, getMovimientosInventario,
+      getInventarioVidrio, registrarInventarioVidrio, ajustarInventario, getMovimientosInventario, setLotePreferido,
       getProductosGenerales, createProductoGeneral, updateProductoGeneral,
       recargar: loadAll,
     }}>

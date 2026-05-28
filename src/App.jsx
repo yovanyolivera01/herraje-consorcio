@@ -26,7 +26,8 @@ import RegistroSemanal          from './pages/Personal/RegistroSemanal'
 import ResumenSemanal           from './pages/Personal/ResumenSemanal'
 import InventarioVidrio         from './pages/Cotizacion/InventarioVidrio'
 import HistorialMaquila         from './pages/Cotizacion/HistorialMaquila'
-import ProductosGenerales       from './pages/Herraje/ProductosGenerales'
+import HistorialHerraje         from './pages/Herraje/HistorialHerraje'
+import ReporteVidrio            from './pages/Cotizacion/ReporteVidrio'
 
 export default function App() {
   return (
@@ -62,8 +63,10 @@ export default function App() {
                   <Route path="cot/pedidos-pendientes"  element={<PedidosPendientes />} />
                   <Route path="cot/ventas"              element={<HistorialVentas />} />
                   <Route path="cot/inventario"           element={<InventarioVidrio />} />
-                  <Route path="cot/maquila/historial"    element={<HistorialMaquila />} />
-                  <Route path="productos-generales"      element={<ProductosGenerales />} />
+                  <Route path="cot/historial-maquila"    element={<HistorialMaquila />} />
+                  <Route path="cot/maquila/historial"    element={<Navigate to="/cot/historial-maquila" replace />} />
+                  <Route path="herraje/historial"        element={<HistorialHerraje />} />
+                  <Route path="cot/reporte-vidrio"       element={<ReporteVidrio />} />
 
                   {/* ── Módulo de Gestión de Personal ── */}
                   <Route path="personal/empleados" element={<Empleados />} />

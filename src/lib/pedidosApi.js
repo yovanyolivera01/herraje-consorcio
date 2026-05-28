@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { r5 } from './utils'
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -29,7 +30,62 @@ export const convertirCotizacionAPedido = async (id_cotizacion, tipo_pago, monto
   if (!row || row.out_mensaje?.startsWith('ERROR')) {
     throw new Error(row?.out_mensaje ?? 'Error desconocido al convertir cotización')
   }
+
+  // Descontar m² del inventario de vidrio para cada partida de la cotización
+  const { error: invError } = await supabase.rpc('sp_decrementar_inventario_vidrio', {
+    p_id_cotizacion: id_cotizacion,
+    p_folio_pedido:  row.out_folio ?? '',
+  })
+  if (invError) console.error('[inventario] No se pudo descontar stock:', invError.message)
+
   return row.out_id_pedido
+}
+
+// ── Descontar inventario desde partidas en memoria  ───────────────────────
+//
+//  Usado cuando se crea un pedido directo (sin cotización previa).
+//  Agrupa las partidas por id_tipo_vidrio y descuenta m2_disponible del
+//  lote con más stock disponible.
+
+export const decrementarInventarioDesdePartidas = async (partidas, folioRef = '') => {
+  const byTipo = {}
+  for (const p of partidas) {
+    if (!p.id_tipo_vidrio) continue
+    const m2 = Number(p.metros2) || 0
+    byTipo[p.id_tipo_vidrio] = (byTipo[p.id_tipo_vidrio] || 0) + m2
+  }
+
+  for (const [tipoStr, total_m2] of Object.entries(byTipo)) {
+    const id_tipo_vidrio = Number(tipoStr)
+
+    const { data: lotes } = await supabase
+      .from('inventario_vidrio')
+      .select('id_inventario, m2_disponible, es_preferido')
+      .eq('id_tipo_vidrio', id_tipo_vidrio)
+      .order('es_preferido', { ascending: false })
+      .order('m2_disponible', { ascending: false })
+      .limit(1)
+
+    if (!lotes?.length) continue
+
+    const lote      = lotes[0]
+    const nuevoSaldo = Math.max(Number(lote.m2_disponible) - total_m2, 0)
+
+    await supabase
+      .from('inventario_vidrio')
+      .update({ m2_disponible: nuevoSaldo })
+      .eq('id_inventario', lote.id_inventario)
+
+    await supabase
+      .from('movimiento_inventario_vidrio')
+      .insert({
+        id_inventario:       lote.id_inventario,
+        tipo_movimiento:     'SALIDA',
+        m2_cantidad:         total_m2,
+        m2_saldo_resultante: nuevoSaldo,
+        nota:                `Venta ${folioRef || 'directa'}`,
+      })
+  }
 }
 
 // ── Crear pedido directo (sin cotización)  ────────────────────────────────
@@ -74,9 +130,9 @@ export const getPedidosPendientes = async () => {
       fechaCreacionISO:   row.fecha_pedido,
       clienteNombre:      row.cliente ?? 'Mostrador',
       telefono:           '',
-      total:              Number(row.total),
+      total:              r5(Number(row.total)),
       anticipo:           Number(row.monto_anticipo),
-      saldo:              Number(row.saldo_pendiente),
+      saldo:              r5(Number(row.total)) - Number(row.monto_anticipo),
       estatus:            row.estatus,
       diasPendiente:      0,
       numPartidas:        Number(row.partidas_total     ?? 0),
@@ -155,6 +211,17 @@ export const getDetallePedido = async (id_pedido) => {
     })
   }
 
+  // Extras (MAQUILA/PRODUCTO) de la cotización de origen
+  let extras = []
+  if (cab.id_cotizacion) {
+    const { data: extrasData } = await supabase
+      .from('partida_cotizacion_extra')
+      .select('tipo, descripcion, unidad, cantidad, precio_unitario, subtotal, notas')
+      .eq('id_cotizacion', cab.id_cotizacion)
+      .order('id_partida_extra')
+    if (extrasData) extras = extrasData
+  }
+
   return {
     id:              cab.id_pedido,
     id_cotizacion:   cab.id_cotizacion,
@@ -166,15 +233,16 @@ export const getDetallePedido = async (id_pedido) => {
     fechaEntregaISO:  cab.fecha_entrega,
     cliente:  { nombre: cab.cliente ?? 'Mostrador', telefono: cab.telefono_cliente ?? '' },
     nivel:    { nombre: cab.nivel_precio ?? '' },
-    total:    Number(cab.total),
+    total:    r5(Number(cab.total)),
     tipo_pago:     cab.tipo_pago,
     forma_pago:    cab.tipo_pago,   // alias para código existente
     anticipo:      Number(cab.monto_anticipo),
-    saldo:         Number(cab.saldo_pendiente),
+    saldo:         r5(Number(cab.total)) - Number(cab.monto_anticipo),
     saldo_cobrado: cab.monto_cobrado_entrega != null ? Number(cab.monto_cobrado_entrega) : null,
     estado:        cab.estatus,     // alias para código existente (usa 'estado' en páginas)
     estatus:       cab.estatus,
     observaciones: cab.observaciones ?? '',
+    extras,
     partidas: (partRes.data ?? []).map(p => ({
       id:                 p.id_partida_pedido,
       clave_vidrio:       p.tipo_vidrio      ?? '—',   // alias — SP retorna clave del tipo

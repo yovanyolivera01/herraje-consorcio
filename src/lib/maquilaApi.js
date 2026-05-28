@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { mxDayBound } from './utils'
 
 // ── Helper de fecha ──────────────────────────────────────────────────────────
 
@@ -323,6 +324,39 @@ export const entregarPartidaMaquila = async (id_partida_ped_maq) => {
   }
 
   return true
+}
+
+// ── Pedidos de maquila entregados (historial) ────────────────────────────────
+
+export const getPedidosEntregadosMaquila = async (fechaDesde, fechaHasta) => {
+  let query = supabase
+    .from('pedido')
+    .select('*, cliente(id_cliente, nombre)')
+    .eq('tipo_pedido', 'MAQUILA')
+    .eq('estatus', 'ENTREGADO')
+    .order('fecha_entrega', { ascending: false })
+
+  if (fechaDesde) query = query.gte('fecha_entrega', mxDayBound(fechaDesde))
+  if (fechaHasta) query = query.lte('fecha_entrega', mxDayBound(fechaHasta, true))
+
+  const { data, error } = await query
+  if (error) throw error
+
+  return (data ?? []).map(row => {
+    const { fecha }           = formatearFechaHora(row.fecha_pedido)
+    const { fecha: fechaEnt } = row.fecha_entrega ? formatearFechaHora(row.fecha_entrega) : { fecha: '—' }
+    return {
+      id:              row.id_pedido,
+      folio:           row.folio,
+      fecha,
+      fechaEntrega:    fechaEnt,
+      fechaEntregaISO: row.fecha_entrega,
+      clienteNombre:   row.cliente?.nombre ?? 'Mostrador',
+      total:           Number(row.total ?? 0),
+      tipo_pago:       row.tipo_pago,
+      anticipo:        Number(row.monto_anticipo ?? 0),
+    }
+  })
 }
 
 // ── Marcar anticipo como liquidado (US-12) ───────────────────────────────────

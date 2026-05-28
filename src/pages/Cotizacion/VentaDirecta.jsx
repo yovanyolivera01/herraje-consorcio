@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { fmt5 } from '../../lib/utils'
 import { useCotizacion } from '../../context/CotizacionContext'
 import { crearPedidoDirecto, getDetallePedido } from '../../lib/pedidosApi'
 
@@ -43,23 +44,23 @@ function TicketVentaDirecta({ detalle }) {
           </div>
           <div className="ticket-row" style={{ fontSize: 11, color: 'var(--text-muted)' }}>
             <span>${p.precio_m2_aplicado.toFixed(2)}/m²</span>
-            <span>${p.subtotal_vidrio.toFixed(2)}</span>
+            <span>${fmt5(p.subtotal_vidrio)}</span>
           </div>
           {p.procesos.map((pr, j) => (
             <div key={j} className="ticket-row" style={{ fontSize: 11, paddingLeft: 10 }}>
               <span>+ {pr.nombre}</span>
-              <span>${pr.subtotal.toFixed(2)}</span>
+              <span>${fmt5(pr.subtotal)}</span>
             </div>
           ))}
           <div className="ticket-row" style={{ fontWeight: 600, fontSize: 12 }}>
             <span>Subtotal</span>
-            <span>${p.subtotal_partida.toFixed(2)}</span>
+            <span>${fmt5(p.subtotal_partida)}</span>
           </div>
         </div>
       ))}
 
       <hr className="ticket-divider" />
-      <div className="ticket-total"><span>TOTAL</span><span>${detalle.total.toFixed(2)}</span></div>
+      <div className="ticket-total"><span>TOTAL</span><span>${fmt5(detalle.total)}</span></div>
       <div className="ticket-row" style={{ marginTop: 6 }}>
         <span>Forma de pago:</span>
         <span>{detalle.forma_pago === 'LIQUIDADO' ? 'Liquidado' : 'Anticipo'}</span>
@@ -382,10 +383,10 @@ export default function VentaDirecta() {
               <span>{preview.piezas} pza{preview.piezas > 1 ? 's' : ''} · {preview.metros2_total.toFixed(4)} m²</span>
               <span style={{ color: 'var(--text-muted)' }}>${preview.precio_m2.toFixed(2)}/m²</span>
               {preview.subtotal_procesos > 0 && (
-                <span style={{ color: 'var(--text-muted)' }}>proc. ${preview.subtotal_procesos.toFixed(2)}</span>
+                <span style={{ color: 'var(--text-muted)' }}>proc. ${fmt5(preview.subtotal_procesos)}</span>
               )}
               <span style={{ fontWeight: 700, color: 'var(--accent)', marginLeft: 'auto' }}>
-                ${preview.subtotal_total.toFixed(2)}
+                ${fmt5(preview.subtotal_total)}
               </span>
             </div>
           )}
@@ -431,7 +432,7 @@ export default function VentaDirecta() {
                     </td>
                     <td style={{ fontSize: 13 }}>{p.metros2.toFixed(4)}</td>
                     <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--accent)' }}>
-                      ${p.subtotal_partida.toFixed(2)}
+                      ${fmt5(p.subtotal_partida)}
                     </td>
                     <td>
                       <button className="btn-icon" onClick={() => quitarPartida(i)} title="Quitar">✕</button>
@@ -441,7 +442,7 @@ export default function VentaDirecta() {
               </tbody>
             </table>
             <div style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 700, fontSize: 15, borderTop: '1px solid var(--border)', color: 'var(--accent)' }}>
-              Total: ${totalGeneral.toFixed(2)}
+              Total: ${fmt5(totalGeneral)}
             </div>
           </div>
         )}
@@ -506,7 +507,7 @@ export default function VentaDirecta() {
             <div style={{ display: 'flex', gap: 12, marginBottom: 14, flexWrap: 'wrap' }}>
               <div className="stat-card" style={{ flex: 1, minWidth: 120 }}>
                 <div className="stat-label">Total venta</div>
-                <div className="stat-value" style={{ fontSize: 18, color: 'var(--accent)' }}>${totalGeneral.toFixed(2)}</div>
+                <div className="stat-value" style={{ fontSize: 18, color: 'var(--accent)' }}>${fmt5(totalGeneral)}</div>
               </div>
               {tipoPago === 'ANTICIPO' && antNum > 0 && antNum < totalGeneral && (
                 <>
@@ -530,7 +531,7 @@ export default function VentaDirecta() {
               onClick={handleCobrar}
               disabled={cobrandо}
             >
-              {cobrandо ? 'Registrando...' : tipoPago === 'LIQUIDADO' ? `💰 Cobrar $${totalGeneral.toFixed(2)}` : `💰 Cobrar anticipo $${antNum > 0 ? antNum.toFixed(2) : '0.00'}`}
+              {cobrandо ? 'Registrando...' : tipoPago === 'LIQUIDADO' ? `💰 Cobrar $${fmt5(totalGeneral)}` : `💰 Cobrar anticipo $${antNum > 0 ? antNum.toFixed(2) : '0.00'}`}
             </button>
           </div>
         )}
