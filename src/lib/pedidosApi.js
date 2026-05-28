@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { r5 } from './utils'
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -129,9 +130,9 @@ export const getPedidosPendientes = async () => {
       fechaCreacionISO:   row.fecha_pedido,
       clienteNombre:      row.cliente ?? 'Mostrador',
       telefono:           '',
-      total:              Number(row.total),
+      total:              r5(Number(row.total)),
       anticipo:           Number(row.monto_anticipo),
-      saldo:              Number(row.saldo_pendiente),
+      saldo:              r5(Number(row.total)) - Number(row.monto_anticipo),
       estatus:            row.estatus,
       diasPendiente:      0,
       numPartidas:        Number(row.partidas_total     ?? 0),
@@ -232,11 +233,11 @@ export const getDetallePedido = async (id_pedido) => {
     fechaEntregaISO:  cab.fecha_entrega,
     cliente:  { nombre: cab.cliente ?? 'Mostrador', telefono: cab.telefono_cliente ?? '' },
     nivel:    { nombre: cab.nivel_precio ?? '' },
-    total:    Number(cab.total),
+    total:    r5(Number(cab.total)),
     tipo_pago:     cab.tipo_pago,
     forma_pago:    cab.tipo_pago,   // alias para código existente
     anticipo:      Number(cab.monto_anticipo),
-    saldo:         Number(cab.saldo_pendiente),
+    saldo:         r5(Number(cab.total)) - Number(cab.monto_anticipo),
     saldo_cobrado: cab.monto_cobrado_entrega != null ? Number(cab.monto_cobrado_entrega) : null,
     estado:        cab.estatus,     // alias para código existente (usa 'estado' en páginas)
     estatus:       cab.estatus,

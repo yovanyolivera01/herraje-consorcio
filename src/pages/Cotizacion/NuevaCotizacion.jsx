@@ -1170,14 +1170,14 @@ export default function NuevaCotizacion() {
               esEntregado: false,
               total: cotCreada.partidas.reduce((s, p) => s + p.subtotal_partida, 0),
               partidas: cotCreada.partidas.map(p => {
-                if (p.tipo === 'VIDRIO') return {
+                if (!p.tipo || p.tipo === 'VIDRIO') return {
                   tipo: 'VIDRIO',
                   piezas: p.piezas, clave: p.tipoClaveLabel,
                   largo_cm: p.largo_cm, ancho_cm: p.ancho_cm,
                   subtotal_vidrio: p.subtotal_vidrio, procesos: p.procesos ?? [],
                   subtotal_partida: p.subtotal_partida,
                 }
-                if (p.tipo === 'MAQUILA') return {
+                if (p.tipo === 'MAQUILA' && p.piezas_maq != null) return {
                   tipo: 'MAQUILA',
                   piezas: p.piezas_maq, clave: p.espesor_label,
                   largo_cm: p.largo_cm, ancho_cm: p.ancho_cm,
@@ -1186,10 +1186,8 @@ export default function NuevaCotizacion() {
                   subtotal_partida: p.subtotal_partida,
                 }
                 return {
-                  tipo: p.tipo,
-                  cantidad: p.cantidad, unidad: p.unidad,
+                  tipo: p.tipo ?? 'MAQUILA',
                   descripcion: p.descripcion,
-                  precio_unitario: p.precio_unitario,
                   subtotal_partida: p.subtotal_partida,
                 }
               }),

@@ -3,7 +3,7 @@ import { useCotizacion } from '../../context/CotizacionContext'
 
 // ── Modal genérico de proceso normal ─────────────────────────────────────
 function ProcesoModal({ proceso, onClose, onSave }) {
-  const { unidades, nivelesPrecio, espesores, preciosProceso } = useCotizacion()
+  const { unidades, nivelesPrecio, espesores, preciosProceso, procesos } = useCotizacion()
   const [form, setForm] = useState({
     nombre:          proceso?.nombre          ?? '',
     id_unidad_cobro: proceso?.id_unidad_cobro ?? '',
@@ -26,6 +26,13 @@ function ProcesoModal({ proceso, onClose, onSave }) {
     const e = {}
     if (!form.nombre.trim()) e.nombre = 'El nombre es obligatorio'
     if (!form.id_unidad_cobro) e.id_unidad_cobro = 'Selecciona una unidad de cobro'
+    const nombreNorm = form.nombre.trim().toLowerCase()
+    const duplicado = procesos.find(p =>
+      (p.tipo === 'PROCESO' || !p.tipo) &&
+      p.nombre.toLowerCase() === nombreNorm &&
+      (!proceso || p.id_proceso !== proceso.id_proceso)
+    )
+    if (duplicado) e.nombre = 'Ya existe un proceso con ese nombre'
     return e
   }
 
@@ -161,7 +168,7 @@ function ProcesoModal({ proceso, onClose, onSave }) {
 
 // ── Modal Barreno ─────────────────────────────────────────────────────────
 function BarrenoModal({ barreno, onClose, onSave }) {
-  const { unidades, nivelesPrecio, preciosProcesoEspecial } = useCotizacion()
+  const { unidades, nivelesPrecio, preciosProcesoEspecial, procesos } = useCotizacion()
   const [form, setForm] = useState({
     diametro_mm: barreno?.diametro_mm ?? '',
     nombre:      barreno?.nombre      ?? '',
@@ -185,6 +192,13 @@ function BarrenoModal({ barreno, onClose, onSave }) {
     const e = {}
     if (!form.diametro_mm || isNaN(Number(form.diametro_mm)) || Number(form.diametro_mm) <= 0)
       e.diametro_mm = 'Ingresa el diámetro en mm'
+    const computedNombre = (form.nombre.trim() || `Barreno ${form.diametro_mm}mm`).toLowerCase()
+    const duplicado = procesos.find(p =>
+      p.tipo === 'BARRENO' &&
+      p.nombre.toLowerCase() === computedNombre &&
+      (!barreno || p.id_proceso !== barreno.id_proceso)
+    )
+    if (duplicado) e.diametro_mm = 'Ya existe un barreno con ese diámetro/nombre'
     return e
   }
 
@@ -306,7 +320,7 @@ function BarrenoModal({ barreno, onClose, onSave }) {
 
 // ── Modal Saque ───────────────────────────────────────────────────────────
 function SaqueModal({ saque, onClose, onSave }) {
-  const { unidades, nivelesPrecio, preciosProcesoEspecial } = useCotizacion()
+  const { unidades, nivelesPrecio, preciosProcesoEspecial, procesos } = useCotizacion()
   const [form, setForm] = useState({
     nombre:      saque?.nombre      ?? '',
     descripcion: saque?.descripcion ?? '',
@@ -329,6 +343,12 @@ function SaqueModal({ saque, onClose, onSave }) {
   const validate = () => {
     const e = {}
     if (!form.nombre.trim()) e.nombre = 'El nombre es obligatorio'
+    const duplicado = procesos.find(p =>
+      p.tipo === 'SAQUE' &&
+      p.nombre.toLowerCase() === form.nombre.trim().toLowerCase() &&
+      (!saque || p.id_proceso !== saque.id_proceso)
+    )
+    if (duplicado) e.nombre = 'Ya existe un nivel de saque con ese nombre'
     return e
   }
 
@@ -431,7 +451,7 @@ function SaqueModal({ saque, onClose, onSave }) {
 
 // ── Modal Extra ───────────────────────────────────────────────────────────
 function ExtraModal({ extra, onClose, onSave }) {
-  const { unidades, nivelesPrecio, preciosProcesoEspecial } = useCotizacion()
+  const { unidades, nivelesPrecio, preciosProcesoEspecial, procesos } = useCotizacion()
   const [form, setForm] = useState({
     nombre: extra?.nombre ?? '',
   })
@@ -453,6 +473,12 @@ function ExtraModal({ extra, onClose, onSave }) {
   const validate = () => {
     const e = {}
     if (!form.nombre.trim()) e.nombre = 'El nombre es obligatorio'
+    const duplicado = procesos.find(p =>
+      p.tipo === 'EXTRA' &&
+      p.nombre.toLowerCase() === form.nombre.trim().toLowerCase() &&
+      (!extra || p.id_proceso !== extra.id_proceso)
+    )
+    if (duplicado) e.nombre = 'Ya existe un extra con ese nombre'
     return e
   }
 
@@ -572,13 +598,6 @@ export default function Procesos() {
   // ── Guardar proceso normal ────────────────────────────────────────────────
   const handleSaveProceso = async (form) => {
     const { preciosNivel = [], ...procesoData } = form
-    const nombreNorm = procesoData.nombre.trim().toLowerCase()
-    const duplicado = procesos.find(p =>
-      (p.tipo === 'PROCESO' || !p.tipo) &&
-      p.nombre.toLowerCase() === nombreNorm &&
-      (modal.type === 'create' || p.id_proceso !== modal.data.id_proceso)
-    )
-    if (duplicado) { showToast('Ya existe un proceso con ese nombre', 'error'); return }
     const res = modal.type === 'create'
       ? await addProceso(procesoData)
       : await editProceso(modal.data.id_proceso, procesoData)
@@ -595,17 +614,6 @@ export default function Procesos() {
   // ── Guardar barreno / saque / extra ─────────────────────────────────────
   const handleSaveEspecial = async (form) => {
     const { preciosEspecial = [], ...procesoData } = form
-    const nombreNorm = procesoData.nombre.trim().toLowerCase()
-    const duplicado = procesos.find(p =>
-      p.tipo === procesoData.tipo &&
-      p.nombre.toLowerCase() === nombreNorm &&
-      (modal.type === 'create' || p.id_proceso !== modal.data.id_proceso)
-    )
-    if (duplicado) {
-      const label = procesoData.tipo === 'BARRENO' ? 'barreno' : procesoData.tipo === 'EXTRA' ? 'extra' : 'nivel de saque'
-      showToast(`Ya existe un ${label} con ese nombre`, 'error')
-      return
-    }
     const res = modal.type === 'create'
       ? await addProceso(procesoData)
       : await editProceso(modal.data.id_proceso, procesoData)

@@ -49,10 +49,11 @@ export function printTicketVidrio(detalle) {
           ${procRows}
         </div>`
     }
+    const prefix = p.cantidad != null ? `${p.cantidad}${p.unidad ? ' ' + p.unidad : ''} — ` : ''
     return `
       <div class="partida">
         <div class="row">
-          <span>${p.cantidad ?? 1} ${p.unidad ?? ''} — ${p.descripcion ?? ''}</span>
+          <span>${prefix}${p.descripcion ?? ''}</span>
           <span class="bold">$${r5(Number(p.subtotal_partida)).toFixed(2)}</span>
         </div>
       </div>`

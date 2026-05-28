@@ -119,8 +119,46 @@ test('crear nuevo proceso',async ({page}) =>{
   await page.locator('input[type="password"]').fill('129')
   await page.getByRole('button', { name: 'Entrar' }).click()
   await page.waitForTimeout(4000)
-  await page.getByRole('button', { name: 'Ventas' }).click()
-  //
-  
+  await page.getByRole('button', { name: 'catalogos' }).click()
+  await page.getByRole('link', { name: 'Procesos' }).click()
+  await expect(page).toHaveURL(`${base}cot/procesos`)
+  await page.getByRole('button', { name: '+ Nuevo proceso' }).click()
+  await page.getByRole('textbox', { name: 'Ej. Pulido de canto, Biselado' }).fill("Chaflan")
+  await page.getByRole('combobox').selectOption("m2 — Metro cuadrado")
+  await page.getByPlaceholder('0.00').nth(3).fill("200")
+  await page.getByPlaceholder('0.00').nth(4).fill("150")
+  await page.getByPlaceholder('0.00').nth(5).fill("100")
+  await page.getByRole('button', { name: 'Crear proceso' }).click()
+  await page.waitForTimeout(7000)
+  await expect(page.getByText('Proceso creado ✅')).toBeVisible({ timeout: 7000 })
+
+  /*
+  await page.getByRole('combobox').select
+  */
+
+});
+
+
+test('crear nuevo proceso barreno',async ({page}) =>{
+  await page.goto(base)
+  await page.locator('input[type="text"]').fill('129')
+  await page.locator('input[type="password"]').fill('129')
+  await page.getByRole('button', { name: 'Entrar' }).click()
+  await page.waitForTimeout(4000)
+  await page.getByRole('button', { name: 'catalogos' }).click()
+  await page.getByRole('link', { name: 'Procesos' }).click()
+  await expect(page).toHaveURL(`${base}cot/procesos`)
+  await page.getByRole('button', { name: /Barrenos/ }).click()
+  await page.getByRole('button', { name: '+ Nuevo barreno' }).click()
+  await page.waitForTimeout(1000)
+  await page.getByPlaceholder('Ej. 6, 8, 10,').fill("10")
+  await page.getByRole('row', { name: 'Público' }).getByPlaceholder('0.00').fill("50")
+  await page.getByRole('row', { name: 'Carpintero' }).getByPlaceholder('0.00').fill("40")
+  await page.getByRole('row', { name: 'Vidriero' }).getByPlaceholder('0.00').fill("30")
+  await page.getByRole('button', { name: 'Crear barreno' }).click()
+  await expect(page.getByRole('button', { name: '+ Nuevo barreno' })).toBeVisible({timeout:1000})
+  /*
+  await page.getByRole('combobox').select
+  */
 
 });
