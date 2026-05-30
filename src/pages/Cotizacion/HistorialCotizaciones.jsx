@@ -150,13 +150,25 @@ function ConvertirPedidoModal({ cotizacion, onClose, onCreado }) {
           <div>
             <div className="modal-title">Convertir a pedido</div>
             <div style={{ fontSize:12, color:'var(--text-muted)', marginTop:2 }}>
-              {cotizacion.folio} · ${fmt5(cotizacion.total)}
+              <strong>{cotizacion.folio}</strong>
             </div>
           </div>
           <button className="btn-icon" onClick={onClose}>✕</button>
         </div>
 
         <div className="modal-body">
+          {/* Total destacado */}
+          <div style={{
+            background: 'var(--accent)', borderRadius: 12, padding: '16px 20px',
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            marginBottom: 20,
+          }}>
+            <span style={{ color: 'white', fontSize: 13, fontWeight: 600, opacity: 0.85 }}>Total a cobrar</span>
+            <span style={{ color: 'white', fontSize: 32, fontWeight: 800, letterSpacing: '-1px' }}>
+              ${fmt5(cotizacion.total)}
+            </span>
+          </div>
+
           <div className="form-group">
             <label className="form-label required">Forma de pago</label>
             <div style={{ display:'flex', gap:16, marginTop:6 }}>
