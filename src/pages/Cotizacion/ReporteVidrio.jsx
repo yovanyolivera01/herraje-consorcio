@@ -1,11 +1,69 @@
 import { useState, useEffect, useCallback } from 'react'
+import * as XLSX from 'xlsx'
 import { fmt5, hoyMX, lunesMX } from '../../lib/utils'
 import { getPartidasVidrioEntregadas } from '../../lib/reportesApi'
+
+function exportarExcelVidrio(partidas, fechaDesde, fechaHasta) {
+  // ── Hoja 1: resumen agrupado por tipo de vidrio ──────────────────────────
+  const porTipo = {}
+  for (const p of partidas) {
+    const k = p.clave_vidrio
+    if (!porTipo[k]) porTipo[k] = { clave: k, descripcion: p.nombre_vidrio ?? '', piezas: 0, m2: 0, total: 0 }
+    porTipo[k].piezas += p.cantidad
+    porTipo[k].m2     += p.metros2 * p.cantidad
+    porTipo[k].total  += p.total_partida
+  }
+
+  const totalM2    = Object.values(porTipo).reduce((s, r) => s + r.m2, 0)
+  const totalMonto = Object.values(porTipo).reduce((s, r) => s + r.total, 0)
+
+  const resumen = Object.values(porTipo)
+    .sort((a, b) => b.total - a.total)
+    .map(r => ({
+      'Tipo de vidrio': r.clave,
+      'Descripción':    r.descripcion,
+      'Piezas':         r.piezas,
+      'm² vendidos':    Number(r.m2.toFixed(4)),
+      'Total ($)':      Number(r.total.toFixed(2)),
+      '% del total':    totalMonto > 0 ? Number((r.total / totalMonto * 100).toFixed(1)) : 0,
+    }))
+
+  resumen.push({
+    'Tipo de vidrio': 'TOTAL',
+    'Descripción':    '',
+    'Piezas':         partidas.reduce((s, p) => s + p.cantidad, 0),
+    'm² vendidos':    Number(totalM2.toFixed(4)),
+    'Total ($)':      Number(totalMonto.toFixed(2)),
+    '% del total':    100,
+  })
+
+  // ── Hoja 2: detalle por partida ──────────────────────────────────────────
+  const detalle = partidas.map(p => ({
+    'Folio':          p.folio,
+    'Fecha entrega':  p.fechaEntrega,
+    'Cliente':        p.clienteNombre,
+    'Tipo vidrio':    p.clave_vidrio,
+    'Descripción':    p.nombre_vidrio ?? '',
+    'Largo (cm)':     p.largo_cm,
+    'Ancho (cm)':     p.ancho_cm,
+    'Piezas':         p.cantidad,
+    'm²':             Number((p.metros2 * p.cantidad).toFixed(4)),
+    '$/m²':           Number(p.precio_m2.toFixed(2)),
+    'Total ($)':      Number(p.total_partida.toFixed(2)),
+  }))
+
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(resumen),  'Resumen por tipo')
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(detalle),  'Detalle')
+
+  XLSX.writeFile(wb, `reporte_vidrio_${fechaDesde || 'inicio'}_${fechaHasta || 'hoy'}.xlsx`)
+}
 
 export default function ReporteVidrio() {
   const [partidas,   setPartidas]   = useState([])
   const [loading,    setLoading]    = useState(true)
   const [error,      setError]      = useState(null)
+  const [exporting,  setExporting]  = useState(false)
   const [fechaDesde, setFechaDesde] = useState(lunesMX)
   const [fechaHasta, setFechaHasta] = useState(hoyMX)
 
@@ -35,7 +93,20 @@ export default function ReporteVidrio() {
           <div className="page-title">Reporte Vidrio</div>
           <div className="page-subtitle">Piezas entregadas en el periodo</div>
         </div>
-        <button className="btn btn-outline" onClick={cargar} disabled={loading}>↻ Actualizar</button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn btn-outline" onClick={cargar} disabled={loading}>↻ Actualizar</button>
+          <button
+            className="btn btn-primary"
+            disabled={exporting || partidas.length === 0}
+            onClick={() => {
+              setExporting(true)
+              try { exportarExcelVidrio(partidas, fechaDesde, fechaHasta) }
+              finally { setExporting(false) }
+            }}
+          >
+            {exporting ? 'Exportando...' : '⬇ Excel'}
+          </button>
+        </div>
       </div>
 
       <div className="page-body">
