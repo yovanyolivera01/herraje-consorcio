@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from 'react'
 import { fmt5 } from '../../lib/utils'
 import { getPedidosPendientes, getDetallePedido, marcarComoEntregado } from '../../lib/pedidosApi'
 import { getPedidosPendientesMaquila, getDetallePedidoMaquila, entregarPartidaMaquila, marcarAnticipoLiquidado as marcarAnticipoMaquila } from '../../lib/maquilaApi'
-import { getPartidasExtra } from '../../lib/cotizacionApi'
 import { printPedidoPendiente, printTicketVidrio } from '../../utils/ticket'
 
 // ── Ticket de pedido ──────────────────────────────────────────────────────
@@ -244,12 +243,9 @@ function DetallePedidoModal({ resumen, onClose, onEntregado }) {
 
   useEffect(() => {
     getDetallePedido(resumen.id)
-      .then(async d => {
+      .then(d => {
         setDetalle(d)
-        if (d.id_cotizacion) {
-          const ex = await getPartidasExtra(d.id_cotizacion).catch(() => [])
-          setExtras(ex)
-        }
+        setExtras(d.extras ?? [])
         setLoading(false)
       })
       .catch(e => { setError(e.message); setLoading(false) })

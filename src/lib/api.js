@@ -9,7 +9,8 @@ import { supabase } from './supabase'
  */
 const TZ = 'America/Mexico_City'
 function formatearFechaHora(isoString) {
-  const d = new Date(isoString)
+  const utc = /Z|[+-]\d{2}:?\d{2}$/.test(isoString ?? '') ? isoString : (isoString ?? '') + 'Z'
+  const d = new Date(utc)
   const fechaFormatter = new Intl.DateTimeFormat('es-MX', {
     year: 'numeric', month: '2-digit', day: '2-digit', timeZone: TZ,
   })

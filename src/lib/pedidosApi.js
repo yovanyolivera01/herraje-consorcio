@@ -10,11 +10,19 @@ const fmtFolio = (folio) => folio ? folio.replace(/^([A-Z]+-?)0+(\d)/, '$1$2') :
 
 function formatearFechaHora(isoString) {
   if (!isoString) return { fecha: '—', hora: '—' }
-  const d = new Date(isoString)
+  const utc = /Z|[+-]\d{2}:?\d{2}$/.test(isoString) ? isoString : isoString + 'Z'
+  const d = new Date(utc)
   return {
     fecha: new Intl.DateTimeFormat('es-MX', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: TZ }).format(d),
     hora:  new Intl.DateTimeFormat('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: TZ }).format(d).slice(0, 5),
   }
+}
+
+// ── Auditoría pedidod (fire-and-forget, no bloquea el flujo principal) ───
+const auditarPedido = (id_pedido) => {
+  supabase.rpc('sp_insertar_pedidod', { p_id_pedido: id_pedido })
+    .then(({ error }) => { if (error) console.warn('[pedidod]', error.message) })
+    .catch(e => console.warn('[pedidod]', e.message))
 }
 
 // ── Conversión cotización → pedido  (HU-08) ───────────────────────────────
@@ -42,6 +50,7 @@ export const convertirCotizacionAPedido = async (id_cotizacion, tipo_pago, monto
   })
   if (invError) console.error('[inventario] No se pudo descontar stock:', invError.message)
 
+  auditarPedido(row.out_id_pedido)
   return row.out_id_pedido
 }
 
@@ -111,6 +120,7 @@ export const crearPedidoDirecto = async ({ id_cliente, id_nivel_precio, partidas
   if (!row || row.out_mensaje?.startsWith('ERROR')) {
     throw new Error(row?.out_mensaje ?? 'Error desconocido al crear el pedido')
   }
+  auditarPedido(row.out_id_pedido)
   return row.out_id_pedido
 }
 
@@ -186,10 +196,11 @@ export const getPedidosEntregados = async (fechaDesde, fechaHasta) => {
 //       sp_obtener_procesos_pedido  → procesos por partida
 
 export const getDetallePedido = async (id_pedido) => {
-  const [cabRes, partRes, procRes] = await Promise.all([
+  const [cabRes, partRes, procRes, pedidoRow] = await Promise.all([
     supabase.rpc('sp_obtener_cabecera_pedido', { p_id_pedido: id_pedido }),
     supabase.rpc('sp_obtener_partidas_pedido', { p_id_pedido: id_pedido }),
     supabase.rpc('sp_obtener_procesos_pedido', { p_id_pedido: id_pedido }),
+    supabase.from('pedido').select('id_cotizacion').eq('id_pedido', id_pedido).single(),
   ])
   if (cabRes.error)  throw cabRes.error
   if (partRes.error) throw partRes.error
@@ -197,6 +208,8 @@ export const getDetallePedido = async (id_pedido) => {
 
   const cab = Array.isArray(cabRes.data) ? cabRes.data[0] : cabRes.data
   if (!cab) throw new Error('Pedido no encontrado')
+
+  const id_cotizacion = cab.id_cotizacion ?? pedidoRow.data?.id_cotizacion ?? null
 
   const { fecha, hora }     = formatearFechaHora(cab.fecha_creacion)
   const { fecha: fechaEnt } = cab.fecha_entrega ? formatearFechaHora(cab.fecha_entrega) : { fecha: '—' }
@@ -217,18 +230,18 @@ export const getDetallePedido = async (id_pedido) => {
 
   // Extras (MAQUILA/PRODUCTO) de la cotización de origen
   let extras = []
-  if (cab.id_cotizacion) {
+  if (id_cotizacion) {
     const { data: extrasData } = await supabase
       .from('partida_cotizacion_extra')
       .select('tipo, descripcion, unidad, cantidad, precio_unitario, subtotal, notas')
-      .eq('id_cotizacion', cab.id_cotizacion)
+      .eq('id_cotizacion', id_cotizacion)
       .order('id_partida_extra')
     if (extrasData) extras = extrasData
   }
 
   return {
     id:              cab.id_pedido,
-    id_cotizacion:   cab.id_cotizacion,
+    id_cotizacion:   id_cotizacion,
     folio:           fmtFolio(cab.folio),
     fecha,
     hora,
@@ -277,6 +290,7 @@ export const marcarComoEntregado = async (id_pedido, monto_cobrado) => {
   if (error) throw error
   const row = Array.isArray(data) ? data[0] : data
   if (!row?.exito) throw new Error(row?.mensaje ?? 'Error al registrar la entrega')
+  auditarPedido(id_pedido)
   return true
 }
 

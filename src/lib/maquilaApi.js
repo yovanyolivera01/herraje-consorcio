@@ -6,7 +6,8 @@ import { mxDayBound } from './utils'
 const TZ = 'America/Mexico_City'
 function formatearFechaHora(isoString) {
   if (!isoString) return { fecha: '—', hora: '—' }
-  const d = new Date(isoString)
+  const utc = /Z|[+-]\d{2}:?\d{2}$/.test(isoString) ? isoString : isoString + 'Z'
+  const d = new Date(utc)
   return {
     fecha: new Intl.DateTimeFormat('es-MX', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: TZ }).format(d),
     hora:  new Intl.DateTimeFormat('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: TZ }).format(d).slice(0, 5),
