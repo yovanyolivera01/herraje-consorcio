@@ -148,16 +148,21 @@ function TicketEntrega({ detalle, saldoCobrado, extras = [] }) {
 
 // ── Modal: marcar como entregado ─────────────────────────────────────────
 function MarcarEntregadoModal({ detalle, onClose, onEntregado }) {
-  const [saving, setSaving] = useState(false)
-  const [error,  setError]  = useState(null)
+  const [saving,       setSaving]       = useState(false)
+  const [error,        setError]        = useState(null)
+  const [saldoCobrado, setSaldoCobrado] = useState('')
   const saldoPendiente = detalle.saldo
 
+  const montoNum = Number(saldoCobrado)
+  const montoValido = !isNaN(montoNum) && montoNum === saldoPendiente
+
   const handleConfirm = async () => {
+    if (!montoValido) return
     setSaving(true)
     setError(null)
     try {
-      await marcarComoEntregado(detalle.id, saldoPendiente)
-      onEntregado(saldoPendiente)
+      await marcarComoEntregado(detalle.id, montoNum)
+      onEntregado(montoNum)
     } catch (err) {
       setError(err.message || 'Error al registrar la entrega')
       setSaving(false)
@@ -179,9 +184,9 @@ function MarcarEntregadoModal({ detalle, onClose, onEntregado }) {
           {/* Resumen de cobro */}
           <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:10, marginBottom:14 }}>
             {[
-              ['Total pedido',   `$${fmt5(detalle.total)}`,      'var(--text)'],
-              ['Anticipo pagado', `$${detalle.anticipo.toFixed(2)}`,  'var(--accent)'],
-              ['Saldo a cobrar',  `$${saldoPendiente.toFixed(2)}`,    'var(--danger)'],
+              ['Total pedido',    `$${fmt5(detalle.total)}`,           'var(--text)'],
+              ['Anticipo pagado', `$${detalle.anticipo.toFixed(2)}`,   'var(--accent)'],
+              ['Saldo pendiente', `$${saldoPendiente.toFixed(2)}`,     'var(--danger)'],
             ].map(([label, val, color]) => (
               <div key={label} style={{ textAlign:'center', background:'var(--bg)', borderRadius:8, padding:'10px 6px' }}>
                 <div style={{ fontSize:11, color:'var(--text-muted)', marginBottom:4 }}>{label}</div>
@@ -190,19 +195,27 @@ function MarcarEntregadoModal({ detalle, onClose, onEntregado }) {
             ))}
           </div>
 
-          {/* Saldo protegido — solo lectura */}
+          {/* Saldo editable */}
           <div className="form-group">
-            <label className="form-label">Saldo cobrado al cliente ($)</label>
+            <label className="form-label required">Saldo cobrado al cliente ($)</label>
             <input
-              className="form-input"
-              type="text"
-              value={`$${saldoPendiente.toFixed(2)}`}
-              readOnly
-              style={{ background:'var(--bg)', cursor:'default', fontWeight:700, fontSize:16, color:'var(--danger)' }}
+              className={`form-input${!montoValido && saldoCobrado !== '' ? ' error' : ''}`}
+              type="number"
+              step="0.01"
+              min="0.01"
+              max={saldoPendiente}
+              value={saldoCobrado}
+              onChange={e => setSaldoCobrado(e.target.value)}
+              placeholder={saldoPendiente.toFixed(2)}
+              style={{ fontWeight:700, fontSize:16, color:'var(--danger)' }}
+              autoFocus
             />
-            <div className="form-hint">
-              Este monto corresponde exactamente al saldo pendiente registrado y no puede modificarse.
-            </div>
+            {!montoValido && saldoCobrado !== '' && (
+              <div className="form-error">
+                El monto debe ser exactamente ${saldoPendiente.toFixed(2)}
+              </div>
+            )}
+            <div className="form-hint">Escribe el saldo pendiente para confirmar el cobro.</div>
           </div>
 
           <div className="alert alert-warning" style={{ marginTop:8 }}>
@@ -212,8 +225,8 @@ function MarcarEntregadoModal({ detalle, onClose, onEntregado }) {
         </div>
         <div className="modal-footer">
           <button className="btn btn-outline" onClick={onClose} disabled={saving}>Cancelar</button>
-          <button className="btn btn-primary" onClick={handleConfirm} disabled={saving}>
-            {saving ? 'Registrando...' : `✅ Confirmar — cobrar $${saldoPendiente.toFixed(2)}`}
+          <button className="btn btn-primary" onClick={handleConfirm} disabled={saving || !montoValido}>
+            {saving ? 'Registrando...' : `✅ Confirmar — cobrar $${montoValido ? montoNum.toFixed(2) : '—'}`}
           </button>
         </div>
       </div>
@@ -645,70 +658,87 @@ export default function PedidosPendientes() {
             <p>Todos los pedidos han sido entregados</p>
           </div>
         ) : (
-          <div className="table-container">
-            <table className="table table-mobile-cards">
-              <thead>
-                <tr>
-                  <th>Folio</th>
-                  <th>Tipo</th>
-                  <th>Fecha</th>
-                  <th>Cliente</th>
-                  <th>Nivel</th>
-                  <th style={{ textAlign:'right' }}>Total</th>
-                  <th style={{ textAlign:'right' }}>Anticipo</th>
-                  <th style={{ textAlign:'right' }}>Saldo</th>
-                  <th style={{ width:80 }}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {pedidos.map(p => (
-                  <tr
-                    key={p.id}
-                    style={{ cursor:'pointer' }}
-                    onClick={() => setSeleccionado(p)}
-                  >
-                    <td data-label="Folio">
+          <>
+            {/* ── Tabla (desktop ≥1024px) ── */}
+            <div className="hist-desktop">
+              <div className="table-container">
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Folio</th>
+                      <th>Tipo</th>
+                      <th>Fecha</th>
+                      <th>Cliente</th>
+                      <th>Nivel</th>
+                      <th style={{ textAlign:'right' }}>Total</th>
+                      <th style={{ textAlign:'right' }}>Anticipo</th>
+                      <th style={{ textAlign:'right' }}>Saldo</th>
+                      <th style={{ width:80 }}></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pedidos.map(p => (
+                      <tr key={p.id} style={{ cursor:'pointer' }} onClick={() => setSeleccionado(p)}>
+                        <td><span className="badge badge-orange">{p.folio}</span></td>
+                        <td>
+                          <span className={`badge ${p.tipo === 'MAQUILA' ? 'badge-blue' : 'badge-gray'}`} style={{ fontSize:11 }}>
+                            {p.tipo === 'MAQUILA' ? '🔨 Maquila' : '◻ Vidrio'}
+                          </span>
+                        </td>
+                        <td style={{ fontSize:13, color:'var(--text-muted)', whiteSpace:'nowrap' }}>{p.fecha}</td>
+                        <td style={{ fontWeight:600 }}>{p.clienteNombre}</td>
+                        <td>
+                          {p.nivelNombre
+                            ? <span className="badge badge-gray">{p.nivelNombre}</span>
+                            : <span style={{ color:'var(--text-muted)', fontSize:13 }}>—</span>
+                          }
+                        </td>
+                        <td style={{ textAlign:'right', fontWeight:600 }}>${fmt5(p.total)}</td>
+                        <td style={{ textAlign:'right', color:'var(--accent)', fontWeight:600 }}>${p.anticipo.toFixed(2)}</td>
+                        <td style={{ textAlign:'right', color:'var(--danger)', fontWeight:700 }}>${p.saldo.toFixed(2)}</td>
+                        <td>
+                          <button className="btn btn-outline btn-sm" onClick={e => { e.stopPropagation(); setSeleccionado(p) }}>
+                            Ver
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* ── Tarjetas (tablet / móvil <1024px) ── */}
+            <div className="hist-mobile">
+              {pedidos.map(p => (
+                <div key={p.id} className="hist-card" onClick={() => setSeleccionado(p)}>
+                  <div className="hist-card-header">
+                    <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
                       <span className="badge badge-orange">{p.folio}</span>
-                    </td>
-                    <td data-label="Tipo">
                       <span className={`badge ${p.tipo === 'MAQUILA' ? 'badge-blue' : 'badge-gray'}`} style={{ fontSize:11 }}>
                         {p.tipo === 'MAQUILA' ? '🔨 Maquila' : '◻ Vidrio'}
                       </span>
-                    </td>
-                    <td data-label="Fecha" style={{ fontSize:13, color:'var(--text-muted)', whiteSpace:'nowrap' }}>
-                      {p.fecha}
-                    </td>
-                    <td data-label="Cliente" style={{ fontWeight:600 }}>
-                      {p.clienteNombre}
-                    </td>
-                    <td data-label="Nivel">
-                      {p.nivelNombre
-                        ? <span className="badge badge-gray">{p.nivelNombre}</span>
-                        : <span style={{ color:'var(--text-muted)', fontSize:13 }}>—</span>
-                      }
-                    </td>
-                    <td data-label="Total" style={{ textAlign:'right', fontWeight:600 }}>
-                      ${fmt5(p.total)}
-                    </td>
-                    <td data-label="Anticipo" style={{ textAlign:'right', color:'var(--accent)', fontWeight:600 }}>
-                      ${p.anticipo.toFixed(2)}
-                    </td>
-                    <td data-label="Saldo" style={{ textAlign:'right', color:'var(--danger)', fontWeight:700 }}>
-                      ${p.saldo.toFixed(2)}
-                    </td>
-                    <td data-label="">
-                      <button
-                        className="btn btn-outline btn-sm"
-                        onClick={e => { e.stopPropagation(); setSeleccionado(p) }}
-                      >
-                        Ver
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                      {p.nivelNombre && <span className="badge badge-gray" style={{ fontSize:11 }}>{p.nivelNombre}</span>}
+                    </div>
+                    <span style={{ fontWeight:700, fontSize:17, color:'var(--danger)' }}>
+                      ⚠️ ${p.saldo.toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="hist-card-body">
+                    <div style={{ fontWeight:600, fontSize:15 }}>{p.clienteNombre}</div>
+                    <div style={{ fontSize:13, color:'var(--text-muted)', marginTop:3 }}>
+                      Total: <strong style={{ color:'var(--text)' }}>${fmt5(p.total)}</strong>
+                      {p.anticipo > 0 && <span> · Anticipo: <strong style={{ color:'var(--accent)' }}>${p.anticipo.toFixed(2)}</strong></span>}
+                    </div>
+                  </div>
+                  <div className="hist-card-footer">
+                    <span style={{ fontSize:12, color:'var(--text-muted)' }}>{p.fecha}</span>
+                    <button className="btn btn-outline btn-sm" onClick={e => { e.stopPropagation(); setSeleccionado(p) }}>Ver</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </div>
 

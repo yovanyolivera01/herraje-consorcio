@@ -213,8 +213,8 @@ export function printPedidoPendiente(detalle) {
   <div class="row"><span>Cliente:</span><span class="bold">${detalle.cliente?.nombre ?? 'Mostrador'}</span></div>
   ${detalle.nivel?.nombre ? `<div class="row"><span>Nivel:</span><span>${detalle.nivel.nombre}</span></div>` : ''}
   <hr class="divider">
-  <div style="font-weight:700;font-size:11px;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px">
-    Partidas (${detalle.partidas.length})
+  <div style="font-weight:700;font-size:11px;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px dashed #888;padding-bottom:2px">
+    Vidrio
   </div>
   ${rows}
   <hr class="divider">

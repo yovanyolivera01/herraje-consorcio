@@ -142,18 +142,32 @@ async function exportarExcel(fechaDesde, fechaHasta) {
     if (!vistos.has(row['Folio'])) {
       vistos.add(row['Folio'])
       resumen.push({
-        'Folio':          row['Folio'],
-        'Fecha entrega':  row['Fecha entrega'],
-        'Cliente':        row['Cliente'],
-        'Forma de pago':  row['Forma de pago'],
-        'Total':          Number(row['Total pedido']),
-        'Anticipo':       Number(row['Anticipo']),
-        'Cobrado entrega': Number(row['Cobrado entrega']),
-        'Total cobrado':  Number(row['Total cobrado']),
-        'Observaciones':  row['Observaciones'] ?? '',
+        'Folio':            row['Folio'],
+        'Fecha entrega':    row['Fecha entrega'],
+        'Cliente':          row['Cliente'],
+        'Forma de pago':    row['Forma de pago'],
+        'Total':            Number(row['Total pedido']),
+        'Anticipo':         Number(row['Anticipo']),
+        'Cobrado entrega':  Number(row['Cobrado entrega']),
+        'Total recibido':   Number(row['Total cobrado']),
+        'Observaciones':    row['Observaciones'] ?? '',
       })
     }
   }
+
+  // Fila de totales al final de la hoja Ventas
+  const sum = (col) => resumen.reduce((s, r) => s + (r[col] ?? 0), 0)
+  resumen.push({
+    'Folio':           'TOTAL',
+    'Fecha entrega':   '',
+    'Cliente':         '',
+    'Forma de pago':   '',
+    'Total':           sum('Total'),
+    'Anticipo':        sum('Anticipo'),
+    'Cobrado entrega': sum('Cobrado entrega'),
+    'Total recibido':  sum('Total recibido'),
+    'Observaciones':   '',
+  })
 
   // Hoja 2: partidas tal como las devuelve el SP
   const partidas = raw.map(row => ({

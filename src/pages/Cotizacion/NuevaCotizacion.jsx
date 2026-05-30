@@ -509,16 +509,19 @@ export default function NuevaCotizacion() {
       }
       const precioNivel = getPrecioProc(proc.id_proceso, tipo?.espesor?.id_espesor ?? null)
       const precio_unitario = precioNivel !== null ? precioNivel : Number(proc.precio_unitario)
+      const sinPrecio = precioNivel === null && Number(proc.precio_unitario) === 0
       const subtotal = cantidad * precio_unitario
       subtotal_procesos += subtotal
-      return { id_proceso: proc.id_proceso, id_unidad_cobro: proc.id_unidad_cobro, nombre: proc.nombre, unidad, cantidad, precio_unitario, subtotal }
+      return { id_proceso: proc.id_proceso, id_unidad_cobro: proc.id_unidad_cobro, nombre: proc.nombre, unidad, cantidad, precio_unitario, subtotal, sinPrecio }
     }).filter(Boolean)
 
     // Barrenos seleccionados
     barrenosSeleccionados.forEach(bs => {
       const proc = barrenos.find(b => b.id_proceso === bs.id_proceso)
       if (!proc || bs.cantidad <= 0) return
-      const precio_unitario = getPrecioEsp(proc.id_proceso) ?? 0
+      const precioBruto = getPrecioEsp(proc.id_proceso)
+      const sinPrecio = precioBruto === null
+      const precio_unitario = precioBruto ?? 0
       const subtotal = bs.cantidad * precio_unitario
       subtotal_procesos += subtotal
       procesosCalc.push({
@@ -529,6 +532,7 @@ export default function NuevaCotizacion() {
         cantidad:        bs.cantidad,
         precio_unitario,
         subtotal,
+        sinPrecio,
       })
     })
 
@@ -536,7 +540,9 @@ export default function NuevaCotizacion() {
     saquesSeleccionados.forEach(ss => {
       const proc = saques.find(s => s.id_proceso === ss.id_proceso)
       if (!proc || ss.cantidad <= 0) return
-      const precio_unitario = getPrecioEsp(proc.id_proceso) ?? 0
+      const precioBruto = getPrecioEsp(proc.id_proceso)
+      const sinPrecio = precioBruto === null
+      const precio_unitario = precioBruto ?? 0
       const subtotal = ss.cantidad * precio_unitario
       subtotal_procesos += subtotal
       procesosCalc.push({
@@ -547,6 +553,7 @@ export default function NuevaCotizacion() {
         cantidad:        ss.cantidad,
         precio_unitario,
         subtotal,
+        sinPrecio,
       })
     })
 
@@ -554,7 +561,9 @@ export default function NuevaCotizacion() {
     extrasSeleccionados.forEach(es => {
       const proc = extras.find(x => x.id_proceso === es.id_proceso)
       if (!proc || es.cantidad <= 0) return
-      const precio_unitario = getPrecioEsp(proc.id_proceso) ?? 0
+      const precioBruto = getPrecioEsp(proc.id_proceso)
+      const sinPrecio = precioBruto === null
+      const precio_unitario = precioBruto ?? 0
       const subtotal = es.cantidad * precio_unitario
       subtotal_procesos += subtotal
       procesosCalc.push({
@@ -565,6 +574,7 @@ export default function NuevaCotizacion() {
         cantidad:        es.cantidad,
         precio_unitario,
         subtotal,
+        sinPrecio,
       })
     })
 
@@ -1545,11 +1555,16 @@ export default function NuevaCotizacion() {
                   {preview.procesosCalc.length > 0 && (
                     <div style={{ marginTop: 8, borderTop: '1px solid var(--border)', paddingTop: 8 }}>
                       {preview.procesosCalc.map((pc, i) => (
-                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--text-muted)' }}>
-                          <span>+ {pc.nombre} ({pc.cantidad.toFixed(2)} {pc.unidad} × ${pc.precio_unitario.toFixed(2)})</span>
+                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: pc.sinPrecio ? '#b45309' : 'var(--text-muted)' }}>
+                          <span>{pc.sinPrecio ? '⚠️' : '+'} {pc.nombre} ({pc.cantidad.toFixed(2)} {pc.unidad} × ${pc.precio_unitario.toFixed(2)}){pc.sinPrecio ? ' — sin precio' : ''}</span>
                           <span>${fmt5(pc.subtotal)}</span>
                         </div>
                       ))}
+                      {preview.procesosCalc.some(pc => pc.sinPrecio) && (
+                        <div style={{ marginTop: 6, padding: '5px 8px', borderRadius: 6, background: '#fffbeb', border: '1px solid #f59e0b', fontSize: 12, color: '#92400e' }}>
+                          ⚠️ Hay procesos sin precio configurado para este nivel. Se cotizarán en $0.00 — configúralos en Catálogos → Procesos.
+                        </div>
+                      )}
                     </div>
                   )}
 

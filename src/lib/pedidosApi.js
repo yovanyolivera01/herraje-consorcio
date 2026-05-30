@@ -4,6 +4,10 @@ import { r5 } from './utils'
 // ── Helpers ───────────────────────────────────────────────────────────────
 
 const TZ = 'America/Mexico_City'
+
+// PED-00141 → PED-141  |  PED-01000 → PED-1000
+const fmtFolio = (folio) => folio ? folio.replace(/^([A-Z]+-?)0+(\d)/, '$1$2') : ''
+
 function formatearFechaHora(isoString) {
   if (!isoString) return { fecha: '—', hora: '—' }
   const d = new Date(isoString)
@@ -124,7 +128,7 @@ export const getPedidosPendientes = async () => {
     const { fecha, hora } = formatearFechaHora(row.fecha_pedido)
     return {
       id:                 row.id_pedido,
-      folio:              row.folio,
+      folio:              fmtFolio(row.folio),
       fecha,
       hora,
       fechaCreacionISO:   row.fecha_pedido,
@@ -158,7 +162,7 @@ export const getPedidosEntregados = async (fechaDesde, fechaHasta) => {
     const { fecha: fechaEnt } = row.fecha_entrega ? formatearFechaHora(row.fecha_entrega) : { fecha: '—' }
     return {
       id:              row.id_pedido,
-      folio:           row.folio,
+      folio:           fmtFolio(row.folio),
       fecha,
       hora,
       fechaEntrega:    fechaEnt,
@@ -225,7 +229,7 @@ export const getDetallePedido = async (id_pedido) => {
   return {
     id:              cab.id_pedido,
     id_cotizacion:   cab.id_cotizacion,
-    folio:           cab.folio,
+    folio:           fmtFolio(cab.folio),
     fecha,
     hora,
     fechaEntrega:    fechaEnt,

@@ -95,7 +95,7 @@ const sistemaIconos = {
 
 export default function Layout() {
   const [drawerOpen, setDrawerOpen] = useState(false)
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => window.innerWidth < 1024)
   const [busqueda, setBusqueda] = useState('')
   const location = useLocation()
   const { role, user, logout } = useAuth()

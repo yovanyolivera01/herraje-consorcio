@@ -110,7 +110,7 @@ body {
   flex-shrink: 0;
 }
 .sidebar-collapse-btn:hover { background: var(--bg); color: var(--text); }
-@media (min-width: 1024px) {
+@media (min-width: 768px) {
   .sidebar-collapse-btn { display: flex; }
   .layout-collapsed .sidebar-collapse-btn { width: auto; margin: 8px auto 14px; }
 }
@@ -662,27 +662,22 @@ body {
   .page-body { padding: 20px 22px; }
 }
 
-/* ── Tablet portrait  768px – 1023px  → sidebar icon-only ───────────────── */
+/* ── Tablet portrait  768px – 1023px  → sidebar con toggle ──────────────── */
 @media (max-width: 1023px) and (min-width: 768px) {
-  :root { --sidebar-w: 66px; }
+  /* Sidebar expandida por defecto (200px), colapsa a 66px cuando .layout-collapsed */
+  :root { --sidebar-w: 200px; }
+  .sidebar-logo h1 { font-size: 19px; }
 
-  /* Sidebar compacta */
-  .sidebar-logo-text { display: none; }
-  .sidebar-logo-icon { display: flex; }
-  .sidebar-logo { justify-content: center; padding: 18px 0; }
-  .nav-section { display: none; }
-  .nav-label  { display: none; }
-  .nav-link {
-    justify-content: center;
-    padding: 11px 0;
-    margin: 2px 6px;
-  }
-  .nav-icon { width: 22px; height: 22px; }
-  /* Switcher compacto en tablet */
-  .system-switcher { padding: 8px 4px 12px; }
-  .system-switcher-label { display: none; }
-  .system-btn { font-size: 11px; padding: 6px 2px; }
-  .system-switcher-btns { flex-direction: column; gap: 4px; }
+  /* Sidebar colapsada (usuario presiona el botón) */
+  .layout-collapsed { --sidebar-w: 66px; }
+  .layout-collapsed .sidebar-logo-text { display: none; }
+  .layout-collapsed .sidebar-logo-icon { display: flex; }
+  .layout-collapsed .sidebar-logo      { justify-content: center; padding: 18px 0; }
+  .layout-collapsed .nav-section       { display: none; }
+  .layout-collapsed .nav-label         { display: none; }
+  .layout-collapsed .nav-link          { justify-content: center; padding: 11px 0; margin: 2px 6px; }
+  .layout-collapsed .nav-icon          { width: 22px; height: 22px; }
+  .layout-collapsed .sidebar-collapse-btn { width: auto; margin: 8px auto 14px; }
 
   /* Contenido */
   .page-header  { padding: 10px 16px; flex-wrap: wrap; gap: 8px; }
@@ -691,22 +686,20 @@ body {
   .form-row-3   { grid-template-columns: 1fr 1fr; }
   .venta-grid   { grid-template-columns: 1fr; }
   .cot-left-panel { max-height: none; overflow-y: visible; }
-
-  /* Resumen lateral es redundante cuando las columnas se apilan */
   .venta-side-summary { display: none; }
 
   /* Botones: tamaño cómodo para touch */
-  .btn     { min-height: 44px; font-size: 16px; }
-  .btn-sm  { min-height: 36px; font-size: 14px; }
+  .btn    { min-height: 44px; font-size: 16px; }
+  .btn-sm { min-height: 36px; font-size: 14px; }
 
-  /* Formulario: una columna en tablet estrecha */
+  /* Formulario: una columna */
   .form-row { grid-template-columns: 1fr; }
 
   /* Modal más ancho en tablet */
   .modal    { max-width: min(660px, calc(100vw - 32px)); }
   .modal-lg { max-width: min(780px, calc(100vw - 32px)); }
 
-  /* Tablas: layout de tarjetas igual que en móvil */
+  /* Tablas: layout de tarjetas */
   .table-container { overflow-x: visible; border: none; background: transparent; box-shadow: none; }
   .table-mobile-cards thead { display: none; }
   .table-mobile-cards tbody tr {
