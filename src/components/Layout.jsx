@@ -67,9 +67,52 @@ const inventariosNavItems = [
   ]},
 ]
 
-const herrajeNavEmpleado = [
+// ── Nav por rol: vendedor ─────────────────────────────────────────────────
+const herrajeNavVendedor = [
+  { section: 'Ventas herraje', links: [
+    { to: '/ventas/nueva',     icon: <ReceiptText size={16} />, label: 'Nueva venta' },
+    { to: '/ventas/historial', icon: <BarChart2 size={16} />,   label: 'Historial ventas' },
+  ]},
+]
+
+const ventasNavVendedor = [
   { section: 'Ventas', links: [
-    { to: '/ventas/nueva', icon: <ReceiptText size={16} />, label: 'Nueva venta' },
+    { to: '/cot/nueva',              icon: <ClipboardList size={16} />,  label: 'Nueva cotizacion' },
+    { to: '/cot/registrado',         icon: <ClipboardCheck size={16} />, label: 'Cliente registrado' },
+    { to: '/cot/pedidos-pendientes', icon: <Clock size={16} />,          label: 'Pendientes' },
+  ]},
+]
+
+const reportesNavVendedor = [
+  { section: 'Reportes', links: [
+    { to: '/cot/historial', icon: <BarChart2 size={16} />,    label: 'Cotizaciones' },
+    { to: '/cot/ventas',    icon: <CheckCircle2 size={16} />, label: 'Ventas netas' },
+  ]},
+]
+
+// ── Nav por rol: almacen ──────────────────────────────────────────────────
+const herrajeNavAlmacen = [
+  { section: 'Historial', links: [
+    { to: '/herraje/historial', icon: <Box size={16} />, label: 'Historial de herraje' },
+  ]},
+]
+
+const ventasNavAlmacen = [
+  { section: 'Ventas', links: [
+    { to: '/cot/nueva',              icon: <ClipboardList size={16} />,  label: 'Nueva cotizacion' },
+    { to: '/cot/registrado',         icon: <ClipboardCheck size={16} />, label: 'Cliente registrado' },
+    { to: '/cot/pedidos-pendientes', icon: <Clock size={16} />,          label: 'Pendientes' },
+    { to: '/ventas/nueva',           icon: <ReceiptText size={16} />,    label: 'Nueva venta' },
+    { to: '/ventas/historial',       icon: <BarChart2 size={16} />,      label: 'Historial ventas' },
+    { to: '/cot/ventas',             icon: <CheckCircle2 size={16} />,   label: 'Ventas netas' },
+  ]},
+]
+
+const inventariosNavAlmacen = [
+  { section: 'Almacén', links: [
+    { to: '/cot/inventario', icon: <Warehouse size={16} />, label: 'Inventario vidrio' },
+    { to: '/productos',      icon: <Package size={16} />,   label: 'Inventario de herraje' },
+    { to: '/proveedores',    icon: <Truck size={16} />,      label: 'Proveedores' },
   ]},
 ]
 
@@ -105,7 +148,6 @@ export default function Layout() {
     return () => { document.body.style.overflow = '' }
   }, [drawerOpen])
 
-  const esEmpleado = role === 'empleado'
   const path       = location.pathname
   const isPersonal = path.startsWith('/personal')
 
@@ -135,16 +177,27 @@ export default function Layout() {
   const closeDrawer = () => setDrawerOpen(false)
   const toggleSystem = (key) => setExpanded(prev => prev === key ? '' : key)
 
-  const sistemas = [
-    { key: 'herraje',     label: 'Herraje',   items: esEmpleado ? herrajeNavEmpleado : herrajeNavItems },
-    { key: 'ventas',      label: 'Ventas',    items: esEmpleado ? ventasNavEmpleado  : ventasNavItems },
-    ...(!esEmpleado ? [
+  const sistemas =
+    role === 'admin' ? [
+      { key: 'herraje',     label: 'Herraje',   items: herrajeNavItems },
+      { key: 'ventas',      label: 'Ventas',    items: ventasNavItems },
       { key: 'reportes',    label: 'Reportes',  items: reportesNavItems },
       { key: 'inventarios', label: 'Almacén',   items: inventariosNavItems },
       { key: 'vidrio',      label: 'Catalogos', items: cotNavItems },
       { key: 'personal',    label: 'Personal',  items: personalNavItems },
-    ] : []),
-  ]
+    ]
+    : role === 'vendedor' ? [
+      { key: 'ventas',   label: 'Ventas',   items: ventasNavVendedor },
+      { key: 'reportes', label: 'Reportes', items: reportesNavVendedor },
+      { key: 'herraje',  label: 'Herraje',  items: herrajeNavVendedor },
+    ]
+    : role === 'almacen' ? [
+      { key: 'herraje',     label: 'Herraje',   items: herrajeNavAlmacen },
+      { key: 'ventas',      label: 'Ventas',    items: ventasNavAlmacen },
+      { key: 'inventarios', label: 'Almacén',   items: inventariosNavAlmacen },
+      { key: 'vidrio',      label: 'Catalogos', items: cotNavItems },
+    ]
+    : []
 
   const q = busqueda.trim().toLowerCase()
   const sistemasFiltrados = q
@@ -289,7 +342,7 @@ export default function Layout() {
                 ? <Crown size={13} style={{ color: '#f59e0b' }} />
                 : <User size={13} />
               }
-              <span>{user?.nombre}</span>
+              <span>{user?.nombre ?? user?.user_metadata?.nombre ?? user?.email?.split('@')[0]}</span>
             </span>
             <button
               onClick={logout}

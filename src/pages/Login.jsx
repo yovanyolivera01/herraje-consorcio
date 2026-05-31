@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { EMPLEADO_HOME, ADMIN_HOME } from '../components/ProtectedRoute'
+import { HOME_POR_ROL, PERMISOS } from '../context/AuthContext'
 
 export default function Login() {
   const { login }  = useAuth()
@@ -21,10 +21,10 @@ export default function Login() {
     setLoading(true)
     try {
       const session = login(usuario.trim(), password.trim())
-      const dest = session.role === 'admin'
-        ? (from ?? ADMIN_HOME)
-        : EMPLEADO_HOME
-      navigate(dest, { replace: true })
+      const home    = HOME_POR_ROL[session.role] ?? '/cot/nueva'
+      const permitidas = PERMISOS[session.role]
+      const puedeVolver = from && (permitidas === null || permitidas?.some(r => from.startsWith(r)))
+      navigate(puedeVolver ? from : home, { replace: true })
     } catch {
       setError('Usuario o contraseña incorrectos')
     } finally {
@@ -81,7 +81,7 @@ export default function Login() {
                 type="password"
                 value={password}
                 onChange={e => { setPassword(e.target.value); setError(null) }}
-                placeholder="••••"
+                placeholder="••••••••"
                 autoComplete="current-password"
                 required
               />

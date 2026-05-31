@@ -2,7 +2,47 @@ import { createContext, useContext, useState, useEffect } from 'react'
 
 const USUARIOS = {
   '129': { role: 'admin',    nombre: 'Super Usuario' },
-  '130': { role: 'empleado', nombre: 'Vendedor' },
+  '130': { role: 'vendedor', nombre: 'Vendedor' },
+  '131': { role: 'almacen',  nombre: 'Almacén' },
+}
+
+// ── Rutas permitidas por rol (null = acceso total) ─────────────────────────
+export const PERMISOS = {
+  admin: null,
+
+  vendedor: [
+    '/ventas/nueva',
+    '/ventas/historial',
+    '/cot/nueva',
+    '/cot/registrado',
+    '/cot/pedidos-pendientes',
+    '/cot/historial',
+    '/cot/ventas',
+  ],
+
+  almacen: [
+    '/herraje/historial',
+    '/ventas/nueva',
+    '/ventas/historial',
+    '/cot/nueva',
+    '/cot/registrado',
+    '/cot/pedidos-pendientes',
+    '/cot/ventas',
+    '/proveedores',
+    '/productos',
+    '/cot/inventario',
+    '/cot/tipos-vidrio',
+    '/cot/procesos',
+    '/cot/empresas',
+    '/cot/precios',
+    '/cot/clientes',
+  ],
+}
+
+export const HOME_POR_ROL = {
+  admin:    '/proveedores',
+  vendedor: '/cot/nueva',
+  almacen:  '/cot/nueva',
 }
 
 const AuthContext = createContext()
