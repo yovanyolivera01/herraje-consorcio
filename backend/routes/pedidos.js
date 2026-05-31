@@ -18,6 +18,7 @@ router.post('/pedidos/convertir', async (req, res) => {
     if (!row || row.out_mensaje?.startsWith('ERROR')) {
       return res.status(400).json({ message: row?.out_mensaje ?? 'Error al convertir cotización' })
     }
+    await query('SELECT sp_insertar_pedidod($1)', [row.out_id_pedido])
     ok(res, { id_pedido: row.out_id_pedido, folio: row.out_folio })
   } catch (e) { err(res, e) }
 })
@@ -35,6 +36,7 @@ router.post('/pedidos/directo', async (req, res) => {
     if (!row || row.out_mensaje?.startsWith('ERROR')) {
       return res.status(400).json({ message: row?.out_mensaje ?? 'Error al crear el pedido' })
     }
+    await query('SELECT sp_insertar_pedidod($1)', [row.out_id_pedido])
     ok(res, { id_pedido: row.out_id_pedido, folio: row.out_folio })
   } catch (e) { err(res, e) }
 })
@@ -102,6 +104,7 @@ router.post('/pedidos/:id/entregar', async (req, res) => {
     if (!row?.exito) {
       return res.status(400).json({ message: row?.mensaje ?? 'Error al registrar la entrega' })
     }
+    await query('SELECT sp_insertar_pedidod($1)', [req.params.id])
     ok(res, { ok: true })
   } catch (e) { err(res, e) }
 })

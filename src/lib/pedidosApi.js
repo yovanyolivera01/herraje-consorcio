@@ -120,20 +120,44 @@ export const getDetallePedido = async (id_pedido) => {
     estado:    cab.estatus,
     estatus:   cab.estatus,
     observaciones: cab.observaciones ?? '',
-    partidas: (partsRaw ?? []).map(p => ({
-      id:                 p.id_partida_pedido,
-      clave_vidrio:       p.tipo_vidrio      ?? '—',
-      descripcion_vidrio: '',
-      largo_cm:           Number(p.largo_cm),
-      ancho_cm:           Number(p.ancho_cm),
-      metros2:            Number(p.metros_cuadrados),
-      precio_m2_aplicado: Number(p.precio_m2),
-      subtotal_vidrio:    Number(p.subtotal_vidrio),
-      subtotal_procesos:  Number(p.subtotal_procesos),
-      subtotal_partida:   Number(p.total_partida),
-      cantidad:           p.cantidad,
-      procesos:           procesosPorPartida[p.id_partida_pedido] ?? [],
-    })),
+    partidas: (partsRaw ?? []).map(p => {
+      const tipo = p.tipo_linea ?? 'VIDRIO'
+      const base = {
+        id:              p.id_partida_pedido,
+        tipo_linea:      tipo,
+        subtotal_partida: Number(p.total_partida),
+        cantidad:         Number(p.cantidad ?? 0),
+      }
+      if (tipo === 'VIDRIO') {
+        return {
+          ...base,
+          clave_vidrio:       p.tipo_vidrio      ?? '—',
+          descripcion_vidrio: '',
+          largo_cm:           Number(p.largo_cm),
+          ancho_cm:           Number(p.ancho_cm),
+          metros2:            Number(p.metros_cuadrados),
+          precio_m2_aplicado: Number(p.precio_m2),
+          subtotal_vidrio:    Number(p.subtotal_vidrio),
+          subtotal_procesos:  Number(p.subtotal_procesos),
+          procesos:           procesosPorPartida[p.id_partida_pedido] ?? [],
+        }
+      }
+      if (tipo === 'HERRAJE') {
+        return {
+          ...base,
+          id_producto:     p.id_producto,
+          descripcion:     p.descripcion ?? '',
+          precio_unitario: Number(p.precio_unitario),
+        }
+      }
+      // MAQUILA
+      return {
+        ...base,
+        id_proceso:      p.id_proceso_d,
+        descripcion:     p.descripcion ?? '',
+        precio_unitario: Number(p.precio_unitario),
+      }
+    }),
   }
 }
 
