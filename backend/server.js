@@ -8,6 +8,8 @@ const cotizacionRoutes = require('./routes/cotizacion')
 const pedidosRoutes    = require('./routes/pedidos')
 const personalRoutes   = require('./routes/personal')
 const empresasRoutes   = require('./routes/empresas')
+const maquilaRoutes    = require('./routes/maquila')
+const inventarioRoutes = require('./routes/inventario')
 
 const app  = express()
 const PORT = process.env.PORT || 3001
@@ -21,6 +23,8 @@ app.use('/api', cotizacionRoutes)
 app.use('/api', pedidosRoutes)
 app.use('/api', personalRoutes)
 app.use('/api', empresasRoutes)
+app.use('/api', maquilaRoutes)
+app.use('/api', inventarioRoutes)
 
 // Serve React build in production
 const distPath = path.join(__dirname, '..', 'dist')
