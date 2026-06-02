@@ -427,6 +427,18 @@ router.post('/cotizaciones/:id/partidas', async (req, res) => {
   }
 })
 
+// ── Documento de cotización para empresa ──────────────────────────────────
+
+router.get('/cotizaciones/:id/documento-empresa', async (req, res) => {
+  try {
+    const { rows } = await query(
+      'SELECT * FROM sp_documento_empresa($1)',
+      [req.params.id]
+    )
+    ok(res, rows)
+  } catch (e) { err(res, e) }
+})
+
 // ── Actualizar cotización completa (cabecera + partidas) ──────────────────
 
 router.put('/cotizaciones/:id/actualizar', async (req, res) => {

@@ -39,3 +39,8 @@ export const guardarPrecioClienteRegistrado = ({ id_cliente, id_tipo_vidrio, id_
     id_proceso: id_proceso ?? null,
     precio_m2,
   })
+
+// ── Documento de cotización para empresa ──────────────────────────────────
+
+export const getDocumentoEmpresa = (id_cotizacion) =>
+  http.get(`/api/cotizaciones/${id_cotizacion}/documento-empresa`)

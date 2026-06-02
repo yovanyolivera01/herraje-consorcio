@@ -201,7 +201,7 @@ export function CotizacionProvider({ children }) {
       getPreciosEmpresa:           empApi.getPreciosEmpresa,
       getPreciosClienteRegistrado: empApi.getPreciosClienteRegistrado,
       getEmpresaDeCliente:         empApi.getEmpresaDeCliente,
-      getDocumentoEmpresa,
+      getDocumentoEmpresa: empApi.getDocumentoEmpresa,
       iniciarCotizacion, agregarPartida, agregarPartidaExtra, getPartidasExtra, deletePartidasExtra,
       actualizarCotizacion, finalizarCotizacion, cancelarCotizacion,
       getCotizaciones, getDetalleCotizacion,
