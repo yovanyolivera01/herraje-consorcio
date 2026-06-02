@@ -356,7 +356,17 @@ router.get('/cotizaciones/:id', async (req, res) => {
       partida_proceso: procesosPorPartida[p.id_partida] ?? [],
     }))
 
-    ok(res, { ...cotRes.rows[0], partidas })
+    // Extras (maquila / productos generales) — tabla opcional
+    let extras = []
+    try {
+      const extRes = await query(
+        'SELECT * FROM partida_cotizacion_extra WHERE id_cotizacion=$1 ORDER BY id_partida_extra',
+        [req.params.id]
+      )
+      extras = extRes.rows
+    } catch { /* tabla puede no existir aún */ }
+
+    ok(res, { ...cotRes.rows[0], partidas, extras })
   } catch (e) { err(res, e) }
 })
 
@@ -415,6 +425,99 @@ router.post('/cotizaciones/:id/partidas', async (req, res) => {
   } finally {
     client.release()
   }
+})
+
+// ── Actualizar cotización completa (cabecera + partidas) ──────────────────
+
+router.put('/cotizaciones/:id/actualizar', async (req, res) => {
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    const { id_nivel_precio, id_cliente, partidas, total } = req.body
+
+    // Borrar procesos y partidas existentes
+    const { rows: existentes } = await client.query(
+      'SELECT id_partida FROM partida_cotizacion WHERE id_cotizacion=$1',
+      [req.params.id]
+    )
+    if (existentes.length) {
+      const ids = existentes.map(p => p.id_partida)
+      await client.query('DELETE FROM partida_proceso WHERE id_partida = ANY($1::int[])', [ids])
+      await client.query('DELETE FROM partida_cotizacion WHERE id_cotizacion=$1', [req.params.id])
+    }
+
+    // Actualizar cabecera
+    await client.query(
+      `UPDATE cotizacion SET id_nivel_precio=$1, id_cliente=$2, total=$3, estatus='FINALIZADA'
+       WHERE id_cotizacion=$4`,
+      [id_nivel_precio, id_cliente || null, Number(total), req.params.id]
+    )
+
+    // Re-insertar partidas
+    for (const partida of (partidas ?? [])) {
+      const { rows: pRows } = await client.query(`
+        INSERT INTO partida_cotizacion
+          (id_cotizacion, id_tipo_vidrio, piezas, largo_cm, ancho_cm, metros2,
+           precio_m2_aplicado, subtotal_vidrio, subtotal_procesos, subtotal_partida, es_hoja_completa)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id_partida
+      `, [
+        req.params.id, partida.id_tipo_vidrio, partida.piezas ?? 1,
+        partida.largo_cm, partida.ancho_cm, partida.metros2,
+        partida.precio_m2_aplicado, partida.subtotal_vidrio,
+        partida.subtotal_procesos ?? 0, partida.subtotal_partida,
+        partida.es_hoja_completa ?? false,
+      ])
+      if (partida.procesos?.length) {
+        for (const proc of partida.procesos) {
+          await client.query(
+            'INSERT INTO partida_proceso (id_partida, id_proceso, id_unidad_cobro, cantidad, precio_unitario, subtotal) VALUES ($1,$2,$3,$4,$5,$6)',
+            [pRows[0].id_partida, proc.id_proceso, proc.id_unidad_cobro, proc.cantidad, proc.precio_unitario, proc.subtotal]
+          )
+        }
+      }
+    }
+
+    await client.query('COMMIT')
+    ok(res, { ok: true })
+  } catch (e) {
+    await client.query('ROLLBACK')
+    err(res, e)
+  } finally {
+    client.release()
+  }
+})
+
+// ── Partidas extra (maquila / productos) ──────────────────────────────────
+
+router.get('/cotizaciones/:id/extras', async (req, res) => {
+  try {
+    const { rows } = await query(
+      'SELECT * FROM partida_cotizacion_extra WHERE id_cotizacion=$1 ORDER BY id_partida_extra',
+      [req.params.id]
+    )
+    ok(res, rows)
+  } catch (e) { err(res, e) }
+})
+
+router.post('/cotizaciones/:id/extras', async (req, res) => {
+  try {
+    const { tipo, descripcion, unidad, cantidad, precio_unitario, subtotal, id_producto_general, notas } = req.body
+    const { rows } = await query(
+      `INSERT INTO partida_cotizacion_extra
+         (id_cotizacion, tipo, descripcion, unidad, cantidad, precio_unitario, subtotal, id_producto_general, notas)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+      [req.params.id, tipo, descripcion, unidad ?? 'pza', Number(cantidad),
+       Number(precio_unitario), Number(subtotal), id_producto_general ?? null, notas ?? null]
+    )
+    ok(res, rows[0])
+  } catch (e) { err(res, e) }
+})
+
+router.delete('/cotizaciones/:id/extras', async (req, res) => {
+  try {
+    await query('DELETE FROM partida_cotizacion_extra WHERE id_cotizacion=$1', [req.params.id])
+    ok(res, { ok: true })
+  } catch (e) { err(res, e) }
 })
 
 // ── Precios de proceso especial (sin diferenciar espesor) ─────────────────
