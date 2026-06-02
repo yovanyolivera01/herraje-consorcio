@@ -161,6 +161,9 @@ export const getDetallePedido = async (id_pedido) => {
   }
 }
 
+// El backend ya descuenta inventario dentro de POST /pedidos/directo
+export const decrementarInventarioDesdePartidas = async () => {}
+
 // ── Marcar pedido como entregado  (HU-11) ────────────────────────────────
 
 export const marcarComoEntregado = async (id_pedido, monto_cobrado) => {
