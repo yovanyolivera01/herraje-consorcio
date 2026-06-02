@@ -1,20 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
+import { fmt5, hoyMX, lunesMX } from '../../lib/utils'
 import * as XLSX from 'xlsx'
 import { getPedidosEntregados, getDetallePedido, getPedidosParaExport } from '../../lib/pedidosApi'
-
-// ── Helper: lunes de la semana actual ─────────────────────────────────────
-function getLunesDeHoy() {
-  const hoy = new Date()
-  const dia = hoy.getDay() // 0=Dom
-  const diff = dia === 0 ? -6 : 1 - dia
-  const lunes = new Date(hoy)
-  lunes.setDate(hoy.getDate() + diff)
-  return lunes.toISOString().slice(0, 10)
-}
-
-function hoyStr() {
-  return new Date().toISOString().slice(0, 10)
-}
 
 // ── Ticket de pedido entregado ────────────────────────────────────────────
 function TicketVenta({ detalle }) {
@@ -29,36 +16,54 @@ function TicketVenta({ detalle }) {
       <div className="ticket-row"><span>Fecha:</span><span>{detalle.fecha}</span></div>
       <div className="ticket-row"><span>Entregado:</span><span>{detalle.fechaEntrega}</span></div>
       <div className="ticket-row"><span>Cliente:</span><span>{detalle.cliente?.nombre ?? 'Mostrador'}</span></div>
-      <div className="ticket-row"><span>Nivel:</span><span>{detalle.nivel?.nombre ?? '—'}</span></div>
       <hr className="ticket-divider" />
+
+      {detalle.partidas.length === 0 && (detalle.extras ?? []).length === 0 && (
+        <div style={{ fontSize:12, color:'var(--text-muted)', textAlign:'center', padding:'6px 0' }}>
+          Sin partidas registradas
+        </div>
+      )}
 
       {detalle.partidas.map((p, i) => (
         <div key={p.id} style={{ marginBottom: 10 }}>
-          <div style={{ fontWeight:600, fontSize:12 }}>
-            {i+1}. {p.clave_vidrio} — {p.largo_cm}×{p.ancho_cm} cm · {p.metros2.toFixed(4)} m²
-          </div>
-          {p.descripcion_vidrio && (
-            <div style={{ fontSize:11, color:'var(--text-muted)', paddingLeft:14 }}>{p.descripcion_vidrio}</div>
-          )}
-          <div className="ticket-row" style={{ fontSize:11, color:'var(--text-muted)' }}>
-            <span>${p.precio_m2_aplicado.toFixed(2)}/m²</span>
-            <span>${p.subtotal_vidrio.toFixed(2)}</span>
+          <div className="ticket-row" style={{ fontWeight:700, fontSize:12 }}>
+            <span>{p.cantidad} - {p.clave_vidrio}</span>
+            <span>${fmt5(p.subtotal_partida)}</span>
           </div>
           {p.procesos.map((pr, j) => (
             <div key={j} className="ticket-row" style={{ fontSize:11, paddingLeft:10 }}>
               <span>+ {pr.nombre}</span>
-              <span>${pr.subtotal.toFixed(2)}</span>
+              <span>${fmt5(pr.subtotal)}</span>
             </div>
           ))}
-          <div className="ticket-row" style={{ fontWeight:600, fontSize:12 }}>
-            <span>Subtotal</span>
-            <span>${p.subtotal_partida.toFixed(2)}</span>
-          </div>
         </div>
       ))}
 
+      {(detalle.extras ?? []).length > 0 && (
+        <>
+          {detalle.partidas.length > 0 && <hr className="ticket-divider" />}
+          <div style={{ fontSize:11, fontWeight:700, color:'var(--text-muted)', marginBottom:6, textTransform:'uppercase', letterSpacing:1 }}>
+            {detalle.extras.some(e => e.tipo === 'MAQUILA') && detalle.extras.some(e => e.tipo === 'PRODUCTO')
+              ? 'Maquila / Productos'
+              : detalle.extras[0].tipo === 'MAQUILA' ? 'Maquila' : 'Productos'}
+          </div>
+          {detalle.extras.map((e, i) => (
+            <div key={i} style={{ marginBottom:8 }}>
+              <div className="ticket-row" style={{ fontWeight:600, fontSize:12 }}>
+                <span>{e.cantidad} {e.unidad} — {e.descripcion}</span>
+                <span>${fmt5(Number(e.subtotal))}</span>
+              </div>
+              <div style={{ fontSize:11, color:'var(--text-muted)', paddingLeft:14 }}>
+                ${Number(e.precio_unitario).toFixed(2)}/u
+                {e.notas ? ` · ${e.notas}` : ''}
+              </div>
+            </div>
+          ))}
+        </>
+      )}
+
       <hr className="ticket-divider" />
-      <div className="ticket-total"><span>TOTAL</span><span>${detalle.total.toFixed(2)}</span></div>
+      <div className="ticket-total"><span>TOTAL</span><span>${fmt5(detalle.total)}</span></div>
       {detalle.forma_pago === 'ANTICIPO' && (
         <>
           <div className="ticket-row" style={{ marginTop:6 }}>
@@ -137,18 +142,32 @@ async function exportarExcel(fechaDesde, fechaHasta) {
     if (!vistos.has(row['Folio'])) {
       vistos.add(row['Folio'])
       resumen.push({
-        'Folio':          row['Folio'],
-        'Fecha entrega':  row['Fecha entrega'],
-        'Cliente':        row['Cliente'],
-        'Forma de pago':  row['Forma de pago'],
-        'Total':          Number(row['Total pedido']),
-        'Anticipo':       Number(row['Anticipo']),
-        'Cobrado entrega': Number(row['Cobrado entrega']),
-        'Total cobrado':  Number(row['Total cobrado']),
-        'Observaciones':  row['Observaciones'] ?? '',
+        'Folio':            row['Folio'],
+        'Fecha entrega':    row['Fecha entrega'],
+        'Cliente':          row['Cliente'],
+        'Forma de pago':    row['Forma de pago'],
+        'Total':            Number(row['Total pedido']),
+        'Anticipo':         Number(row['Anticipo']),
+        'Cobrado entrega':  Number(row['Cobrado entrega']),
+        'Total recibido':   Number(row['Total cobrado']),
+        'Observaciones':    row['Observaciones'] ?? '',
       })
     }
   }
+
+  // Fila de totales al final de la hoja Ventas
+  const sum = (col) => resumen.reduce((s, r) => s + (r[col] ?? 0), 0)
+  resumen.push({
+    'Folio':           'TOTAL',
+    'Fecha entrega':   '',
+    'Cliente':         '',
+    'Forma de pago':   '',
+    'Total':           sum('Total'),
+    'Anticipo':        sum('Anticipo'),
+    'Cobrado entrega': sum('Cobrado entrega'),
+    'Total recibido':  sum('Total recibido'),
+    'Observaciones':   '',
+  })
 
   // Hoja 2: partidas tal como las devuelve el SP
   const partidas = raw.map(row => ({
@@ -178,8 +197,8 @@ export default function HistorialVentas() {
   const [pedidos,      setPedidos]      = useState([])
   const [loading,      setLoading]      = useState(true)
   const [error,        setError]        = useState(null)
-  const [fechaDesde,   setFechaDesde]   = useState(getLunesDeHoy)
-  const [fechaHasta,   setFechaHasta]   = useState(hoyStr)
+  const [fechaDesde,   setFechaDesde]   = useState(lunesMX)
+  const [fechaHasta,   setFechaHasta]   = useState(hoyMX)
   const [seleccionado, setSeleccionado] = useState(null)
   const [exporting,    setExporting]    = useState(false)
 
@@ -187,7 +206,9 @@ export default function HistorialVentas() {
     setLoading(true)
     setError(null)
     try {
-      setPedidos(await getPedidosEntregados(fechaDesde, fechaHasta))
+      const data = await getPedidosEntregados(fechaDesde, fechaHasta)
+      data.sort((a, b) => new Date(b.fechaEntregaISO ?? b.fechaCreacionISO) - new Date(a.fechaEntregaISO ?? a.fechaCreacionISO))
+      setPedidos(data)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -247,7 +268,7 @@ export default function HistorialVentas() {
           />
           <button
             className="btn btn-outline btn-sm"
-            onClick={() => { setFechaDesde(getLunesDeHoy()); setFechaHasta(hoyStr()) }}
+            onClick={() => { setFechaDesde(lunesMX()); setFechaHasta(hoyMX()) }}
           >
             Esta semana
           </button>
@@ -262,12 +283,12 @@ export default function HistorialVentas() {
           <div className="stat-card">
             <div className="stat-label">Total acumulado</div>
             <div className="stat-value" style={{ fontSize:18, color:'var(--accent)' }}>
-              ${totalAcumulado.toFixed(2)}
+              ${fmt5(totalAcumulado)}
             </div>
           </div>
         </div>
 
-        {/* Tabla */}
+        {/* Lista */}
         {loading ? (
           <div style={{ textAlign:'center', padding:'40px 0', color:'var(--text-muted)' }}>
             Cargando ventas...
@@ -281,48 +302,70 @@ export default function HistorialVentas() {
             <p>Ajusta el rango de fechas para ver resultados</p>
           </div>
         ) : (
-          <div className="table-container">
-            <table className="table table-mobile-cards">
-              <thead>
-                <tr>
-                  <th>Folio</th>
-                  <th>Entregado</th>
-                  <th>Cliente</th>
-                  <th>Pago</th>
-                  <th style={{ textAlign:'right' }}>Total</th>
-                  <th style={{ width:90 }}>Detalle</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pedidos.map(p => (
-                  <tr key={p.id} style={{ cursor:'pointer' }} onClick={() => setSeleccionado(p)}>
-                    <td data-label="Folio">
-                      <span className="badge badge-blue">{p.folio}</span>
-                    </td>
-                    <td data-label="Entregado">
-                      {p.fechaEntrega}
-                    </td>
-                    <td data-label="Cliente" style={{ fontWeight:500 }}>{p.clienteNombre}</td>
-                    <td data-label="Pago">{formaPagoBadge(p.forma_pago)}</td>
-                    <td data-label="Total" style={{ textAlign:'right', fontWeight:700, color:'var(--accent)' }}>
-                      ${p.total.toFixed(2)}
-                    </td>
-                    <td data-label="">
-                      <button
-                        className="btn btn-outline btn-sm"
-                        onClick={e => { e.stopPropagation(); setSeleccionado(p) }}
-                      >
-                        Ver detalle
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <div style={{ padding:'12px 16px', textAlign:'right', fontWeight:700, fontSize:15, borderTop:'1px solid var(--border)', color:'var(--accent)' }}>
-              Total del periodo: ${totalAcumulado.toFixed(2)}
+          <>
+            {/* ── Tabla (desktop) ── */}
+            <div className="hist-desktop">
+              <div className="table-container">
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Folio</th>
+                      <th>Entregado</th>
+                      <th>Cliente</th>
+                      <th>Pago</th>
+                      <th style={{ textAlign:'right' }}>Total</th>
+                      <th style={{ width:100 }}></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pedidos.map(p => (
+                      <tr key={p.id} style={{ cursor:'pointer' }} onClick={() => setSeleccionado(p)}>
+                        <td><span className="badge badge-blue">{p.folio}</span></td>
+                        <td style={{ fontSize:14, color:'var(--text-muted)' }}>{p.fechaEntrega}</td>
+                        <td style={{ fontWeight:500 }}>{p.clienteNombre}</td>
+                        <td>{formaPagoBadge(p.forma_pago)}</td>
+                        <td style={{ textAlign:'right', fontWeight:700, color:'var(--accent)' }}>${fmt5(p.total)}</td>
+                        <td>
+                          <button className="btn btn-outline btn-sm" onClick={e => { e.stopPropagation(); setSeleccionado(p) }}>
+                            Ver detalle
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <div style={{ padding:'12px 18px', textAlign:'right', fontWeight:700, fontSize:15, borderTop:'1px solid var(--border)', color:'var(--accent)' }}>
+                  Total del periodo: ${fmt5(totalAcumulado)}
+                </div>
+              </div>
             </div>
-          </div>
+
+            {/* ── Tarjetas (tablet / móvil) ── */}
+            <div className="hist-mobile">
+              {pedidos.map(p => (
+                <div key={p.id} className="hist-card" onClick={() => setSeleccionado(p)}>
+                  <div className="hist-card-header">
+                    <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                      <span className="badge badge-blue">{p.folio}</span>
+                      {formaPagoBadge(p.forma_pago)}
+                    </div>
+                    <span style={{ fontWeight:700, fontSize:17, color:'var(--accent)' }}>${fmt5(p.total)}</span>
+                  </div>
+                  <div className="hist-card-body">
+                    <div style={{ fontWeight:600, fontSize:15 }}>{p.clienteNombre}</div>
+                    <div style={{ fontSize:13, color:'var(--text-muted)', marginTop:3 }}>Entregado: {p.fechaEntrega}</div>
+                  </div>
+                  <div className="hist-card-footer">
+                    <span style={{ fontSize:12, color:'var(--text-muted)' }}>{p.fecha}</span>
+                    <button className="btn btn-outline btn-sm" onClick={e => { e.stopPropagation(); setSeleccionado(p) }}>Ver detalle</button>
+                  </div>
+                </div>
+              ))}
+              <div style={{ padding:'10px 0', textAlign:'right', fontWeight:700, fontSize:15, borderTop:'1px solid var(--border)', color:'var(--accent)' }}>
+                Total del periodo: ${fmt5(totalAcumulado)}
+              </div>
+            </div>
+          </>
         )}
       </div>
 

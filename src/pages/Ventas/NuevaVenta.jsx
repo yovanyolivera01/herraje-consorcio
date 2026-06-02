@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { fmt5 } from '../../lib/utils'
 import { useApp } from '../../context/AppContext'
 import { printTicket } from '../../utils/ticket'
 import {
@@ -9,15 +10,42 @@ import {
   printThermal,
 } from '../../utils/thermalPrinter'
 
-// ── Buscador de productos ─────────────────────────────────────────────────
-function BuscadorProducto({ productos, onAdd }) {
+// ── Buscador unificado (herraje + generales) ──────────────────────────────
+function BuscadorProducto({ productos, productosGenerales, onAdd }) {
   const [query, setQuery] = useState('')
 
+  // Normalizar ambos catálogos a un formato común
+  const catalogo = [
+    ...productos.map(p => ({
+      key:              p.codigo,
+      tipo:             'HERRAJE',
+      id:               p.id,
+      codigo:           p.codigo,
+      descripcion:      p.descripcion,
+      tono:             p.tono || '',
+      precio:           Number(p.precio),
+      existencias:      p.existencias,
+      imagen:           p.imagen || '',
+    })),
+    ...(productosGenerales ?? []).map(pg => ({
+      key:              `pg-${pg.id_producto_general}`,
+      tipo:             'GENERAL',
+      id:               pg.id_producto_general,
+      codigo:           null,
+      descripcion:      pg.nombre,
+      tono:             '',
+      precio:           Number(pg.precio ?? 0),
+      existencias:      pg.existencias ?? 0,
+      imagen:           '',
+      unidad:           pg.unidad ?? '',
+    })),
+  ]
+
   const resultados = query.trim()
-    ? productos.filter(p =>
+    ? catalogo.filter(p =>
         p.descripcion.toLowerCase().includes(query.toLowerCase()) ||
         (p.codigo ?? '').toLowerCase().includes(query.toLowerCase())
-      ).slice(0, 6)
+      ).slice(0, 8)
     : []
 
   const handleSelect = (prod) => {
@@ -46,7 +74,7 @@ function BuscadorProducto({ productos, onAdd }) {
         }}>
           {resultados.map(prod => (
             <button
-              key={prod.codigo}
+              key={prod.key}
               type="button"
               onClick={() => handleSelect(prod)}
               style={{
@@ -61,12 +89,24 @@ function BuscadorProducto({ productos, onAdd }) {
               {prod.imagen ? (
                 <img src={prod.imagen} alt="" style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 4 }} />
               ) : (
-                <div style={{ width: 40, height: 40, background: 'var(--bg)', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>📦</div>
+                <div style={{ width: 40, height: 40, background: 'var(--bg)', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>
+                  {prod.tipo === 'GENERAL' ? '🧰' : '📦'}
+                </div>
               )}
               <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 600, fontSize: 13.5 }}>{prod.descripcion}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontWeight: 600, fontSize: 13.5 }}>{prod.descripcion}</span>
+                  {prod.tipo === 'GENERAL' && (
+                    <span style={{
+                      fontSize: 10, fontWeight: 700, padding: '1px 5px', borderRadius: 4,
+                      background: '#fef3c7', color: '#92400e', letterSpacing: '0.3px',
+                    }}>GENERAL</span>
+                  )}
+                </div>
                 <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                  {prod.codigo} · {prod.tono || '—'} · ${Number(prod.precio).toFixed(2)}
+                  {prod.tipo === 'GENERAL'
+                    ? `${prod.unidad || 'pza'} · $${prod.precio.toFixed(2)}`
+                    : `${prod.codigo} · ${prod.tono || '—'} · $${prod.precio.toFixed(2)}`}
                 </div>
               </div>
               <div style={{ fontSize: 12, fontWeight: 600 }}
@@ -107,32 +147,15 @@ function TicketPreview({ venta }) {
       <div className="ticket-row"><span>Fecha:</span><span>{venta.fecha}</span></div>
       <div className="ticket-row"><span>Hora:</span><span>{venta.hora}</span></div>
       <hr className="ticket-divider" />
-      <table className="ticket-table">
-        <thead>
-          <tr>
-            <th>Cant.</th>
-            <th>Descripción</th>
-            <th>Tono</th>
-            <th className="right">P.U.</th>
-            <th className="right">Subtotal</th>
-          </tr>
-        </thead>
-        <tbody>
-          {venta.partidas.map((p, i) => (
-            <tr key={i}>
-              <td>{p.cantidad}</td>
-              <td>{p.descripcion}</td>
-              <td>{p.tono || '—'}</td>
-              <td className="right">${Number(p.precioUnitario).toFixed(2)}</td>
-              <td className="right">${Number(p.subtotal).toFixed(2)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      {venta.partidas.map((p, i) => (
+        <div key={i} style={{ fontWeight: 700, marginBottom: 4, fontSize: 12 }}>
+          {p.cantidad} - {p.descripcion}{p.tono ? ` · ${p.tono}` : ''} x ${fmt5(p.precioUnitario)}
+        </div>
+      ))}
       <hr className="ticket-divider" />
       <div className="ticket-total">
         <span>TOTAL</span>
-        <span>${Number(venta.total).toFixed(2)}</span>
+        <span>${fmt5(venta.total)}</span>
       </div>
       <hr className="ticket-divider" />
       <div style={{ textAlign: 'center', fontSize: 11, color: 'var(--text-muted)', marginTop: 8 }}>
@@ -150,7 +173,7 @@ function TicketPreview({ venta }) {
 
 // ── Página Nueva Venta ────────────────────────────────────────────────────
 export default function NuevaVenta() {
-  const { productos, addVenta } = useApp()
+  const { productos, productosGenerales, addVenta } = useApp()
   const [partidas, setPartidas] = useState([])
   const [ventaCreada, setVentaCreada] = useState(null)
 
@@ -198,39 +221,59 @@ export default function NuevaVenta() {
 
   const total = partidas.reduce((s, p) => s + p.subtotal, 0)
 
+  const [stockError, setStockError] = useState(null)
+
   const agregarProducto = (prod) => {
+    // Bloquear si no hay stock
+    if (prod.existencias <= 0) {
+      setStockError(`Sin stock: "${prod.descripcion}" no tiene unidades disponibles.`)
+      setTimeout(() => setStockError(null), 3500)
+      return
+    }
+    setStockError(null)
     setPartidas(prev => {
-      const existe = prev.find(p => p.codigoProducto === prod.codigo)
+      const existe = prev.find(p => p.key === prod.key)
       if (existe) {
+        const nuevaCantidad = (Number(existe.cantidad) || 0) + 1
+        if (prod.existencias != null && nuevaCantidad > prod.existencias) {
+          setStockError(`Stock insuficiente: solo hay ${prod.existencias} pza(s) de "${prod.descripcion}".`)
+          setTimeout(() => setStockError(null), 3500)
+          return prev
+        }
         return prev.map(p =>
-          p.codigoProducto === prod.codigo
-            ? { ...p, cantidad: (Number(p.cantidad) || 0) + 1, subtotal: ((Number(p.cantidad) || 0) + 1) * p.precioUnitario }
+          p.key === prod.key
+            ? { ...p, cantidad: nuevaCantidad, subtotal: nuevaCantidad * p.precioUnitario }
             : p
         )
       }
       return [...prev, {
-        productoId:     prod.id,
-        codigoProducto: prod.codigo,
-        descripcion:    prod.descripcion,
-        tono:           prod.tono || '',
-        precioUnitario: Number(prod.precio),
-        cantidad:       1,
-        subtotal:       Number(prod.precio),
+        key:               prod.key,
+        tipo:              prod.tipo,
+        productoId:        prod.tipo === 'HERRAJE' ? prod.id : null,
+        idProductoGeneral: prod.tipo === 'GENERAL' ? prod.id : null,
+        codigoProducto:    prod.codigo ?? prod.key,
+        descripcion:       prod.descripcion,
+        tono:              prod.tono || '',
+        precioUnitario:    Number(prod.precio),
+        cantidad:          1,
+        subtotal:          Number(prod.precio),
+        stockDisponible:   prod.existencias,
       }]
     })
   }
 
-  const actualizarCantidad = (codigo, nueva) => {
-    const n = nueva === '' ? '' : Math.max(1, parseInt(nueva) || 1)
-    setPartidas(prev => prev.map(p =>
-      p.codigoProducto === codigo
-        ? { ...p, cantidad: n, subtotal: n === '' ? 0 : n * p.precioUnitario }
-        : p
-    ))
+  const actualizarCantidad = (key, nueva) => {
+    setPartidas(prev => prev.map(p => {
+      if (p.key !== key) return p
+      if (nueva === '') return { ...p, cantidad: '', subtotal: 0 }
+      let n = Math.max(1, parseInt(nueva) || 1)
+      if (p.stockDisponible != null) n = Math.min(n, p.stockDisponible)
+      return { ...p, cantidad: n, subtotal: n * p.precioUnitario }
+    }))
   }
 
-  const quitarPartida = (codigo) => {
-    setPartidas(prev => prev.filter(p => p.codigoProducto !== codigo))
+  const quitarPartida = (key) => {
+    setPartidas(prev => prev.filter(p => p.key !== key))
   }
 
   const [saving, setSaving] = useState(false)
@@ -327,7 +370,7 @@ export default function NuevaVenta() {
             onClick={confirmarVenta}
             disabled={saving}
           >
-            {saving ? 'Guardando…' : `✓ Confirmar venta — $${total.toFixed(2)}`}
+            {saving ? 'Guardando…' : `✓ Confirmar venta — $${fmt5(total)}`}
           </button>
         )}
       </div>
@@ -335,6 +378,9 @@ export default function NuevaVenta() {
       <div className="page-body">
         {saveError && (
           <div className="alert alert-error">❌ {saveError}</div>
+        )}
+        {stockError && (
+          <div className="alert alert-error">⚠️ {stockError}</div>
         )}
         <div className="venta-grid">
 
@@ -346,6 +392,7 @@ export default function NuevaVenta() {
               </div>
               <BuscadorProducto
                 productos={productos}
+                productosGenerales={productosGenerales}
                 onAdd={agregarProducto}
               />
             </div>
@@ -357,10 +404,15 @@ export default function NuevaVenta() {
                 </div>
                 <div className="venta-items-list">
                   {partidas.map(p => (
-                    <div className="venta-item" key={p.codigoProducto}>
+                    <div className="venta-item" key={p.key}>
                       <div className="venta-item-desc">
                         <strong>{p.descripcion}</strong>
-                        <small>{p.codigoProducto} · {p.tono || '—'}</small>
+                        <small>
+                          {p.tipo === 'GENERAL'
+                            ? <span style={{ color: '#92400e', fontWeight: 600 }}>General</span>
+                            : p.codigoProducto}
+                          {p.tono ? ` · ${p.tono}` : ''}
+                        </small>
                       </div>
                       <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
                         ${p.precioUnitario.toFixed(2)} c/u
@@ -368,7 +420,7 @@ export default function NuevaVenta() {
                       <div className="venta-qty-ctrl">
                         <button
                           className="stock-btn"
-                          onClick={() => actualizarCantidad(p.codigoProducto, p.cantidad - 1)}
+                          onClick={() => actualizarCantidad(p.key, p.cantidad - 1)}
                           disabled={p.cantidad <= 1 || p.cantidad === ''}
                         >−</button>
                         <input
@@ -380,30 +432,30 @@ export default function NuevaVenta() {
                             const value = e.target.value
                             if (value === '') {
                               setPartidas(prev => prev.map(item =>
-                                item.codigoProducto === p.codigoProducto
+                                item.key === p.key
                                   ? { ...item, cantidad: '', subtotal: 0 }
                                   : item
                               ))
                             } else {
-                              actualizarCantidad(p.codigoProducto, value)
+                              actualizarCantidad(p.key, value)
                             }
                           }}
                           onBlur={(e) => {
                             if (e.target.value === '') {
-                              actualizarCantidad(p.codigoProducto, 1)
+                              actualizarCantidad(p.key, 1)
                             }
                           }}
                         />
                         <button
                           className="stock-btn"
-                          onClick={() => actualizarCantidad(p.codigoProducto, p.cantidad + 1)}
-                          disabled={p.cantidad === ''}
+                          onClick={() => actualizarCantidad(p.key, p.cantidad + 1)}
+                          disabled={p.cantidad === '' || (p.stockDisponible != null && p.cantidad >= p.stockDisponible)}
                         >+</button>
                       </div>
-                      <div className="venta-subtotal">${p.subtotal.toFixed(2)}</div>
+                      <div className="venta-subtotal">${fmt5(p.subtotal)}</div>
                       <button
                         className="btn-icon danger"
-                        onClick={() => quitarPartida(p.codigoProducto)}
+                        onClick={() => quitarPartida(p.key)}
                         title="Quitar"
                       >✕</button>
                     </div>
@@ -411,7 +463,7 @@ export default function NuevaVenta() {
                 </div>
                 <div className="venta-total-bar">
                   <span>Total de la venta</span>
-                  <strong>${total.toFixed(2)}</strong>
+                  <strong>${fmt5(total)}</strong>
                 </div>
               </div>
             ) : (
@@ -440,7 +492,7 @@ export default function NuevaVenta() {
               <div className="divider" />
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 16, fontWeight: 700 }}>
                 <span>Total</span>
-                <span style={{ color: 'var(--primary)' }}>${total.toFixed(2)}</span>
+                <span style={{ color: 'var(--primary)' }}>${fmt5(total)}</span>
               </div>
               <button
                 className="btn btn-accent"
@@ -472,7 +524,7 @@ export default function NuevaVenta() {
               Total · {partidas.length} prod.
             </div>
             <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--accent)', lineHeight: 1.1 }}>
-              ${total.toFixed(2)}
+              ${fmt5(total)}
             </div>
           </div>
           <button

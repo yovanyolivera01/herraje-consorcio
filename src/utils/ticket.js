@@ -1,3 +1,5 @@
+import { r5 } from '../lib/utils'
+
 /**
  * Imprime un ticket de vidrio (cotización o pedido) via iframe.
  * @param {object} detalle - datos del ticket (folio, fecha, hora, clienteNombre, nivelNombre,
@@ -5,33 +7,80 @@
  *   partidas[{piezas, clave, largo_cm, ancho_cm, subtotal_vidrio, procesos, subtotal_partida}])
  */
 export function printTicketVidrio(detalle) {
-  const rows = detalle.partidas.map(p => {
+  const vidrios  = detalle.partidas.filter(p => !p.tipo || p.tipo === 'VIDRIO')
+  const maquilas = detalle.partidas.filter(p => p.tipo === 'MAQUILA')
+  const herrajes = detalle.partidas.filter(p => p.tipo === 'HERRAJE' || p.tipo === 'PRODUCTO')
+
+  const renderVidrio = p => {
     const pzas = p.piezas ?? 1
     const procRows = (p.procesos ?? []).map(pr => `
       <div class="row" style="padding-left:10px;font-size:12px">
-        <span>+ ${pr.nombre}</span><span>$${Number(pr.subtotal).toFixed(2)}</span>
+        <span>+ ${pr.nombre}</span><span>$${r5(Number(pr.subtotal)).toFixed(2)}</span>
       </div>`).join('')
     const subRow = (p.procesos?.length > 0) ? `
       <div class="row bold" style="font-size:12px">
-        <span>Subtotal</span><span>$${Number(p.subtotal_partida).toFixed(2)}</span>
+        <span>Subtotal partida</span><span>$${r5(Number(p.subtotal_partida)).toFixed(2)}</span>
       </div>` : ''
     return `
       <div class="partida">
         <div class="row bold">
-          <span>${pzas} pza${pzas > 1 ? 's' : ''} — ${p.clave} · ${p.largo_cm}×${p.ancho_cm}</span>
-          <span>$${Number(p.subtotal_vidrio).toFixed(2)}</span>
+          <span>${pzas} · ${p.largo_cm}×${p.ancho_cm} · ${p.clave}</span>
+          <span>$${r5(Number(p.subtotal_vidrio)).toFixed(2)}</span>
         </div>
         ${procRows}${subRow}
       </div>`
-  }).join('')
+  }
+
+  const renderMaquila = p => {
+    if (p.largo_cm && Number(p.largo_cm) > 0) {
+      const pzas  = p.piezas ?? 1
+      const clave = p.clave ? ` · ${p.clave}` : ''
+      const procRows = (p.procesos ?? []).map(pr => `
+        <div class="row" style="padding-left:10px;font-size:12px">
+          <span>+${pr.nombre}</span><span>$${r5(Number(pr.subtotal ?? 0)).toFixed(2)}</span>
+        </div>`).join('')
+      return `
+        <div class="partida">
+          <div class="row bold">
+            <span>${pzas} · ${p.largo_cm}×${p.ancho_cm}cm${clave}</span>
+            <span>$${r5(Number(p.subtotal_partida)).toFixed(2)}</span>
+          </div>
+          ${p.descripcion ? `<div style="font-size:11px;padding-left:10px;margin-bottom:2px">${p.descripcion}</div>` : ''}
+          ${procRows}
+        </div>`
+    }
+    const prefix = p.cantidad != null ? `${p.cantidad}${p.unidad ? ' ' + p.unidad : ''} — ` : ''
+    return `
+      <div class="partida">
+        <div class="row">
+          <span>${prefix}${p.descripcion ?? ''}</span>
+          <span class="bold">$${r5(Number(p.subtotal_partida)).toFixed(2)}</span>
+        </div>
+      </div>`
+  }
+
+  const renderHerraje = p => `
+    <div class="partida">
+      <div class="row">
+        <span>${p.cantidad ?? 1} · ${p.descripcion ?? ''}</span>
+        <span class="bold">$${r5(Number(p.subtotal_partida)).toFixed(2)}</span>
+      </div>
+    </div>`
+
+  const sectionLbl = text => `<div class="section-lbl">${text}</div>`
+
+  let rows = ''
+  if (vidrios.length)  rows += sectionLbl('Vidrio')  + vidrios.map(renderVidrio).join('')
+  if (maquilas.length) rows += sectionLbl('Maquila') + maquilas.map(renderMaquila).join('')
+  if (herrajes.length) rows += sectionLbl('Herraje') + herrajes.map(renderHerraje).join('')
 
   const pagoRows = detalle.tipo === 'pedido' ? `
     <hr class="divider">
     <div class="row"><span>Forma de pago:</span><span>${detalle.formaPago === 'LIQUIDADO' ? 'Liquidado' : 'Anticipo'}</span></div>
     ${detalle.formaPago === 'ANTICIPO' ? `
-      <div class="row"><span>Anticipo:</span><span class="bold">$${Number(detalle.anticipo).toFixed(2)}</span></div>
-      ${!detalle.esEntregado ? `<div class="row"><span>Saldo pendiente:</span><span class="bold">$${Number(detalle.saldo).toFixed(2)}</span></div>` : ''}
-      ${detalle.esEntregado && detalle.saldo_cobrado != null ? `<div class="row"><span>Saldo cobrado:</span><span class="bold">$${Number(detalle.saldo_cobrado).toFixed(2)}</span></div>` : ''}
+      <div class="row"><span>Anticipo:</span><span class="bold">$${r5(Number(detalle.anticipo)).toFixed(2)}</span></div>
+      ${!detalle.esEntregado ? `<div class="row"><span>Saldo pendiente:</span><span class="bold">$${r5(Number(detalle.saldo)).toFixed(2)}</span></div>` : ''}
+      ${detalle.esEntregado && detalle.saldo_cobrado != null ? `<div class="row"><span>Saldo cobrado:</span><span class="bold">$${r5(Number(detalle.saldo_cobrado)).toFixed(2)}</span></div>` : ''}
     ` : ''}
   ` : ''
 
@@ -57,7 +106,8 @@ export function printTicketVidrio(detalle) {
     .header { margin-bottom: 10px; }
     .header h1 { font-size: 16px; font-weight: 700; letter-spacing: 0.5px; }
     .header p { font-size: 12px; font-weight: 600; }
-    .partida { margin-bottom: 8px; }
+    .partida { margin-bottom: 6px; }
+    .section-lbl { font-size: 10px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; border-bottom: 1px dashed #888; padding-bottom: 2px; margin: 6px 0 3px; }
     .total-row { font-size: 15px; font-weight: 700; }
     .footer { margin-top: 10px; font-size: 12px; }
   </style>
@@ -72,13 +122,13 @@ export function printTicketVidrio(detalle) {
   <div class="row"><span>${folioLabel}</span><span class="bold">${detalle.folio}</span></div>
   ${cotLabel}
   <div class="row"><span>Fecha:</span><span>${detalle.fecha}</span></div>
-  <div class="row"><span>Hora:</span><span>${detalle.hora ?? ''}</span></div>
+  ${detalle.hora ? `<div class="row"><span>Hora:</span><span>${detalle.hora}</span></div>` : ''}
   <div class="row"><span>Cliente:</span><span>${detalle.clienteNombre ?? 'Mostrador'}</span></div>
   <div class="row"><span>Nivel:</span><span>${detalle.nivelNombre ?? ''}</span></div>
   <hr class="divider">
   ${rows}
   <hr class="divider">
-  <div class="row total-row"><span>TOTAL:</span><span>$${Number(detalle.total).toFixed(2)}</span></div>
+  <div class="row total-row"><span>TOTAL:</span><span>$${r5(Number(detalle.total)).toFixed(2)}</span></div>
   ${pagoRows}
   <hr class="divider">
   <div class="footer center">${pie}</div>
@@ -115,15 +165,15 @@ export function printPedidoPendiente(detalle) {
     const procRows = (p.procesos ?? []).map(pr => {
       const cantLabel = pr.cantidad && pr.cantidad !== 1 ? ` × ${pr.cantidad}` : ''
       return `<div class="row" style="padding-left:12px;font-size:11px;color:#444">
-        <span>+ ${pr.nombre}${cantLabel}</span><span>$${Number(pr.subtotal).toFixed(2)}</span>
+        <span>+ ${pr.nombre}${cantLabel}</span><span>$${r5(Number(pr.subtotal)).toFixed(2)}</span>
       </div>`
     }).join('')
 
     return `
       <div class="partida">
         <div class="row" style="margin-bottom:2px">
-          <span class="bold" style="font-size:13px">${i + 1}. ${cant} pza${cant > 1 ? 's' : ''} · ${p.largo_cm}×${p.ancho_cm} cm</span>
-          <span class="bold" style="font-size:13px">$${Number(p.subtotal_partida).toFixed(2)}</span>
+          <span class="bold" style="font-size:13px">${cant}- ${p.largo_cm}×${p.ancho_cm} ${p.clave_vidrio}</span>
+          <span class="bold" style="font-size:13px">$${r5(Number(p.subtotal_partida)).toFixed(2)}</span>
         </div>
         <div style="font-size:11px;color:#444;margin-bottom:3px;padding-left:12px">
           ${p.clave_vidrio}${p.descripcion_vidrio ? ' — ' + p.descripcion_vidrio : ''} · ${Number(p.metros2).toFixed(4)} m²
@@ -163,16 +213,16 @@ export function printPedidoPendiente(detalle) {
   <div class="row"><span>Cliente:</span><span class="bold">${detalle.cliente?.nombre ?? 'Mostrador'}</span></div>
   ${detalle.nivel?.nombre ? `<div class="row"><span>Nivel:</span><span>${detalle.nivel.nombre}</span></div>` : ''}
   <hr class="divider">
-  <div style="font-weight:700;font-size:11px;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px">
-    Partidas (${detalle.partidas.length})
+  <div style="font-weight:700;font-size:11px;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px dashed #888;padding-bottom:2px">
+    Vidrio
   </div>
   ${rows}
   <hr class="divider">
-  <div class="row total-row"><span>TOTAL</span><span>$${Number(detalle.total).toFixed(2)}</span></div>
+  <div class="row total-row"><span>TOTAL</span><span>$${r5(Number(detalle.total)).toFixed(2)}</span></div>
   <hr class="divider-thin">
   <div class="pago-box">
-    <div class="row"><span>Anticipo pagado:</span><span class="bold">$${Number(detalle.anticipo).toFixed(2)}</span></div>
-    <div class="row" style="font-size:14px"><span class="bold">Saldo pendiente:</span><span class="bold">$${Number(detalle.saldo).toFixed(2)}</span></div>
+    <div class="row"><span>Anticipo pagado:</span><span class="bold">$${r5(Number(detalle.anticipo)).toFixed(2)}</span></div>
+    <div class="row" style="font-size:14px"><span class="bold">Saldo pendiente:</span><span class="bold">$${r5(Number(detalle.saldo)).toFixed(2)}</span></div>
   </div>
   <hr class="divider-thin">
   <div class="center" style="font-size:11px;margin-top:6px">Pendiente de entrega.</div>
@@ -214,7 +264,7 @@ export function printCotizacionCarta(detalle) {
         <td style="color:#555;font-size:12px">${procesos}</td>
         <td style="text-align:center;color:#555;font-size:12px">${m2} m²</td>
         <td style="text-align:right;font-size:12px">$${precioPza}</td>
-        <td style="text-align:right;font-weight:600">$${Number(p.subtotal_partida).toFixed(2)}</td>
+        <td style="text-align:right;font-weight:600">$${r5(Number(p.subtotal_partida)).toFixed(2)}</td>
       </tr>`
   }).join('')
 
@@ -419,7 +469,7 @@ export function printCotizacionCarta(detalle) {
 
   <!-- Total -->
   <div class="total-box">
-    <div class="total-inner">TOTAL: $${Number(detalle.total).toFixed(2)}</div>
+    <div class="total-inner">TOTAL: $${r5(Number(detalle.total)).toFixed(2)}</div>
   </div>
 
   <!-- Pie -->
@@ -487,6 +537,7 @@ export function printTicket(venta, modo = '80mm') {
     table { width: 100%; border-collapse: collapse; margin: 8px 0; }
     th { border-bottom: 1.5px solid #000; padding: 4px 5px; font-size: ${isCarta ? '12px' : '11px'}; text-align: left; font-weight: 700; }
     td { padding: 4px 5px; vertical-align: top; font-size: ${isCarta ? '12px' : '12px'}; }
+    .partida { margin-bottom: 6px; }
     .total-row { font-size: ${isCarta ? '17px' : '15px'}; font-weight: 700; }
     .footer { margin-top: 10px; font-size: 12px; color: #000; }
   </style>
@@ -502,31 +553,15 @@ export function printTicket(venta, modo = '80mm') {
   <div class="row"><span>Fecha:</span><span>${venta.fecha}</span></div>
   <div class="row"><span>Hora:</span><span>${venta.hora}</span></div>
   <hr class="divider">
-  <table>
-    <thead>
-      <tr>
-        <th>Cant.</th>
-        <th>Descripción</th>
-        <th>Tono</th>
-        <th class="right">P.U.</th>
-        <th class="right">Subtotal</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${venta.partidas.map(p => `
-      <tr>
-        <td>${p.cantidad}</td>
-        <td>${p.descripcion}</td>
-        <td>${p.tono || '-'}</td>
-        <td class="right">$${Number(p.precioUnitario).toFixed(2)}</td>
-        <td class="right">$${Number(p.subtotal).toFixed(2)}</td>
-      </tr>`).join('')}
-    </tbody>
-  </table>
+  ${venta.partidas.map(p => {
+    const tono  = p.tono ? ' · ' + p.tono : ''
+    const precio = r5(Number(p.precioUnitario)).toFixed(2)
+    return `<div class="partida bold">${p.cantidad} - ${p.descripcion}${tono} x $${precio}</div>`
+  }).join('')}
   <hr class="divider">
   <div class="row total-row">
     <span>TOTAL:</span>
-    <span>$${Number(venta.total).toFixed(2)}</span>
+    <span>$${r5(Number(venta.total)).toFixed(2)}</span>
   </div>
   <hr class="divider">
   <div class="footer center">¡Gracias por su compra!</div>

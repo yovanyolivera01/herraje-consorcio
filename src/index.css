@@ -52,7 +52,7 @@ body {
 }
 .sidebar-logo-text h1 { font-size: 22px; font-weight: 700; color: var(--text); letter-spacing: -0.3px; }
 .sidebar-logo-text p  { font-size: 16px; color: var(--text-muted); margin-top: 2px; }
-.sidebar-logo-icon    { font-size: 22px; display: none; }
+.sidebar-logo-icon    { display: none; align-items: center; justify-content: center; }
 
 .sidebar-nav { padding: 10px 0; flex: 1; }
 
@@ -79,23 +79,55 @@ body {
 }
 .nav-link:hover { background: var(--bg); color: var(--text); }
 .nav-link.active { background: var(--accent); color: white; }
-.nav-icon { font-size: 16px; width: 20px; text-align: center; }
+.nav-icon { width: 20px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 
 .main-content { margin-left: var(--sidebar-w); flex: 1; min-height: 100vh; }
+
+/* ── Sidebar colapsada (toggled por usuario, solo ≥ 1024px) ─────────────── */
+.layout-collapsed { --sidebar-w: 58px; }
+.layout-collapsed .sidebar-logo-text { display: none; }
+.layout-collapsed .sidebar-logo-icon { display: flex; }
+.layout-collapsed .sidebar-logo { justify-content: center; padding: 16px 0; border-bottom: 1px solid var(--border); }
+.layout-collapsed .nav-section { display: none; }
+.layout-collapsed .nav-label  { display: none; }
+.layout-collapsed .nav-link   { justify-content: center; padding: 10px 0; margin: 2px 4px; }
+.layout-collapsed .nav-icon   { width: auto; }
+
+/* Botón de colapsar sidebar */
+.sidebar-collapse-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: calc(100% - 20px);
+  margin: 8px 10px 14px;
+  padding: 7px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+.sidebar-collapse-btn:hover { background: var(--bg); color: var(--text); }
+@media (min-width: 768px) {
+  .sidebar-collapse-btn { display: flex; }
+  .layout-collapsed .sidebar-collapse-btn { width: auto; margin: 8px auto 14px; }
+}
 
 /* ── Page header ─────────────────────────────────────────────────────────── */
 .page-header {
   background: white;
   border-bottom: 1px solid var(--border);
-  padding: 16px 28px;
+  padding: 9px 24px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   position: sticky; top: 0; z-index: 10;
 }
-.page-title { font-size: 26px; font-weight: 600; }
-.page-subtitle { font-size: 16px; color: var(--text-muted); margin-top: 2px; }
-.page-body { padding: 24px 28px; }
+.page-title { font-size: 20px; font-weight: 600; }
+.page-subtitle { font-size: 13px; color: var(--text-muted); margin-top: 1px; }
+.page-body { padding: 14px 24px; }
 
 /* ── Buttons ─────────────────────────────────────────────────────────────── */
 .btn {
@@ -174,7 +206,8 @@ body {
   background: white;
   border-radius: 10px;
   border: 1px solid var(--border);
-  overflow: hidden;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   box-shadow: 0 1px 3px rgba(0,0,0,0.04);
 }
 .table { width: 100%; border-collapse: collapse; }
@@ -379,7 +412,7 @@ body {
 .stat-value { font-size: 34px; font-weight: 700; }
 
 /* ── Card ────────────────────────────────────────────────────────────────── */
-.card { background: white; border-radius: 10px; border: 1px solid var(--border); padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+.card { background: white; border-radius: 10px; border: 1px solid var(--border); padding: 14px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
 
 /* ── Divider ─────────────────────────────────────────────────────────────── */
 .divider { height: 1px; background: var(--border); margin: 16px 0; }
@@ -462,12 +495,66 @@ body {
   .ticket-total     { font-size: 8.5pt !important; }
 }
 
+/* ── Historial: toggle tabla ↔ tarjetas ──────────────────────────────────── */
+/* Desktop (≥1024px): tabla visible, tarjetas ocultas */
+.hist-desktop { display: block; }
+.hist-mobile  { display: none;  }
+
+/* Tablet + móvil (<1024px): tarjetas visibles, tabla oculta */
+@media (max-width: 1023px) {
+  .hist-desktop { display: none; }
+  .hist-mobile  { display: flex; flex-direction: column; gap: 10px; }
+}
+
+/* ── Historial: estilos de tarjeta ───────────────────────────────────────── */
+
+.hist-card {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+  cursor: pointer;
+  transition: box-shadow 0.15s, border-color 0.15s;
+}
+.hist-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.09); border-color: #c7c7d1; }
+
+.hist-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: #f8fafc;
+  border-bottom: 1px solid var(--border);
+  gap: 8px;
+}
+
+.hist-card-body {
+  padding: 11px 14px 10px;
+}
+
+.hist-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  border-top: 1px solid var(--bg);
+  gap: 8px;
+}
+
+/* ── Botones de accion en el page-header de cotizacion ─────────────────── */
+.cot-header-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
 /* ── Input grande de notacion de medidas ────────────────────────────────── */
 .cot-calc-input {
-  font-size: 22px !important;
+  font-size: 17px !important;
   font-weight: 600;
-  letter-spacing: 1px;
-  padding: 12px 16px !important;
+  letter-spacing: 0;
+  padding: 10px 12px !important;
 }
 
 /* ── Preview en vivo de calculo ─────────────────────────────────────────── */
@@ -507,9 +594,17 @@ body {
 /* ── Venta grid (2 columnas) ─────────────────────────────────────────────── */
 .venta-grid {
   display: grid;
-  grid-template-columns: 1fr 380px;
-  gap: 24px;
+  grid-template-columns: 1fr 340px;
+  gap: 14px;
   align-items: start;
+}
+
+/* ── Panel izquierdo con scroll independiente ─────────────────────────────── */
+.cot-left-panel {
+  max-height: calc(100vh - 90px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
 }
 
 /* ── Barra inferior fija en móvil ────────────────────────────────────────── */
@@ -521,7 +616,7 @@ body {
   align-items: center;
   gap: 14px;
   padding: 0 16px;
-  height: 50px;
+  height: 42px;
   background: white;
   border-bottom: 1px solid var(--border);
   position: sticky;
@@ -567,37 +662,89 @@ body {
   .page-body { padding: 20px 22px; }
 }
 
-/* ── Tablet portrait  768px – 1023px  → sidebar icon-only ───────────────── */
+/* ── Tablet portrait  768px – 1023px  → sidebar con toggle ──────────────── */
 @media (max-width: 1023px) and (min-width: 768px) {
-  :root { --sidebar-w: 66px; }
+  /* Sidebar expandida por defecto (200px), colapsa a 66px cuando .layout-collapsed */
+  :root { --sidebar-w: 200px; }
+  .sidebar-logo h1 { font-size: 19px; }
 
-  /* Sidebar compacta */
-  .sidebar-logo-text { display: none; }
-  .sidebar-logo-icon { display: inline; }
-  .sidebar-logo { justify-content: center; padding: 18px 0; }
-  .nav-section { display: none; }
-  .nav-label  { display: none; }
-  .nav-link {
-    justify-content: center;
-    padding: 11px 0;
-    margin: 2px 6px;
-  }
-  .nav-icon { font-size: 22px; width: auto; }
-  /* Switcher compacto en tablet */
-  .system-switcher { padding: 8px 4px 12px; }
-  .system-switcher-label { display: none; }
-  .system-btn { font-size: 11px; padding: 6px 2px; }
-  .system-switcher-btns { flex-direction: column; gap: 4px; }
+  /* Sidebar colapsada (usuario presiona el botón) */
+  .layout-collapsed { --sidebar-w: 66px; }
+  .layout-collapsed .sidebar-logo-text { display: none; }
+  .layout-collapsed .sidebar-logo-icon { display: flex; }
+  .layout-collapsed .sidebar-logo      { justify-content: center; padding: 18px 0; }
+  .layout-collapsed .nav-section       { display: none; }
+  .layout-collapsed .nav-label         { display: none; }
+  .layout-collapsed .nav-link          { justify-content: center; padding: 11px 0; margin: 2px 6px; }
+  .layout-collapsed .nav-icon          { width: 22px; height: 22px; }
+  .layout-collapsed .sidebar-collapse-btn { width: auto; margin: 8px auto 14px; }
 
   /* Contenido */
-  .page-header  { padding: 14px 18px; flex-wrap: wrap; gap: 10px; }
-  .page-title   { font-size: 22px; }
-  .page-body    { padding: 18px; }
+  .page-header  { padding: 10px 16px; flex-wrap: wrap; gap: 8px; }
+  .page-title   { font-size: 18px; }
+  .page-body    { padding: 14px; }
   .form-row-3   { grid-template-columns: 1fr 1fr; }
   .venta-grid   { grid-template-columns: 1fr; }
+  .cot-left-panel { max-height: none; overflow-y: visible; }
+  .venta-side-summary { display: none; }
 
-  /* Tabla scroll horizontal */
-  .table-container { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  /* Botones: tamaño cómodo para touch */
+  .btn    { min-height: 44px; font-size: 16px; }
+  .btn-sm { min-height: 36px; font-size: 14px; }
+
+  /* Formulario: una columna */
+  .form-row { grid-template-columns: 1fr; }
+
+  /* Modal más ancho en tablet */
+  .modal    { max-width: min(660px, calc(100vw - 32px)); }
+  .modal-lg { max-width: min(780px, calc(100vw - 32px)); }
+
+  /* Tablas: layout de tarjetas */
+  .table-container { overflow-x: visible; border: none; background: transparent; box-shadow: none; }
+  .table-mobile-cards thead { display: none; }
+  .table-mobile-cards tbody tr {
+    display: block;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 10px;
+    padding: 4px 0;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  .table-mobile-cards tbody tr:hover { background: white; }
+  .table-mobile-cards td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--bg);
+    font-size: 15px;
+  }
+  .table-mobile-cards td:last-child { border-bottom: none; }
+  .table-mobile-cards td[data-label]::before {
+    content: attr(data-label);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    flex-shrink: 0;
+    margin-right: 10px;
+  }
+  .table-mobile-cards td[data-label=""]::before { display: none; }
+  .table-mobile-cards td[data-label=""] { justify-content: flex-end; }
+  .row-low-stock td { background: #fff5f5 !important; }
+
+  /* Chips de procesos más espaciados */
+  .procesos-chips { gap: 10px; }
+  .procesos-chips label { font-size: 15px !important; padding: 8px 14px !important; }
+
+  /* Buscador de productos ocupa todo el ancho */
+  .search-input-wrap { max-width: 100%; }
+
+  /* Botones de accion en header: llenan el ancho disponible */
+  .cot-header-actions { width: 100%; }
+  .cot-header-actions .btn { flex: 1; justify-content: center; }
 }
 
 /* ── Móvil  < 768px  → hamburger drawer ─────────────────────────────────── */
@@ -620,7 +767,7 @@ body {
 
   /* Ajuste de sticky header (debajo del topbar) */
   .page-header {
-    top: 50px;
+    top: 42px;
     padding: 12px 16px;
     flex-wrap: wrap;
     gap: 8px;
@@ -679,6 +826,7 @@ body {
   /* Venta grid en columna, ocultar resumen lateral */
   .venta-grid { grid-template-columns: 1fr; }
   .venta-side-summary { display: none; }
+  .cot-left-panel { max-height: none; overflow-y: visible; }
 
   /* Barra de total en venta */
   .venta-total-bar strong { font-size: 18px; }

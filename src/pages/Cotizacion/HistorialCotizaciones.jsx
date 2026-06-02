@@ -1,4 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { fmt5 } from '../../lib/utils'
+import { Pencil, Eye, ArrowRightCircle } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { useCotizacion } from '../../context/CotizacionContext'
 import { convertirCotizacionAPedido, getDetallePedido } from '../../lib/pedidosApi'
 import {
@@ -59,7 +62,7 @@ function TicketPedido({ detalle }) {
         <div key={p.id} style={{ marginBottom: 10 }}>
           <div className="ticket-row" style={{ fontWeight: 600, fontSize: 12 }}>
             <span>{p.cantidad} pza{p.cantidad > 1 ? 's' : ''} — {p.clave_vidrio} · {p.largo_cm}×{p.ancho_cm}</span>
-            <span>${p.subtotal_vidrio.toFixed(2)}</span>
+            <span>${fmt5(p.subtotal_vidrio)}</span>
           </div>
           {p.descripcion_vidrio && (
             <div style={{ fontSize: 11, color: 'var(--text-muted)', paddingLeft: 14 }}>{p.descripcion_vidrio}</div>
@@ -67,18 +70,18 @@ function TicketPedido({ detalle }) {
           {p.procesos.map((pr, j) => (
             <div key={j} className="ticket-row" style={{ fontSize: 11, paddingLeft: 10 }}>
               <span>+ {pr.nombre}</span>
-              <span>${pr.subtotal.toFixed(2)}</span>
+              <span>${fmt5(pr.subtotal)}</span>
             </div>
           ))}
           <div className="ticket-row" style={{ fontWeight: 600, fontSize: 12 }}>
             <span>Subtotal</span>
-            <span>${p.subtotal_partida.toFixed(2)}</span>
+            <span>${fmt5(p.subtotal_partida)}</span>
           </div>
         </div>
       ))}
 
       <hr className="ticket-divider" />
-      <div className="ticket-total"><span>TOTAL</span><span>${detalle.total.toFixed(2)}</span></div>
+      <div className="ticket-total"><span>TOTAL</span><span>${fmt5(detalle.total)}</span></div>
       <div className="ticket-row" style={{ marginTop: 6 }}>
         <span>Forma de pago:</span>
         <span>{detalle.forma_pago === 'LIQUIDADO' ? 'Liquidado' : 'Anticipo'}</span>
@@ -147,13 +150,25 @@ function ConvertirPedidoModal({ cotizacion, onClose, onCreado }) {
           <div>
             <div className="modal-title">Convertir a pedido</div>
             <div style={{ fontSize:12, color:'var(--text-muted)', marginTop:2 }}>
-              {cotizacion.folio} · ${cotizacion.total.toFixed(2)}
+              <strong>{cotizacion.folio}</strong>
             </div>
           </div>
           <button className="btn-icon" onClick={onClose}>✕</button>
         </div>
 
         <div className="modal-body">
+          {/* Total destacado */}
+          <div style={{
+            background: 'var(--accent)', borderRadius: 12, padding: '16px 20px',
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            marginBottom: 20,
+          }}>
+            <span style={{ color: 'white', fontSize: 13, fontWeight: 600, opacity: 0.85 }}>Total a cobrar</span>
+            <span style={{ color: 'white', fontSize: 32, fontWeight: 800, letterSpacing: '-1px' }}>
+              ${fmt5(cotizacion.total)}
+            </span>
+          </div>
+
           <div className="form-group">
             <label className="form-label required">Forma de pago</label>
             <div style={{ display:'flex', gap:16, marginTop:6 }}>
@@ -310,28 +325,57 @@ function TicketDetalleCot({ detalle }) {
         </div>
       )}
       <hr className="ticket-divider" />
-      {detalle.partidas.map((p) => (
-        <div key={p.id} style={{ marginBottom: 10 }}>
-          <div className="ticket-row" style={{ fontWeight: 600, fontSize: 12 }}>
-            <span>{p.piezas ?? 1} pza{(p.piezas ?? 1) > 1 ? 's' : ''} — {p.tipoVidrio?.clave ?? '?'} · {p.largo_cm}×{p.ancho_cm}</span>
-            <span>${p.subtotal_vidrio.toFixed(2)}</span>
-          </div>
-          {p.procesos.map((pr, j) => (
-            <div key={j} className="ticket-row" style={{ fontSize: 11, paddingLeft: 10 }}>
-              <span>+ {pr.nombre}</span>
-              <span>${pr.subtotal.toFixed(2)}</span>
+      {detalle.partidas.length > 0 && (
+        <>
+          <div style={{ fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.5px', borderBottom:'1px dashed #aaa', paddingBottom:2, margin:'5px 0 3px' }}>Vidrio</div>
+          {detalle.partidas.map((p) => (
+            <div key={p.id} style={{ marginBottom: 8 }}>
+              <div className="ticket-row" style={{ fontWeight: 600, fontSize: 12 }}>
+                <span>{p.piezas ?? 1} · {p.tipoVidrio?.clave ?? '?'} · {p.largo_cm}×{p.ancho_cm}</span>
+                <span>${fmt5(p.subtotal_vidrio)}</span>
+              </div>
+              {p.procesos.map((pr, j) => (
+                <div key={j} className="ticket-row" style={{ fontSize: 11, paddingLeft: 10 }}>
+                  <span>+ {pr.nombre}</span>
+                  <span>${fmt5(pr.subtotal)}</span>
+                </div>
+              ))}
+              {p.procesos.length > 0 && (
+                <div className="ticket-row" style={{ fontWeight: 600, fontSize: 12 }}>
+                  <span>Subtotal partida</span>
+                  <span>${fmt5(p.subtotal_partida)}</span>
+                </div>
+              )}
             </div>
           ))}
-          <div className="ticket-row" style={{ fontWeight: 600, fontSize: 12 }}>
-            <span>Subtotal</span>
-            <span>${p.subtotal_partida.toFixed(2)}</span>
-          </div>
-        </div>
-      ))}
+        </>
+      )}
+      {(detalle.extras ?? []).filter(e => e.tipo === 'MAQUILA').length > 0 && (
+        <>
+          <div style={{ fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.5px', borderBottom:'1px dashed #aaa', paddingBottom:2, margin:'5px 0 3px' }}>Maquila</div>
+          {(detalle.extras ?? []).filter(e => e.tipo === 'MAQUILA').map(e => (
+            <div key={e.id} className="ticket-row" style={{ fontSize:12, marginBottom:4 }}>
+              <span>{e.cantidad} {e.unidad} — {e.descripcion}</span>
+              <span style={{ fontWeight:700 }}>${fmt5(e.subtotal)}</span>
+            </div>
+          ))}
+        </>
+      )}
+      {(detalle.extras ?? []).filter(e => e.tipo === 'PRODUCTO').length > 0 && (
+        <>
+          <div style={{ fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.5px', borderBottom:'1px dashed #aaa', paddingBottom:2, margin:'5px 0 3px' }}>Herraje</div>
+          {(detalle.extras ?? []).filter(e => e.tipo === 'PRODUCTO').map(e => (
+            <div key={e.id} className="ticket-row" style={{ fontSize:12, marginBottom:4 }}>
+              <span>{e.cantidad} · {e.descripcion}</span>
+              <span style={{ fontWeight:700 }}>${fmt5(e.subtotal)}</span>
+            </div>
+          ))}
+        </>
+      )}
       <hr className="ticket-divider" />
       <div className="ticket-total">
         <span>TOTAL</span>
-        <span>${Number(detalle.total).toFixed(2)}</span>
+        <span>${fmt5(detalle.total)}</span>
       </div>
       <hr className="ticket-divider" />
       <div style={{ textAlign:'center', fontSize:11, color:'var(--text-muted)', marginTop:8 }}>
@@ -342,7 +386,7 @@ function TicketDetalleCot({ detalle }) {
 }
 
 // ── Modal detalle de cotización ───────────────────────────────────────────
-function DetalleModal({ resumen, onClose, onConvertir }) {
+function DetalleModal({ resumen, onClose, onConvertir, onEditar }) {
   const { getDetalleCotizacion } = useCotizacion()
   const [detalle, setDetalle] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -366,15 +410,26 @@ function DetalleModal({ resumen, onClose, onConvertir }) {
     nivelNombre:   detalle.nivel?.es_hoja_completa ? 'POR HOJA' : (detalle.nivel?.nombre ?? ''),
     esEntregado:   false,
     total:         detalle.total,
-    partidas: detalle.partidas.map(p => ({
-      piezas:           p.piezas ?? 1,
-      clave:            p.tipoVidrio?.clave ?? '?',
-      largo_cm:         p.largo_cm,
-      ancho_cm:         p.ancho_cm,
-      subtotal_vidrio:  p.subtotal_vidrio,
-      procesos:         p.procesos,
-      subtotal_partida: p.subtotal_partida,
-    })),
+    partidas: [
+      ...detalle.partidas.map(p => ({
+        tipo:             'VIDRIO',
+        piezas:           p.piezas ?? 1,
+        clave:            p.tipoVidrio?.clave ?? '?',
+        largo_cm:         p.largo_cm,
+        ancho_cm:         p.ancho_cm,
+        subtotal_vidrio:  p.subtotal_vidrio,
+        procesos:         p.procesos,
+        subtotal_partida: p.subtotal_partida,
+      })),
+      ...(detalle.extras ?? []).map(e => ({
+        tipo:             e.tipo === 'MAQUILA' ? 'MAQUILA' : 'PRODUCTO',
+        cantidad:         e.cantidad,
+        unidad:           e.unidad,
+        descripcion:      e.descripcion,
+        precio_unitario:  e.precio_unitario,
+        subtotal_partida: e.subtotal,
+      })),
+    ],
   } : null
 
   return (
@@ -425,6 +480,14 @@ function DetalleModal({ resumen, onClose, onConvertir }) {
                   </button>
                 </>
               )}
+              {resumen.estatus !== 'CANCELADA' && (
+                <button
+                  className="btn btn-outline"
+                  onClick={() => onEditar(detalle)}
+                >
+                  ✏️ Editar
+                </button>
+              )}
             </>
           )}
           {resumen.estatus === 'FINALIZADA' && (
@@ -442,9 +505,177 @@ function DetalleModal({ resumen, onClose, onConvertir }) {
   )
 }
 
+// ── Badges de estatus maquila ─────────────────────────────────────────────
+const BADGE_MAQUILA = {
+  BORRADOR:   { label: 'Borrador',   bg: '#e5e7eb', color: '#374151' },
+  FINALIZADA: { label: 'Finalizada', bg: '#dbeafe', color: '#1d4ed8' },
+  CONVERTIDA: { label: 'Convertida', bg: '#dcfce7', color: '#16a34a' },
+}
+
+// ── Modal detalle de cotizacion maquila ───────────────────────────────────
+function DetalleMaquilaModal({ cotId, onClose, onReopenOk, onConvertidoOk }) {
+  const { getDetalleCotizacionMaquila, reabrirCotizacion, convertirMaquilaAPedido } = useCotizacion()
+  const [detalle,  setDetalle]  = useState(null)
+  const [loading,  setLoading]  = useState(true)
+  const [error,    setError]    = useState(null)
+  const [paso,     setPaso]     = useState('detalle')
+  const [tipoPago, setTipoPago] = useState('ANTICIPO')
+  const [anticipo, setAnticipo] = useState('')
+  const [saving,   setSaving]   = useState(false)
+  const [pedido,   setPedido]   = useState(null)
+
+  useEffect(() => {
+    getDetalleCotizacionMaquila(cotId).then(res => {
+      if (res.error) { setError(res.error); setLoading(false); return }
+      setDetalle(res.data); setLoading(false)
+    })
+  }, [cotId, getDetalleCotizacionMaquila])
+
+  const handleReabrir = async () => {
+    setSaving(true); setError(null)
+    const res = await reabrirCotizacion(cotId)
+    setSaving(false)
+    if (res.error) { setError(res.error); return }
+    onReopenOk()
+  }
+
+  const handleConvertir = async () => {
+    const montAnt = tipoPago === 'CONTADO' ? detalle.total : Number(anticipo)
+    if (tipoPago === 'ANTICIPO' && (isNaN(montAnt) || montAnt < 0)) { setError('Ingresa un anticipo valido'); return }
+    setSaving(true); setError(null)
+    const res = await convertirMaquilaAPedido({ id_cotizacion: cotId, tipo_pago: tipoPago, monto_anticipo: montAnt })
+    setSaving(false)
+    if (res.error) { setError(res.error); return }
+    setPedido(res.data); setPaso('ok')
+  }
+
+  if (loading) return (
+    <div className="modal-overlay">
+      <div className="modal"><div className="modal-body" style={{ textAlign:'center', padding:'40px 0', color:'var(--text-muted)' }}>Cargando...</div></div>
+    </div>
+  )
+
+  if (paso === 'ok') return (
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onConvertidoOk()}>
+      <div className="modal" onClick={e => e.stopPropagation()}>
+        <div className="modal-header">
+          <div className="modal-title">Pedido creado</div>
+          <button className="btn-icon" onClick={onConvertidoOk}>✕</button>
+        </div>
+        <div className="modal-body">
+          <div className="alert alert-success">✅ Pedido <strong>{pedido.folio}</strong> creado exitosamente.</div>
+        </div>
+        <div className="modal-footer">
+          <button className="btn btn-primary" onClick={onConvertidoOk}>Cerrar</button>
+        </div>
+      </div>
+    </div>
+  )
+
+  return (
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal modal-lg" onClick={e => e.stopPropagation()} style={{ maxWidth:640 }}>
+        <div className="modal-header">
+          <div>
+            <div className="modal-title">{detalle?.folio ?? '—'}</div>
+            {detalle && (
+              <div style={{ fontSize:12, color:'var(--text-muted)', marginTop:2 }}>
+                {detalle.fecha} · {detalle.cliente?.nombre ?? 'Mostrador'}
+                {detalle.nivel && <span className="badge badge-gray" style={{ marginLeft:8, fontSize:11 }}>{detalle.nivel.nombre}</span>}
+              </div>
+            )}
+          </div>
+          <button className="btn-icon" onClick={onClose}>✕</button>
+        </div>
+        <div className="modal-body">
+          {error && <div className="alert alert-error">❌ {error}</div>}
+          {detalle && paso === 'detalle' && (
+            <>
+              <div style={{ background:'var(--bg)', borderRadius:8, padding:'10px 16px', marginBottom:14, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                <span style={{ fontSize:13, color:'var(--text-muted)' }}>Total cotizacion</span>
+                <span style={{ fontWeight:700, fontSize:20 }}>${fmt5(detalle.total)}</span>
+              </div>
+              <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                {detalle.partidas.map((p, i) => (
+                  <div key={p.id} style={{ border:'1px solid var(--border)', borderRadius:8, overflow:'hidden' }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 14px', background:'white' }}>
+                      <div style={{ width:26, height:26, borderRadius:6, background:'var(--accent)', color:'white', display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:700, flexShrink:0 }}>{i + 1}</div>
+                      <div style={{ flex:1 }}>
+                        <div style={{ fontWeight:600, fontSize:14 }}>{p.cantidad} pza{p.cantidad !== 1 ? 's' : ''} · {p.largo_cm}×{p.ancho_cm} cm</div>
+                        {p.descripcion && <div style={{ fontSize:12, color:'var(--text-muted)' }}>{p.descripcion}</div>}
+                      </div>
+                      <div style={{ fontWeight:700, fontSize:15, color:'var(--accent)', flexShrink:0 }}>${fmt5(p.subtotal_partida)}</div>
+                    </div>
+                    {p.procesos?.length > 0 && (
+                      <div style={{ background:'var(--bg)', borderTop:'1px solid var(--border)', padding:'6px 14px 6px 54px' }}>
+                        {p.procesos.map((pr, j) => (
+                          <div key={j} style={{ display:'flex', justifyContent:'space-between', fontSize:12, color:'var(--text-muted)', paddingBottom: j < p.procesos.length - 1 ? 3 : 0 }}>
+                            <span>+ {pr.nombre} {pr.cantidad_unidades !== 1 ? `× ${pr.cantidad_unidades}` : ''}</span>
+                            <span>${fmt5(pr.subtotal)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+          {paso === 'convertir' && detalle && (
+            <>
+              <div style={{ background:'var(--bg)', borderRadius:8, padding:'10px 14px', marginBottom:14 }}>
+                <div style={{ fontSize:13, color:'var(--text-muted)' }}>Total cotizacion</div>
+                <div style={{ fontWeight:700, fontSize:22 }}>${fmt5(detalle.total)}</div>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Tipo de pago</label>
+                <select className="form-input" value={tipoPago} onChange={e => setTipoPago(e.target.value)}>
+                  <option value="ANTICIPO">Anticipo</option>
+                  <option value="CONTADO">Contado (pago total)</option>
+                </select>
+              </div>
+              {tipoPago === 'ANTICIPO' && (
+                <div className="form-group">
+                  <label className="form-label">Monto de anticipo ($)</label>
+                  <input className="form-input" type="number" min="0" step="0.01" value={anticipo}
+                    onChange={e => setAnticipo(e.target.value)} placeholder="0.00" />
+                </div>
+              )}
+            </>
+          )}
+        </div>
+        <div className="modal-footer">
+          {paso === 'detalle' ? (
+            <>
+              <button className="btn btn-outline" onClick={onClose}>Cerrar</button>
+              {detalle?.estatus === 'FINALIZADA' && (
+                <>
+                  <button className="btn btn-outline" onClick={handleReabrir} disabled={saving}>{saving ? '...' : '↩ Reabrir'}</button>
+                  <button className="btn btn-primary" onClick={() => setPaso('convertir')}>📋 Convertir a pedido</button>
+                </>
+              )}
+            </>
+          ) : (
+            <>
+              <button className="btn btn-outline" onClick={() => setPaso('detalle')} disabled={saving}>Volver</button>
+              <button className="btn btn-primary" onClick={handleConvertir} disabled={saving}>{saving ? 'Creando pedido...' : 'Confirmar pedido'}</button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Pagina Historial de Cotizaciones ──────────────────────────────────────
 export default function HistorialCotizaciones() {
-  const { getCotizaciones } = useCotizacion()
+  const { getCotizaciones, getDetalleCotizacion, getCotizacionesMaquila } = useCotizacion()
+  const navigate = useNavigate()
+
+  // ── Pestaña activa ────────────────────────────────────────────────────────
+  const [tab, setTab] = useState('vidrio')
+
+  // ── Estado pestaña vidrio ────────────────────────────────────────────────
   const [cotizaciones,   setCotizaciones]   = useState([])
   const [loading,        setLoading]        = useState(true)
   const [error,          setError]          = useState(null)
@@ -454,6 +685,14 @@ export default function HistorialCotizaciones() {
   const [seleccionada,   setSeleccionada]   = useState(null)
   const [convertirCot,   setConvertirCot]   = useState(null)
   const [pedidoCreado,   setPedidoCreado]   = useState(null)
+  const [editandoId,     setEditandoId]     = useState(null)
+
+  // ── Estado pestaña maquila ───────────────────────────────────────────────
+  const [cotsMaq,       setCotsMaq]       = useState([])
+  const [loadingMaq,    setLoadingMaq]    = useState(false)
+  const [errorMaq,      setErrorMaq]      = useState(null)
+  const [selIdMaq,      setSelIdMaq]      = useState(null)
+  const [maqCargada,    setMaqCargada]    = useState(false)
 
   const cargar = async () => {
     setLoading(true)
@@ -461,6 +700,31 @@ export default function HistorialCotizaciones() {
     if (err) setError(err)
     else setCotizaciones(data ?? [])
     setLoading(false)
+  }
+
+  const cargarMaquila = useCallback(async () => {
+    setLoadingMaq(true)
+    const res = await getCotizacionesMaquila()
+    setLoadingMaq(false)
+    if (res.error) { setErrorMaq(res.error); return }
+    setCotsMaq(res.data ?? [])
+    setMaqCargada(true)
+  }, [getCotizacionesMaquila])
+
+  useEffect(() => {
+    if (tab === 'maquila' && !maqCargada) cargarMaquila()
+  }, [tab, maqCargada, cargarMaquila])
+
+  const handleEditar = async (detalle) => {
+    navigate('/cot/nueva', { state: { cotEdit: detalle } })
+  }
+
+  const handleEditarDesdeTabla = async (resumen) => {
+    setEditandoId(resumen.id)
+    const { data, error: err } = await getDetalleCotizacion(resumen.id)
+    setEditandoId(null)
+    if (err) return
+    navigate('/cot/nueva', { state: { cotEdit: data } })
   }
 
   useEffect(() => { cargar() }, []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -503,13 +767,125 @@ export default function HistorialCotizaciones() {
         <div>
           <div className="page-title">Historial de Cotizaciones</div>
           <div className="page-subtitle">
-            {cotizaciones.length} cotizacion{cotizaciones.length !== 1 ? 'es' : ''} registrada{cotizaciones.length !== 1 ? 's' : ''}
+            {tab === 'vidrio'
+              ? `${cotizaciones.length} cotizacion${cotizaciones.length !== 1 ? 'es' : ''} de vidrio`
+              : `${cotsMaq.length} cotizacion${cotsMaq.length !== 1 ? 'es' : ''} de maquila`}
           </div>
         </div>
-        <button className="btn btn-outline" onClick={cargar}>↻ Actualizar</button>
+        <button className="btn btn-outline" onClick={tab === 'vidrio' ? cargar : cargarMaquila}>
+          ↻ Actualizar
+        </button>
       </div>
 
       <div className="page-body">
+        {/* Pestañas */}
+        <div style={{ display:'flex', gap:6, marginBottom:20 }}>
+          {[['vidrio','◻ Cotizaciones vidrio'],['maquila','🔨 Maquila']].map(([t, label]) => (
+            <button key={t} onClick={() => setTab(t)} style={{
+              padding:'7px 18px', borderRadius:8, fontSize:13, cursor:'pointer', fontWeight:600,
+              border:`2px solid ${tab===t ? 'var(--accent)' : 'var(--border)'}`,
+              background: tab===t ? 'var(--accent)' : 'white',
+              color: tab===t ? 'white' : 'var(--text)',
+              transition:'all 0.15s',
+            }}>{label}</button>
+          ))}
+        </div>
+
+        {/* ── Pestaña Maquila ── */}
+        {tab === 'maquila' && (
+          <>
+            {loadingMaq && <div style={{ textAlign:'center', padding:'40px 0', color:'var(--text-muted)' }}>Cargando...</div>}
+            {errorMaq && <div className="alert alert-error">❌ {errorMaq}</div>}
+            {!loadingMaq && !errorMaq && cotsMaq.length === 0 && (
+              <div className="empty-state">
+                <div className="empty-state-icon">🔨</div>
+                <h3>Sin cotizaciones de maquila</h3>
+                <p>Las cotizaciones convertidas a pedido no aparecen aqui</p>
+              </div>
+            )}
+            {!loadingMaq && cotsMaq.length > 0 && (
+              <>
+                {/* ── Tabla (desktop) ── */}
+                <div className="hist-desktop">
+                  <div className="table-container">
+                    <table className="table">
+                      <thead>
+                        <tr>
+                          <th>Folio</th><th>Fecha</th><th>Cliente</th><th>Nivel</th>
+                          <th style={{ textAlign:'right' }}>Total</th><th>Estatus</th><th style={{ width:70 }}></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {cotsMaq.map(c => {
+                          const badge = BADGE_MAQUILA[c.estatus] ?? { label: c.estatus, bg:'#e5e7eb', color:'#374151' }
+                          return (
+                            <tr key={c.id} style={{ cursor:'pointer' }} onClick={() => setSelIdMaq(c.id)}>
+                              <td><span className="badge badge-orange">{c.folio}</span></td>
+                              <td style={{ fontSize:14, color:'var(--text-muted)' }}>{c.fecha}</td>
+                              <td style={{ fontWeight:600 }}>{c.clienteNombre}</td>
+                              <td>{c.nivelNombre ? <span className="badge badge-gray">{c.nivelNombre}</span> : <span style={{ color:'var(--text-muted)' }}>—</span>}</td>
+                              <td style={{ textAlign:'right', fontWeight:600 }}>{c.total > 0 ? `$${fmt5(c.total)}` : '—'}</td>
+                              <td><span style={{ padding:'3px 9px', borderRadius:5, fontSize:11, fontWeight:700, background:badge.bg, color:badge.color }}>{badge.label}</span></td>
+                              <td>
+                                <button className="btn btn-outline btn-sm" style={{ display:'flex', alignItems:'center', padding:'4px 8px' }} onClick={e => { e.stopPropagation(); setSelIdMaq(c.id) }}>
+                                  <Eye size={14} />
+                                </button>
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* ── Tarjetas (tablet / móvil) ── */}
+                <div className="hist-mobile">
+                  {cotsMaq.map(c => {
+                    const badge = BADGE_MAQUILA[c.estatus] ?? { label: c.estatus, bg:'#e5e7eb', color:'#374151' }
+                    return (
+                      <div key={c.id} className="hist-card" onClick={() => setSelIdMaq(c.id)}>
+                        <div className="hist-card-header">
+                          <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                            <span className="badge badge-orange">{c.folio}</span>
+                            <span style={{ padding:'3px 9px', borderRadius:5, fontSize:11, fontWeight:700, background:badge.bg, color:badge.color }}>{badge.label}</span>
+                          </div>
+                          <span style={{ fontWeight:700, fontSize:17, color:'var(--accent)' }}>
+                            {c.total > 0 ? `$${fmt5(c.total)}` : <span style={{ color:'var(--text-muted)', fontSize:14 }}>Sin total</span>}
+                          </span>
+                        </div>
+                        <div className="hist-card-body">
+                          <div style={{ fontWeight:600, fontSize:15 }}>{c.clienteNombre}</div>
+                          <div style={{ display:'flex', gap:8, marginTop:3, alignItems:'center' }}>
+                            <span style={{ fontSize:13, color:'var(--text-muted)' }}>{c.fecha}</span>
+                            {c.nivelNombre && <span className="badge badge-gray" style={{ fontSize:11 }}>{c.nivelNombre}</span>}
+                          </div>
+                        </div>
+                        <div className="hist-card-footer" onClick={e => e.stopPropagation()}>
+                          <div />
+                          <button className="btn btn-outline btn-sm" onClick={() => setSelIdMaq(c.id)} style={{ display:'flex', alignItems:'center', gap:4, padding:'5px 10px' }}>
+                            <Eye size={13} /> Ver
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </>
+            )}
+            {selIdMaq && (
+              <DetalleMaquilaModal
+                cotId={selIdMaq}
+                onClose={() => setSelIdMaq(null)}
+                onReopenOk={() => { setSelIdMaq(null); setMaqCargada(false); cargarMaquila() }}
+                onConvertidoOk={() => { setSelIdMaq(null); setMaqCargada(false); cargarMaquila() }}
+              />
+            )}
+          </>
+        )}
+
+        {/* ── Pestaña Vidrio ── */}
+        {tab === 'vidrio' && <>
         {/* Stats */}
         <div className="stats-row">
           <div className="stat-card">
@@ -522,7 +898,7 @@ export default function HistorialCotizaciones() {
           </div>
           <div className="stat-card">
             <div className="stat-label">Monto en periodo</div>
-            <div className="stat-value" style={{ fontSize:18 }}>${totalPeriodo.toFixed(2)}</div>
+            <div className="stat-value" style={{ fontSize:18 }}>${fmt5(totalPeriodo)}</div>
           </div>
         </div>
 
@@ -546,7 +922,7 @@ export default function HistorialCotizaciones() {
           )}
         </div>
 
-        {/* Tabla */}
+        {/* Lista / tabla vidrio */}
         {filtered.length === 0 ? (
           <div className="empty-state">
             <div className="empty-state-icon">📊</div>
@@ -558,57 +934,100 @@ export default function HistorialCotizaciones() {
             </p>
           </div>
         ) : (
-          <div className="table-container">
-            <table className="table table-mobile-cards">
-              <thead>
-                <tr>
-                  <th>Folio</th>
-                  <th>Fecha</th>
-                  <th>Cliente</th>
-                  <th>Nivel</th>
-                  <th style={{ textAlign:'right' }}>Total</th>
-                  <th>Estado</th>
-                  <th style={{ width:180 }}>Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map(c => (
-                  <tr key={c.id} style={{ cursor:'pointer', opacity: c.estatus === 'CANCELADA' ? 0.55 : 1 }} onClick={() => setSeleccionada(c)}>
-                    <td data-label="Folio"><span className="badge badge-blue">{c.folio}</span></td>
-                    <td data-label="Fecha">{c.fecha} <span style={{ color:'var(--text-muted)', fontSize:13 }}>{c.hora}</span></td>
-                    <td data-label="Cliente" style={{ fontWeight:500 }}>{c.clienteNombre}</td>
-                    <td data-label="Nivel"><span className="badge badge-gray">{c.nivelNombre}</span></td>
-                    <td data-label="Total" style={{ textAlign:'right', fontWeight:700, color:'var(--accent)' }}>
-                      ${Number(c.total).toFixed(2)}
-                    </td>
-                    <td data-label="Estado">{estatusBadge(c.estatus)}</td>
-                    <td data-label="" onClick={e => e.stopPropagation()} style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
-                      <button className="btn btn-outline btn-sm" onClick={() => setSeleccionada(c)}>
-                        Ver
-                      </button>
-                      {c.estatus === 'FINALIZADA' && (
-                        <button
-                          className="btn btn-primary btn-sm"
-                          onClick={() => setConvertirCot(c)}
-                        >
-                          → Pedido
+          <>
+            {/* ── Tabla (desktop) ── */}
+            <div className="hist-desktop">
+              <div className="table-container">
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Folio</th>
+                      <th>Fecha</th>
+                      <th>Cliente</th>
+                      <th>Nivel</th>
+                      <th style={{ textAlign:'right' }}>Total</th>
+                      <th>Estado</th>
+                      <th style={{ width:160 }}>Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtered.map(c => (
+                      <tr key={c.id} style={{ cursor:'pointer', opacity: c.estatus === 'CANCELADA' ? 0.55 : 1 }} onClick={() => setSeleccionada(c)}>
+                        <td><span className="badge badge-blue">{c.folio}</span></td>
+                        <td style={{ fontSize:14 }}>{c.fecha} <span style={{ color:'var(--text-muted)', fontSize:13 }}>{c.hora}</span></td>
+                        <td style={{ fontWeight:500 }}>{c.clienteNombre}</td>
+                        <td><span className="badge badge-gray">{c.nivelNombre}</span></td>
+                        <td style={{ textAlign:'right', fontWeight:700, color:'var(--accent)' }}>${fmt5(c.total)}</td>
+                        <td>{estatusBadge(c.estatus)}</td>
+                        <td onClick={e => e.stopPropagation()} style={{ display:'flex', gap:6 }}>
+                          {c.estatus !== 'CANCELADA' && (
+                            <button className="btn btn-outline btn-sm" title="Editar" onClick={() => handleEditarDesdeTabla(c)} disabled={editandoId === c.id} style={{ display:'flex', alignItems:'center', padding:'4px 8px' }}>
+                              {editandoId === c.id ? '…' : <Pencil size={14} />}
+                            </button>
+                          )}
+                          {c.estatus === 'FINALIZADA' && (
+                            <button className="btn btn-primary btn-sm" title="Convertir a pedido" onClick={() => setConvertirCot(c)} style={{ display:'flex', alignItems:'center', padding:'4px 8px' }}>
+                              <ArrowRightCircle size={14} />
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* ── Tarjetas (tablet / móvil) ── */}
+            <div className="hist-mobile">
+              {filtered.map(c => (
+                <div key={c.id} className="hist-card" style={{ opacity: c.estatus === 'CANCELADA' ? 0.55 : 1 }} onClick={() => setSeleccionada(c)}>
+                  <div className="hist-card-header">
+                    <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+                      <span className="badge badge-blue">{c.folio}</span>
+                      {estatusBadge(c.estatus)}
+                    </div>
+                    <span style={{ fontWeight:700, fontSize:17, color:'var(--accent)', flexShrink:0 }}>${fmt5(c.total)}</span>
+                  </div>
+                  <div className="hist-card-body">
+                    <div style={{ fontWeight:600, fontSize:15 }}>{c.clienteNombre}</div>
+                    <div style={{ display:'flex', gap:8, marginTop:3, alignItems:'center', flexWrap:'wrap' }}>
+                      <span style={{ fontSize:13, color:'var(--text-muted)' }}>{c.fecha} {c.hora}</span>
+                      {c.nivelNombre && <span className="badge badge-gray" style={{ fontSize:11 }}>{c.nivelNombre}</span>}
+                    </div>
+                  </div>
+                  <div className="hist-card-footer" onClick={e => e.stopPropagation()}>
+                    <div />
+                    <div style={{ display:'flex', gap:6 }}>
+                      {c.estatus !== 'CANCELADA' && (
+                        <button className="btn btn-outline btn-sm" onClick={() => handleEditarDesdeTabla(c)} disabled={editandoId === c.id} style={{ display:'flex', alignItems:'center', gap:4, padding:'5px 10px' }}>
+                          {editandoId === c.id ? '…' : <><Pencil size={13} /> Editar</>}
                         </button>
                       )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                      {c.estatus === 'FINALIZADA' && (
+                        <button className="btn btn-primary btn-sm" onClick={() => setConvertirCot(c)} style={{ display:'flex', alignItems:'center', gap:4, padding:'5px 10px' }}>
+                          <ArrowRightCircle size={13} /> Pedido
+                        </button>
+                      )}
+                      <button className="btn btn-outline btn-sm" onClick={() => setSeleccionada(c)} style={{ padding:'5px 10px' }}>Ver</button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
         )}
+
+        </>}
       </div>
 
-      {/* Modal detalle */}
+      {/* Modals pestaña vidrio */}
       {seleccionada && !convertirCot && !pedidoCreado && (
         <DetalleModal
           resumen={seleccionada}
           onClose={() => setSeleccionada(null)}
           onConvertir={(cot) => { setConvertirCot(cot); setSeleccionada(null) }}
+          onEditar={handleEditar}
         />
       )}
 

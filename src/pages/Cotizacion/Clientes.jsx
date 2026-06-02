@@ -225,25 +225,33 @@ function PreciosClienteModal({ cliente, onClose }) {
 
   if (precios === null) { cargar(); return null }
 
-  const getPrecio = (id_tipo_vidrio, id_proceso) =>
-    precios.find(p => p.id_tipo_vidrio === id_tipo_vidrio && (p.id_proceso ?? null) === (id_proceso ?? null))?.precio_m2 ?? null
+  const getPrecioVidrio = (id_tipo_vidrio) =>
+    precios.find(p => p.id_tipo_vidrio === id_tipo_vidrio && (p.id_proceso ?? null) === null)?.precio_m2 ?? null
+
+  const getPrecioProceso = (id_proceso) =>
+    precios.find(p => (p.id_tipo_vidrio ?? null) === null && p.id_proceso === id_proceso)?.precio_m2 ?? null
 
   const handleGuardar = async (id_tipo_vidrio, id_proceso, precio_m2) => {
-    const key = `${id_tipo_vidrio}-${id_proceso ?? 'v'}`
+    const key = id_tipo_vidrio != null ? `v-${id_tipo_vidrio}` : `p-${id_proceso}`
     setSaving(key)
     const res = await guardarPrecioClienteRegistrado({ id_cliente: cliente.id_cliente, id_tipo_vidrio, id_proceso, precio_m2 })
     setSaving(null)
     if (res.error) { showToast(res.error, 'error'); return res }
     setPrecios(prev => {
-      const sig = prev.filter(p => !(p.id_tipo_vidrio === id_tipo_vidrio && (p.id_proceso ?? null) === (id_proceso ?? null)))
-      return [...sig, { id_tipo_vidrio, id_proceso: id_proceso ?? null, precio_m2 }]
+      const sig = prev.filter(p => !(
+        (p.id_tipo_vidrio ?? null) === (id_tipo_vidrio ?? null) &&
+        (p.id_proceso ?? null) === (id_proceso ?? null)
+      ))
+      return [...sig, { id_tipo_vidrio: id_tipo_vidrio ?? null, id_proceso: id_proceso ?? null, precio_m2 }]
     })
     showToast('Guardado ✅')
     return res
   }
 
-  const tiposActivos    = tiposVidrio.filter(t => t.activo)
-  const procesosActivos = procesos.filter(p => p.activo)
+  const tiposActivos  = tiposVidrio.filter(t => t.activo)
+  const procesosGrupo = procesos.filter(p => p.activo && (!p.tipo || p.tipo === 'PROCESO'))
+  const barrenosGrupo = procesos.filter(p => p.activo && p.tipo === 'BARRENO')
+  const saquesGrupo   = procesos.filter(p => p.activo && p.tipo === 'SAQUE')
 
   const tiposFiltrados = tiposActivos.filter(t =>
     !busqueda ||
@@ -252,71 +260,82 @@ function PreciosClienteModal({ cliente, onClose }) {
     (t.espesor?.etiqueta || '').toLowerCase().includes(busqueda.toLowerCase())
   )
 
+  const secH = {
+    fontSize: 11, fontWeight: 700, color: 'var(--accent)',
+    textTransform: 'uppercase', letterSpacing: 0.8,
+    padding: '10px 0 6px', marginTop: 6, borderTop: '1px solid var(--border)',
+  }
+  const fila = (keyVal, badge, label, precioActual, savingKey, onGuardar) => (
+    <div key={keyVal} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid var(--border)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        {badge && <span className="badge badge-blue" style={{ fontSize: 11 }}>{badge}</span>}
+        <span style={{ fontSize: 13 }}>{label}</span>
+      </div>
+      <PrecioInline precioActual={precioActual} saving={saving === savingKey} onGuardar={onGuardar} />
+    </div>
+  )
+
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="modal" style={{ maxWidth: 680, width: '98vw' }} onClick={e => e.stopPropagation()}>
+      <div className="modal" style={{ maxWidth: 620, width: '98vw' }} onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <h2 className="modal-title">Precios especiales — {cliente.nombre}</h2>
           <button className="btn-icon" onClick={onClose}>✕</button>
         </div>
 
-        <div style={{ padding: '10px 16px 0', borderBottom: '1px solid var(--border)' }}>
-          {toast && <div className={`alert alert-${toast.type}`} style={{ marginBottom: 8 }}>{toast.msg}</div>}
+        {toast && <div style={{ padding: '8px 16px 0' }}><div className={`alert alert-${toast.type}`}>{toast.msg}</div></div>}
+
+        <div style={{ maxHeight: '66vh', overflowY: 'auto', padding: '0 16px 12px' }}>
+
+          <div style={{ ...secH, borderTop: 'none', marginTop: 8 }}>Precio de vidrio ($/m²)</div>
           <input
             className="form-input"
             placeholder="Buscar tipo de vidrio..."
             value={busqueda}
             onChange={e => setBusqueda(e.target.value)}
-            style={{ marginBottom: 10 }}
+            style={{ marginBottom: 6, fontSize: 13 }}
           />
-        </div>
-
-        <div style={{ maxHeight: '62vh', overflowY: 'auto', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {tiposFiltrados.map(tipo => {
-            const tieneAlgunPrecio = getPrecio(tipo.id_tipo_vidrio, null) != null ||
-              procesosActivos.some(p => getPrecio(tipo.id_tipo_vidrio, p.id_proceso) != null)
-            return (
-              <div key={tipo.id_tipo_vidrio} className="card" style={{ padding: '10px 14px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                  <span className="badge badge-blue">{tipo.clave}</span>
-                  <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-                    {tipo.tono?.nombre} / {tipo.espesor?.etiqueta}
-                  </span>
-                  {tieneAlgunPrecio && <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--accent)' }}>✓ configurado</span>}
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 0', borderBottom: procesosActivos.length ? '1px solid var(--border)' : 'none' }}>
-                  <span style={{ fontSize: 13, fontWeight: 600 }}>Solo vidrio ($/m²)</span>
-                  <PrecioInline
-                    precioActual={getPrecio(tipo.id_tipo_vidrio, null)}
-                    saving={saving === `${tipo.id_tipo_vidrio}-v`}
-                    onGuardar={n => handleGuardar(tipo.id_tipo_vidrio, null, n)}
-                  />
-                </div>
-
-                {procesosActivos.map((proc, idx) => (
-                  <div
-                    key={proc.id_proceso}
-                    style={{
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                      padding: '5px 0',
-                      borderBottom: idx < procesosActivos.length - 1 ? '1px solid var(--border)' : 'none',
-                    }}
-                  >
-                    <span style={{ fontSize: 13, color: 'var(--text-muted)', paddingLeft: 10 }}>+ {proc.nombre}</span>
-                    <PrecioInline
-                      precioActual={getPrecio(tipo.id_tipo_vidrio, proc.id_proceso)}
-                      saving={saving === `${tipo.id_tipo_vidrio}-${proc.id_proceso}`}
-                      onGuardar={n => handleGuardar(tipo.id_tipo_vidrio, proc.id_proceso, n)}
-                    />
-                  </div>
-                ))}
-              </div>
+          {tiposFiltrados.map(tipo =>
+            fila(
+              tipo.id_tipo_vidrio,
+              tipo.clave,
+              `${tipo.tono?.nombre || ''} / ${tipo.espesor?.etiqueta || ''}`,
+              getPrecioVidrio(tipo.id_tipo_vidrio),
+              `v-${tipo.id_tipo_vidrio}`,
+              n => handleGuardar(tipo.id_tipo_vidrio, null, n),
             )
-          })}
-          {tiposFiltrados.length === 0 && (
-            <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 24 }}>Sin resultados</div>
           )}
+          {tiposFiltrados.length === 0 && busqueda && (
+            <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '8px 0', fontSize: 13 }}>Sin resultados</div>
+          )}
+
+          {procesosGrupo.length > 0 && (
+            <>
+              <div style={secH}>Precio de procesos</div>
+              {procesosGrupo.map(proc =>
+                fila(proc.id_proceso, null, proc.nombre, getPrecioProceso(proc.id_proceso), `p-${proc.id_proceso}`, n => handleGuardar(null, proc.id_proceso, n))
+              )}
+            </>
+          )}
+
+          {barrenosGrupo.length > 0 && (
+            <>
+              <div style={secH}>Precio de barrenos</div>
+              {barrenosGrupo.map(proc =>
+                fila(proc.id_proceso, null, proc.nombre, getPrecioProceso(proc.id_proceso), `p-${proc.id_proceso}`, n => handleGuardar(null, proc.id_proceso, n))
+              )}
+            </>
+          )}
+
+          {saquesGrupo.length > 0 && (
+            <>
+              <div style={secH}>Precio de saques</div>
+              {saquesGrupo.map(proc =>
+                fila(proc.id_proceso, null, proc.nombre, getPrecioProceso(proc.id_proceso), `p-${proc.id_proceso}`, n => handleGuardar(null, proc.id_proceso, n))
+              )}
+            </>
+          )}
+
         </div>
 
         <div className="modal-footer">

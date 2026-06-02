@@ -3,7 +3,7 @@ import { useCotizacion } from '../../context/CotizacionContext'
 
 // ── Modal genérico de proceso normal ─────────────────────────────────────
 function ProcesoModal({ proceso, onClose, onSave }) {
-  const { unidades, nivelesPrecio, espesores, preciosProceso } = useCotizacion()
+  const { unidades, nivelesPrecio, espesores, preciosProceso, procesos } = useCotizacion()
   const [form, setForm] = useState({
     nombre:          proceso?.nombre          ?? '',
     id_unidad_cobro: proceso?.id_unidad_cobro ?? '',
@@ -26,6 +26,13 @@ function ProcesoModal({ proceso, onClose, onSave }) {
     const e = {}
     if (!form.nombre.trim()) e.nombre = 'El nombre es obligatorio'
     if (!form.id_unidad_cobro) e.id_unidad_cobro = 'Selecciona una unidad de cobro'
+    const nombreNorm = form.nombre.trim().toLowerCase()
+    const duplicado = procesos.find(p =>
+      (p.tipo === 'PROCESO' || !p.tipo) &&
+      p.nombre.toLowerCase() === nombreNorm &&
+      (!proceso || p.id_proceso !== proceso.id_proceso)
+    )
+    if (duplicado) e.nombre = 'Ya existe un proceso con ese nombre'
     return e
   }
 
@@ -161,7 +168,7 @@ function ProcesoModal({ proceso, onClose, onSave }) {
 
 // ── Modal Barreno ─────────────────────────────────────────────────────────
 function BarrenoModal({ barreno, onClose, onSave }) {
-  const { unidades, nivelesPrecio, preciosProcesoEspecial } = useCotizacion()
+  const { unidades, nivelesPrecio, preciosProcesoEspecial, procesos } = useCotizacion()
   const [form, setForm] = useState({
     diametro_mm: barreno?.diametro_mm ?? '',
     nombre:      barreno?.nombre      ?? '',
@@ -185,6 +192,13 @@ function BarrenoModal({ barreno, onClose, onSave }) {
     const e = {}
     if (!form.diametro_mm || isNaN(Number(form.diametro_mm)) || Number(form.diametro_mm) <= 0)
       e.diametro_mm = 'Ingresa el diámetro en mm'
+    const computedNombre = (form.nombre.trim() || `Barreno ${form.diametro_mm}mm`).toLowerCase()
+    const duplicado = procesos.find(p =>
+      p.tipo === 'BARRENO' &&
+      p.nombre.toLowerCase() === computedNombre &&
+      (!barreno || p.id_proceso !== barreno.id_proceso)
+    )
+    if (duplicado) e.diametro_mm = 'Ya existe un barreno con ese diámetro/nombre'
     return e
   }
 
@@ -306,7 +320,7 @@ function BarrenoModal({ barreno, onClose, onSave }) {
 
 // ── Modal Saque ───────────────────────────────────────────────────────────
 function SaqueModal({ saque, onClose, onSave }) {
-  const { unidades, nivelesPrecio, preciosProcesoEspecial } = useCotizacion()
+  const { unidades, nivelesPrecio, preciosProcesoEspecial, procesos } = useCotizacion()
   const [form, setForm] = useState({
     nombre:      saque?.nombre      ?? '',
     descripcion: saque?.descripcion ?? '',
@@ -329,6 +343,12 @@ function SaqueModal({ saque, onClose, onSave }) {
   const validate = () => {
     const e = {}
     if (!form.nombre.trim()) e.nombre = 'El nombre es obligatorio'
+    const duplicado = procesos.find(p =>
+      p.tipo === 'SAQUE' &&
+      p.nombre.toLowerCase() === form.nombre.trim().toLowerCase() &&
+      (!saque || p.id_proceso !== saque.id_proceso)
+    )
+    if (duplicado) e.nombre = 'Ya existe un nivel de saque con ese nombre'
     return e
   }
 
@@ -429,14 +449,143 @@ function SaqueModal({ saque, onClose, onSave }) {
   )
 }
 
+// ── Modal Extra ───────────────────────────────────────────────────────────
+function ExtraModal({ extra, onClose, onSave }) {
+  const { unidades, nivelesPrecio, preciosProcesoEspecial, procesos } = useCotizacion()
+  const [form, setForm] = useState({
+    nombre: extra?.nombre ?? '',
+  })
+  const [preciosGrid, setPreciosGrid] = useState(() => {
+    const map = {}
+    if (extra?.id_proceso) {
+      preciosProcesoEspecial
+        .filter(p => p.id_proceso === extra.id_proceso)
+        .forEach(p => { map[String(p.id_nivel_precio)] = String(p.precio_unitario) })
+    }
+    return map
+  })
+  const [errors, setErrors] = useState({})
+  const [saving, setSaving] = useState(false)
+
+  const set = (field) => (e) => setForm(f => ({ ...f, [field]: e.target.value }))
+  const nivelesActivos = nivelesPrecio.filter(n => n.activo !== false && !n.es_hoja_completa)
+
+  const validate = () => {
+    const e = {}
+    if (!form.nombre.trim()) e.nombre = 'El nombre es obligatorio'
+    const duplicado = procesos.find(p =>
+      p.tipo === 'EXTRA' &&
+      p.nombre.toLowerCase() === form.nombre.trim().toLowerCase() &&
+      (!extra || p.id_proceso !== extra.id_proceso)
+    )
+    if (duplicado) e.nombre = 'Ya existe un extra con ese nombre'
+    return e
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    const errs = validate()
+    if (Object.keys(errs).length) { setErrors(errs); return }
+    setSaving(true)
+    const unidadPieza = unidades.find(u =>
+      /pieza|pza|pzas/i.test(u.nombre) || /pieza|pza|pzas/i.test(u.descripcion ?? '')
+    ) ?? unidades[0]
+    const preciosArray = Object.entries(preciosGrid)
+      .filter(([, v]) => v !== '' && !isNaN(Number(v)) && Number(v) >= 0)
+      .map(([id_nivel_precio, precio]) => ({
+        id_nivel_precio: Number(id_nivel_precio),
+        precio_unitario: Number(precio),
+      }))
+    await onSave({
+      nombre:          form.nombre.trim(),
+      id_unidad_cobro: unidadPieza?.id_unidad_cobro ?? null,
+      tipo:            'EXTRA',
+      precio_unitario: 0,
+      preciosEspecial: preciosArray,
+    })
+    setSaving(false)
+  }
+
+  return (
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal modal-lg" onClick={e => e.stopPropagation()}>
+        <div className="modal-header">
+          <h2 className="modal-title">{extra ? 'Editar extra' : 'Nuevo extra'}</h2>
+          <button className="btn-icon" onClick={onClose}>✕</button>
+        </div>
+        <form onSubmit={handleSubmit}>
+          <div className="modal-body">
+            <div className="form-group">
+              <label className="form-label required">Nombre del extra</label>
+              <input
+                className={`form-input${errors.nombre ? ' error' : ''}`}
+                value={form.nombre}
+                onChange={set('nombre')}
+                placeholder="Ej. Película de seguridad, Sellado perimetral..."
+                autoFocus
+              />
+              {errors.nombre && <div className="form-error">{errors.nombre}</div>}
+            </div>
+            <div style={{ padding: '8px 12px', background: '#f0fdf4', borderRadius: 8, fontSize: 13, color: '#15803d', marginBottom: 8 }}>
+              ✨ Los extras se cobran como <strong>monto fijo por cantidad</strong> — precio unitario × número de unidades que el cliente pide.
+            </div>
+
+            {nivelesActivos.length > 0 && (
+              <div style={{ marginTop: 8 }}>
+                <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 6 }}>
+                  Precio por nivel de cliente ($)
+                </div>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+                  <thead>
+                    <tr>
+                      <th style={{ textAlign: 'left', padding: '6px 10px', borderBottom: '2px solid var(--border)', fontWeight: 600, fontSize: 13 }}>Nivel</th>
+                      <th style={{ textAlign: 'right', padding: '6px 10px', borderBottom: '2px solid var(--border)', fontWeight: 600, fontSize: 13 }}>Precio unitario ($)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {nivelesActivos.map((n, i) => (
+                      <tr key={n.id_nivel_precio} style={{ background: i % 2 === 0 ? 'transparent' : 'var(--bg)' }}>
+                        <td style={{ padding: '6px 10px', fontWeight: 500 }}>{n.nombre}</td>
+                        <td style={{ padding: '4px 6px', textAlign: 'right' }}>
+                          <input
+                            className="form-input"
+                            type="number" step="0.01" min="0"
+                            style={{ textAlign: 'right', padding: '5px 8px', fontSize: 14, maxWidth: 120, marginLeft: 'auto', display: 'block' }}
+                            value={preciosGrid[String(n.id_nivel_precio)] ?? ''}
+                            onChange={e => setPreciosGrid(prev => ({ ...prev, [String(n.id_nivel_precio)]: e.target.value }))}
+                            placeholder="0.00"
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <div className="form-hint" style={{ marginTop: 6 }}>
+                  El precio se cobra por unidad × la cantidad que el cliente pide.
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="modal-footer">
+            <button type="button" className="btn btn-outline" onClick={onClose}>Cancelar</button>
+            <button type="submit" className="btn btn-primary" disabled={saving}>
+              {saving ? 'Guardando...' : extra ? 'Guardar cambios' : 'Crear extra'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 // ── Pagina Procesos ───────────────────────────────────────────────────────
 export default function Procesos() {
   const {
-    procesos, barrenos, saques,
+    procesos, barrenos, saques, extras,
     addProceso, editProceso, guardarPreciosProceso, guardarPreciosProcesoEspecial,
   } = useCotizacion()
 
-  const [tab,    setTab]    = useState('procesos') // 'procesos' | 'barrenos' | 'saques'
+  const [tab,    setTab]    = useState('procesos') // 'procesos' | 'barrenos' | 'saques' | 'extras'
   const [modal,  setModal]  = useState(null)
   const [toast,  setToast]  = useState(null)
   const [search, setSearch] = useState('')
@@ -462,7 +611,7 @@ export default function Procesos() {
     setModal(null)
   }
 
-  // ── Guardar barreno / saque ──────────────────────────────────────────────
+  // ── Guardar barreno / saque / extra ─────────────────────────────────────
   const handleSaveEspecial = async (form) => {
     const { preciosEspecial = [], ...procesoData } = form
     const res = modal.type === 'create'
@@ -474,7 +623,7 @@ export default function Procesos() {
       const { error: pErr } = await guardarPreciosProcesoEspecial(id, preciosEspecial)
       if (pErr) { showToast(pErr, 'error'); return }
     }
-    const tipo = procesoData.tipo === 'BARRENO' ? 'Barreno' : 'Saque'
+    const tipo = procesoData.tipo === 'BARRENO' ? 'Barreno' : procesoData.tipo === 'EXTRA' ? 'Extra' : 'Saque'
     showToast(modal.type === 'create' ? `${tipo} creado ✅` : `${tipo} actualizado ✅`)
     setModal(null)
   }
@@ -487,29 +636,29 @@ export default function Procesos() {
 
   // ── Lista según el tab activo ─────────────────────────────────────────────
   const procesosNormales = procesos.filter(p => p.tipo === 'PROCESO' || !p.tipo)
-  const listaTab = tab === 'procesos' ? procesosNormales : tab === 'barrenos' ? barrenos.concat(procesos.filter(p => !p.activo && p.tipo === 'BARRENO')) : saques.concat(procesos.filter(p => !p.activo && p.tipo === 'SAQUE'))
+  const tipoDelTab = tab === 'barrenos' ? 'BARRENO' : tab === 'saques' ? 'SAQUE' : tab === 'extras' ? 'EXTRA' : null
   const listaAllTab = tab === 'procesos'
     ? procesosNormales
-    : procesos.filter(p => p.tipo === (tab === 'barrenos' ? 'BARRENO' : 'SAQUE'))
+    : procesos.filter(p => p.tipo === tipoDelTab)
 
   const filtered = listaAllTab.filter(p =>
     p.nombre.toLowerCase().includes(search.toLowerCase())
   )
 
-  const tabLabel = tab === 'procesos' ? 'proceso' : tab === 'barrenos' ? 'barreno' : 'nivel de saque'
+  const tabLabel = tab === 'procesos' ? 'proceso' : tab === 'barrenos' ? 'barreno' : tab === 'saques' ? 'nivel de saque' : 'extra'
 
   return (
     <>
       <div className="page-header">
         <div>
           <div className="page-title">Procesos Adicionales</div>
-          <div className="page-subtitle">Procesos, barrenos y saques configurables por nivel</div>
+          <div className="page-subtitle">Procesos, barrenos, saques y extras configurables por nivel</div>
         </div>
         <button
           className="btn btn-primary"
           onClick={() => setModal({ type: 'create' })}
         >
-          + {tab === 'procesos' ? 'Nuevo proceso' : tab === 'barrenos' ? 'Nuevo barreno' : 'Nuevo nivel de saque'}
+          + {tab === 'procesos' ? 'Nuevo proceso' : tab === 'barrenos' ? 'Nuevo barreno' : tab === 'saques' ? 'Nuevo nivel de saque' : 'Nuevo extra'}
         </button>
       </div>
 
@@ -522,6 +671,7 @@ export default function Procesos() {
             { key: 'procesos', icon: '⚙️', label: 'Procesos', count: procesosNormales.length },
             { key: 'barrenos', icon: '🔩', label: 'Barrenos', count: procesos.filter(p => p.tipo === 'BARRENO').length },
             { key: 'saques',   icon: '✂️', label: 'Saques',   count: procesos.filter(p => p.tipo === 'SAQUE').length },
+            { key: 'extras',   icon: '✨', label: 'Extras',   count: procesos.filter(p => p.tipo === 'EXTRA').length },
           ].map(t => (
             <button
               key={t.key}
@@ -555,6 +705,11 @@ export default function Procesos() {
             ✂️ <strong>Saques:</strong> se cobran como monto fijo según la complejidad del trabajo. Configura los niveles de complejidad con su precio por nivel de cliente.
           </div>
         )}
+        {tab === 'extras' && (
+          <div className="alert alert-warning" style={{ marginBottom: 14 }}>
+            ✨ <strong>Extras:</strong> se cobran como monto fijo por cantidad. Configura cada extra con su precio por nivel de cliente.
+          </div>
+        )}
 
         <div className="search-bar">
           <div className="search-input-wrap">
@@ -573,7 +728,7 @@ export default function Procesos() {
 
         {filtered.length === 0 ? (
           <div className="empty-state">
-            <div className="empty-state-icon">{tab === 'procesos' ? '⚙️' : tab === 'barrenos' ? '🔩' : '✂️'}</div>
+            <div className="empty-state-icon">{tab === 'procesos' ? '⚙️' : tab === 'barrenos' ? '🔩' : tab === 'saques' ? '✂️' : '✨'}</div>
             <h3>{search ? 'Sin resultados' : `Sin ${tabLabel}s registrados`}</h3>
             <p>{search ? 'Intenta con otro termino' : `Haz clic en "+ Nuevo ${tabLabel}" para comenzar`}</p>
           </div>
@@ -587,6 +742,7 @@ export default function Procesos() {
                   </th>
                   {tab === 'procesos' && <th>Unidad de cobro</th>}
                   {tab === 'barrenos' && <th>Etiqueta</th>}
+                  {tab === 'extras'   && <th></th>}
                   <th>Estado</th>
                   <th style={{ width: 90 }}>Acciones</th>
                 </tr>
@@ -654,6 +810,12 @@ export default function Procesos() {
       )}
       {modal?.type === 'edit' && tab === 'saques' && (
         <SaqueModal saque={modal.data} onClose={() => setModal(null)} onSave={handleSaveEspecial} />
+      )}
+      {modal?.type === 'create' && tab === 'extras' && (
+        <ExtraModal extra={null} onClose={() => setModal(null)} onSave={handleSaveEspecial} />
+      )}
+      {modal?.type === 'edit' && tab === 'extras' && (
+        <ExtraModal extra={modal.data} onClose={() => setModal(null)} onSave={handleSaveEspecial} />
       )}
     </>
   )

@@ -1,3 +1,5 @@
+import { r5 } from '../lib/utils'
+
 /**
  * ESC/POS command builder para impresoras térmicas.
  * Compatible con impresoras Epson TM, BIXOLON, RONGTA, POS-58, etc.
@@ -96,22 +98,22 @@ export function buildTicketVidrio(detalle, cols = 42) {
     const pzas     = it.piezas ?? 1
     const clave    = it.clave ?? '?'
     const medida   = `${it.largo_cm}x${it.ancho_cm}`
-    const descLine = `${pzas} pza${pzas > 1 ? 's' : ''} - ${clave} ${medida}`
-    const amt      = ('$' + Number(it.subtotal_vidrio).toFixed(2)).padStart(amtW)
+    const descLine = `${pzas}- ${medida} ${clave}`
+    const amt      = ('$' + r5(Number(it.subtotal_vidrio)).toFixed(2)).padStart(amtW)
     const pad      = Math.max(1, cols - descLine.length - amtW)
     p(Cmd.BOLD_ON)
     p(descLine + ' '.repeat(pad) + amt + '\n')
     p(Cmd.BOLD_OFF)
 
     for (const pr of (it.procesos ?? [])) {
-      const prAmt = ('$' + Number(pr.subtotal).toFixed(2)).padStart(amtW)
+      const prAmt = ('$' + r5(Number(pr.subtotal)).toFixed(2)).padStart(amtW)
       const prDesc = '+ ' + pr.nombre
       const prPad = Math.max(1, cols - prDesc.length - amtW)
       p(prDesc + ' '.repeat(prPad) + prAmt + '\n')
     }
 
     if (it.procesos?.length > 0) {
-      const subAmt = ('$' + Number(it.subtotal_partida).toFixed(2)).padStart(amtW)
+      const subAmt = ('$' + r5(Number(it.subtotal_partida)).toFixed(2)).padStart(amtW)
       p(rowLR('Subtotal', subAmt, cols) + '\n')
     }
     p('\n')
@@ -120,7 +122,7 @@ export function buildTicketVidrio(detalle, cols = 42) {
   // ── Total ─────────────────────────────────────────────────────────────────
   p('-'.repeat(cols) + '\n')
   p(Cmd.BOLD_ON)
-  p(rowLR('TOTAL:', '$' + Number(detalle.total).toFixed(2), cols) + '\n')
+  p(rowLR('TOTAL:', '$' + r5(Number(detalle.total)).toFixed(2), cols) + '\n')
   p(Cmd.BOLD_OFF)
 
   // ── Forma de pago (solo pedido) ───────────────────────────────────────────
@@ -128,11 +130,11 @@ export function buildTicketVidrio(detalle, cols = 42) {
     p('-'.repeat(cols) + '\n')
     p(rowLR('Forma de pago:', detalle.formaPago === 'LIQUIDADO' ? 'Liquidado' : 'Anticipo', cols) + '\n')
     if (detalle.formaPago === 'ANTICIPO') {
-      p(rowLR('Anticipo:', '$' + Number(detalle.anticipo).toFixed(2), cols) + '\n')
+      p(rowLR('Anticipo:', '$' + r5(Number(detalle.anticipo)).toFixed(2), cols) + '\n')
       if (!detalle.esEntregado) {
-        p(rowLR('Saldo pendiente:', '$' + Number(detalle.saldo).toFixed(2), cols) + '\n')
+        p(rowLR('Saldo pendiente:', '$' + r5(Number(detalle.saldo)).toFixed(2), cols) + '\n')
       } else if (detalle.saldo_cobrado != null) {
-        p(rowLR('Saldo cobrado:', '$' + Number(detalle.saldo_cobrado).toFixed(2), cols) + '\n')
+        p(rowLR('Saldo cobrado:', '$' + r5(Number(detalle.saldo_cobrado)).toFixed(2), cols) + '\n')
       }
     }
   }
@@ -174,58 +176,22 @@ export function buildTicketEscPos(venta, cols = 42) {
   p(rowLR('Hora:', venta.hora,  cols) + '\n')
   p('-'.repeat(cols) + '\n')
 
-  // ── Cabecera de columnas ─────────────────────────────────────────────────
-  const subtotalW = 9   // "$9999.99"
-  const cantW     = 4   // "999 "
-  const descW     = cols - cantW - subtotalW - 2
-  p(Cmd.BOLD_ON)
-  p('CANT' + ' ' + 'DESCRIPCION'.padEnd(descW) + ' ' + 'IMPORTE'.padStart(subtotalW) + '\n')
-  p(Cmd.BOLD_OFF)
   p('-'.repeat(cols) + '\n')
-
-  // ── Función para envolver texto ───────────────────────────────────────────
-  const wrapText = (text, width) => {
-    const words = text.split(' ')
-    const lines = []
-    let currentLine = ''
-    for (const word of words) {
-      if ((currentLine + ' ' + word).length <= width) {
-        currentLine = currentLine ? currentLine + ' ' + word : word
-      } else {
-        if (currentLine) lines.push(currentLine)
-        currentLine = word
-      }
-    }
-    if (currentLine) lines.push(currentLine)
-    return lines
-  }
 
   // ── Partidas ──────────────────────────────────────────────────────────────
   for (const item of venta.partidas) {
-    const subtotalStr = ('$' + Number(item.subtotal).toFixed(2)).padStart(subtotalW)
-    const fullDesc = item.descripcion + (item.tono ? ' - ' + item.tono : '')
-    const descLines = wrapText(fullDesc, descW)
-    
-    // Primera línea: Cantidad + Descripción completa envuelta + Subtotal
-    if (descLines.length > 0) {
-      const firstLine = descLines[0].padEnd(descW)
-      p(String(item.cantidad).padStart(3) + ' ' + firstLine + ' ' + subtotalStr + '\n')
-      
-      // Líneas adicionales de descripción (sin cantidad ni importe, solo descripción)
-      for (let i = 1; i < descLines.length; i++) {
-        const additionalLine = descLines[i].padEnd(descW)
-        p('    ' + additionalLine + '\n')
-      }
-      
-      // Precio unitario en línea separada
-      p('    $' + Number(item.precioUnitario).toFixed(2) + '/u\n')
-    }
+    const tono  = item.tono ? ' · ' + item.tono : ''
+    const precio = '$' + r5(Number(item.precioUnitario)).toFixed(2)
+    const line   = `${item.cantidad} - ${item.descripcion}${tono} x ${precio}`
+    p(Cmd.BOLD_ON)
+    p(line + '\n')
+    p(Cmd.BOLD_OFF)
   }
 
   // ── Total ─────────────────────────────────────────────────────────────────
   p('-'.repeat(cols) + '\n')
   p(Cmd.BOLD_ON)
-  p(rowLR('TOTAL:', '$' + Number(venta.total).toFixed(2), cols) + '\n')
+  p(rowLR('TOTAL:', '$' + r5(Number(venta.total)).toFixed(2), cols) + '\n')
   p(Cmd.BOLD_OFF)
 
   // ── Pie ───────────────────────────────────────────────────────────────────

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { fmt5 } from '../../lib/utils'
 import * as XLSX from 'xlsx'
 import { useApp } from '../../context/AppContext'
 import { printTicket } from '../../utils/ticket'
@@ -16,32 +17,15 @@ function TicketPreview({ venta }) {
       <div className="ticket-row"><span>Fecha:</span><span>{venta.fecha}</span></div>
       <div className="ticket-row"><span>Hora:</span><span>{venta.hora}</span></div>
       <hr className="ticket-divider" />
-      <table className="ticket-table">
-        <thead>
-          <tr>
-            <th>Cant.</th>
-            <th>Descripción</th>
-            <th>Tono</th>
-            <th className="right">P.U.</th>
-            <th className="right">Subtotal</th>
-          </tr>
-        </thead>
-        <tbody>
-          {venta.partidas.map((p, i) => (
-            <tr key={i}>
-              <td>{p.cantidad}</td>
-              <td>{p.descripcion}</td>
-              <td>{p.tono || '—'}</td>
-              <td className="right">${Number(p.precioUnitario).toFixed(2)}</td>
-              <td className="right">${Number(p.subtotal).toFixed(2)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      {venta.partidas.map((p, i) => (
+        <div key={i} style={{ fontWeight: 700, marginBottom: 4, fontSize: 12 }}>
+          {p.cantidad} - {p.descripcion}{p.tono ? ` · ${p.tono}` : ''} x ${fmt5(p.precioUnitario)}
+        </div>
+      ))}
       <hr className="ticket-divider" />
       <div className="ticket-total">
         <span>TOTAL</span>
-        <span>${Number(venta.total).toFixed(2)}</span>
+        <span>${fmt5(venta.total)}</span>
       </div>
       <hr className="ticket-divider" />
       <div style={{ textAlign: 'center', fontSize: 11, color: 'var(--text-muted)', marginTop: 8 }}>
@@ -123,10 +107,21 @@ function DetalleModal({ ventaResumen, onClose }) {
 
 // ── Página Historial ──────────────────────────────────────────────────────
 export default function Historial() {
-  const { ventas } = useApp()
+  const { ventas, refreshVentas } = useApp()
   const [fechaDesde, setFechaDesde]           = useState('')
   const [fechaHasta, setFechaHasta]           = useState('')
   const [ventaSeleccionada, setVentaSeleccionada] = useState(null)
+  const [refreshing, setRefreshing]           = useState(false)
+
+  useEffect(() => {
+    refreshVentas()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    await refreshVentas()
+    setRefreshing(false)
+  }
 
   const filtered = ventas.filter(v => {
     if (!fechaDesde && !fechaHasta) return true
@@ -183,13 +178,22 @@ export default function Historial() {
             {ventas.length} venta{ventas.length !== 1 ? 's' : ''} registrada{ventas.length !== 1 ? 's' : ''}
           </div>
         </div>
-        <button
-          className="btn btn-outline"
-          onClick={exportarExcel}
-          disabled={filtered.length === 0}
-        >
-          📥 Exportar Excel
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            className="btn btn-outline"
+            onClick={handleRefresh}
+            disabled={refreshing}
+          >
+            {refreshing ? '⏳' : '🔄'} Actualizar
+          </button>
+          <button
+            className="btn btn-outline"
+            onClick={exportarExcel}
+            disabled={filtered.length === 0}
+          >
+            📥 Exportar Excel
+          </button>
+        </div>
       </div>
 
       <div className="page-body">
@@ -206,7 +210,7 @@ export default function Historial() {
           <div className="stat-card">
             <div className="stat-label">Monto en período</div>
             <div className="stat-value" style={{ fontSize: 18 }}>
-              ${totalPeriodo.toFixed(2)}
+              ${fmt5(totalPeriodo)}
             </div>
           </div>
         </div>
@@ -277,7 +281,7 @@ export default function Historial() {
                     <td data-label="Productos">{venta.numPartidas}</td>
                     <td data-label="Piezas">{venta.totalPiezas}</td>
                     <td data-label="Total" style={{ fontWeight: 700, color: 'var(--primary)' }}>
-                      ${Number(venta.total).toFixed(2)}
+                      ${fmt5(venta.total)}
                     </td>
                     <td data-label="">
                       <button
