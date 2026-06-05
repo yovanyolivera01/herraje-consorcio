@@ -289,6 +289,7 @@ router.get('/cotizaciones', async (req, res) => {
 router.post('/cotizaciones', async (req, res) => {
   try {
     const { id_nivel_precio, id_cliente, observaciones } = req.body
+    if (!id_nivel_precio) return res.status(400).json({ message: 'Nivel de precio requerido' })
     const { rows: ins } = await query(
       `INSERT INTO cotizacion (folio, id_nivel_precio, id_cliente, observaciones, fecha)
        VALUES ('COT-00000', $1, $2, $3, $4) RETURNING id_cotizacion`,

@@ -1,5 +1,11 @@
 import { http } from './http'
 
+// Wrapper para compatibilidad con componentes que esperan { data, error }
+async function safe(fn) {
+  try   { return { data: await fn(), error: null } }
+  catch (e) { return { data: null, error: e.message ?? String(e) } }
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────
 
 const TZ = 'America/Mexico_City'
@@ -96,19 +102,19 @@ export const getUnidadesCobro = () => http.get('/api/unidades-cobro')
 // ── Cotizaciones ──────────────────────────────────────────────────────────
 
 export const iniciarCotizacion = ({ id_nivel_precio, id_cliente = null, observaciones = null }) =>
-  http.post('/api/cotizaciones', { id_nivel_precio, id_cliente, observaciones })
+  safe(() => http.post('/api/cotizaciones', { id_nivel_precio, id_cliente, observaciones }))
 
 export const agregarPartida = (id_cotizacion, partida) =>
-  http.post(`/api/cotizaciones/${id_cotizacion}/partidas`, partida)
+  safe(() => http.post(`/api/cotizaciones/${id_cotizacion}/partidas`, partida))
 
 export const actualizarCotizacion = (id_cotizacion, datos) =>
-  http.put(`/api/cotizaciones/${id_cotizacion}/actualizar`, datos)
+  safe(() => http.put(`/api/cotizaciones/${id_cotizacion}/actualizar`, datos))
 
 export const finalizarCotizacion = (id_cotizacion, total) =>
-  http.put(`/api/cotizaciones/${id_cotizacion}`, { total: Number(total), estatus: 'FINALIZADA' })
+  safe(() => http.put(`/api/cotizaciones/${id_cotizacion}`, { total: Number(total), estatus: 'FINALIZADA' }))
 
 export const cancelarCotizacion = (id_cotizacion) =>
-  http.put(`/api/cotizaciones/${id_cotizacion}`, { estatus: 'CANCELADA' })
+  safe(() => http.put(`/api/cotizaciones/${id_cotizacion}`, { estatus: 'CANCELADA' }))
 
 export const getCotizaciones = async () => {
   const rows = await http.get('/api/cotizaciones')
@@ -132,13 +138,13 @@ export const getCotizaciones = async () => {
 // ── Partidas extra (maquila / productos generales) ────────────────────────
 
 export const agregarPartidaExtra = (id_cotizacion, partida) =>
-  http.post(`/api/cotizaciones/${id_cotizacion}/extras`, partida)
+  safe(() => http.post(`/api/cotizaciones/${id_cotizacion}/extras`, partida))
 
 export const getPartidasExtra = (id_cotizacion) =>
   http.get(`/api/cotizaciones/${id_cotizacion}/extras`)
 
 export const deletePartidasExtra = (id_cotizacion) =>
-  http.del(`/api/cotizaciones/${id_cotizacion}/extras`)
+  safe(() => http.del(`/api/cotizaciones/${id_cotizacion}/extras`))
 
 // ── Detalle completo de cotización ────────────────────────────────────────
 
