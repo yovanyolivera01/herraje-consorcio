@@ -15,18 +15,18 @@ export default function Login() {
 
   const from = location.state?.from?.pathname ?? null
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     setError(null)
     setLoading(true)
     try {
-      const session = login(usuario.trim(), password.trim())
-      const home    = HOME_POR_ROL[session.role] ?? '/cot/nueva'
-      const permitidas = PERMISOS[session.role]
+      const session = await login(usuario.trim(), password.trim())
+      const home    = HOME_POR_ROL[session.rol] ?? '/cot/nueva'
+      const permitidas = PERMISOS[session.rol]
       const puedeVolver = from && (permitidas === null || permitidas?.some(r => from.startsWith(r)))
       navigate(puedeVolver ? from : home, { replace: true })
-    } catch {
-      setError('Usuario o contraseña incorrectos')
+    } catch (e) {
+      setError(e.message ?? 'Usuario o contraseña incorrectos')
     } finally {
       setLoading(false)
     }
@@ -93,14 +93,16 @@ export default function Login() {
               </div>
             )}
 
-            <button
-              type="submit"
-              className="btn btn-primary"
-              style={{ width: '100%', padding: '12px 0', fontSize: 15, marginTop: 4 }}
-              disabled={loading}
-            >
-              {loading ? 'Entrando...' : 'Entrar'}
-            </button>
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: 4 }}>
+              <button
+                type="submit"
+                className="btn btn-primary"
+                style={{ padding: '8px 32px', fontSize: 13 }}
+                disabled={loading}
+              >
+                {loading ? 'Entrando...' : 'Entrar'}
+              </button>
+            </div>
           </form>
         </div>
 
