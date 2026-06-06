@@ -4,7 +4,6 @@ const USUARIOS = {
   '129': { role: 'admin',    nombre: 'Super Usuario' },
   '130': { role: 'vendedor', nombre: 'Vendedor' },
   '131': { role: 'almacen',  nombre: 'Almacén' },
-  '132': { role: 'rh',       nombre: 'Recursos Humanos' },
 }
 
 // ── Rutas permitidas por rol (null = acceso total) ─────────────────────────
@@ -39,18 +38,12 @@ export const PERMISOS = {
     '/cot/clientes',
   ],
 
-  rh: [
-    '/personal/empleados',
-    '/personal/registro',
-    '/personal/resumen',
-  ],
 }
 
 export const HOME_POR_ROL = {
   admin:    '/proveedores',
   vendedor: '/cot/nueva',
   almacen:  '/cot/nueva',
-  rh:       '/personal/empleados',
 }
 
 const AuthContext = createContext()

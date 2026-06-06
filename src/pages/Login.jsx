@@ -15,18 +15,18 @@ export default function Login() {
 
   const from = location.state?.from?.pathname ?? null
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault()
     setError(null)
     setLoading(true)
     try {
-      const session = await login(usuario.trim(), password.trim())
-      const home    = HOME_POR_ROL[session.rol] ?? '/cot/nueva'
-      const permitidas = PERMISOS[session.rol]
+      const session = login(usuario.trim(), password.trim())
+      const home    = HOME_POR_ROL[session.role] ?? '/cot/nueva'
+      const permitidas = PERMISOS[session.role]
       const puedeVolver = from && (permitidas === null || permitidas?.some(r => from.startsWith(r)))
       navigate(puedeVolver ? from : home, { replace: true })
-    } catch (e) {
-      setError(e.message ?? 'Usuario o contraseña incorrectos')
+    } catch {
+      setError('Usuario o contraseña incorrectos')
     } finally {
       setLoading(false)
     }
