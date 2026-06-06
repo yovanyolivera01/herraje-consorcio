@@ -197,6 +197,9 @@ export default function Layout() {
       { key: 'inventarios', label: 'Almacén',   items: inventariosNavAlmacen },
       { key: 'vidrio',      label: 'Catalogos', items: cotNavItems },
     ]
+    : role === 'rh' ? [
+      { key: 'personal', label: 'Personal', items: personalNavItems },
+    ]
     : []
 
   const q = busqueda.trim().toLowerCase()
