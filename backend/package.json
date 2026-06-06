@@ -2,6 +2,7 @@
   "name": "herraje-consorcio-backend",
   "version": "1.0.0",
   "description": "API backend para Herraje Consorcio",
+  "type": "commonjs",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
