@@ -178,7 +178,10 @@ export default function Layout() {
   const toggleSystem = (key) => setExpanded(prev => prev === key ? '' : key)
 
   const sistemas =
-    role === 'admin' ? [
+    role === 'rh' ? [
+      { key: 'personal', label: 'Personal', items: personalNavItems },
+    ]
+    : role === 'admin' ? [
       { key: 'herraje',     label: 'Herraje',   items: herrajeNavItems },
       { key: 'ventas',      label: 'Ventas',    items: ventasNavItems },
       { key: 'reportes',    label: 'Reportes',  items: reportesNavItems },
