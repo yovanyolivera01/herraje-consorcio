@@ -34,9 +34,9 @@ router.get('/reportes/partidas-vidrio', async (req, res) => {
       LEFT JOIN tipo_vidrio tv ON tv.id_tipo_vidrio = pp.id_tipo_vidrio
       WHERE p.tipo_pedido = 'VIDRIO'
         AND p.estatus     = 'ENTREGADO'
-        AND ($1::date IS NULL OR p.fecha_entrega >= $1::date)
-        AND ($2::date IS NULL OR p.fecha_entrega <= $2::date)
-      ORDER BY p.fecha_entrega DESC
+        AND ($1::timestamptz IS NULL OR COALESCE(p.fecha_entrega, p.fecha_creacion) >= $1::timestamptz)
+        AND ($2::timestamptz IS NULL OR COALESCE(p.fecha_entrega, p.fecha_creacion) <= $2::timestamptz)
+      ORDER BY COALESCE(p.fecha_entrega, p.fecha_creacion) DESC
     `, [fecha_inicio || null, fecha_fin || null])
     ok(res, rows)
   } catch (e) { err(res, e) }
@@ -66,8 +66,8 @@ router.get('/reportes/extras-maquila', async (req, res) => {
       WHERE p.tipo_pedido = 'VIDRIO'
         AND p.estatus     = 'ENTREGADO'
         AND e.tipo        = 'MAQUILA'
-        AND ($1::date IS NULL OR COALESCE(p.fecha_entrega, p.fecha_creacion) >= $1::date)
-        AND ($2::date IS NULL OR COALESCE(p.fecha_entrega, p.fecha_creacion) <= $2::date)
+        AND ($1::timestamptz IS NULL OR COALESCE(p.fecha_entrega, p.fecha_creacion) >= $1::timestamptz)
+        AND ($2::timestamptz IS NULL OR COALESCE(p.fecha_entrega, p.fecha_creacion) <= $2::timestamptz)
       ORDER BY fecha_entrega_iso DESC
     `, [fecha_inicio || null, fecha_fin || null])
     ok(res, rows)
@@ -98,8 +98,8 @@ router.get('/reportes/extras-herraje', async (req, res) => {
       WHERE p.tipo_pedido = 'VIDRIO'
         AND p.estatus     = 'ENTREGADO'
         AND e.tipo        = 'PRODUCTO'
-        AND ($1::date IS NULL OR COALESCE(p.fecha_entrega, p.fecha_creacion) >= $1::date)
-        AND ($2::date IS NULL OR COALESCE(p.fecha_entrega, p.fecha_creacion) <= $2::date)
+        AND ($1::timestamptz IS NULL OR COALESCE(p.fecha_entrega, p.fecha_creacion) >= $1::timestamptz)
+        AND ($2::timestamptz IS NULL OR COALESCE(p.fecha_entrega, p.fecha_creacion) <= $2::timestamptz)
       ORDER BY fecha_entrega_iso DESC
     `, [fecha_inicio || null, fecha_fin || null])
     ok(res, rows)
@@ -125,8 +125,8 @@ router.get('/reportes/ventas-herraje', async (req, res) => {
       JOIN ventas v ON v.id = dv.venta_id
       LEFT JOIN productos       p  ON p.id                  = dv.producto_id
       LEFT JOIN producto_general pg ON pg.id_producto_general = dv.id_producto_general
-      WHERE ($1::date IS NULL OR v.fecha_hora >= $1::date)
-        AND ($2::date IS NULL OR v.fecha_hora <= $2::date)
+      WHERE ($1::timestamptz IS NULL OR v.fecha_hora >= $1::timestamptz)
+        AND ($2::timestamptz IS NULL OR v.fecha_hora <= $2::timestamptz)
       ORDER BY v.fecha_hora DESC
     `, [fecha_inicio || null, fecha_fin || null])
     ok(res, rows)

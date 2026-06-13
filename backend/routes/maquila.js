@@ -167,8 +167,8 @@ router.get('/maquila/pedidos/historial', async (req, res) => {
       LEFT JOIN cliente c ON c.id_cliente = p.id_cliente
       WHERE p.tipo_pedido = 'MAQUILA'
         AND p.estatus = 'ENTREGADO'
-        AND ($1::date IS NULL OR p.fecha_entrega >= $1::date)
-        AND ($2::date IS NULL OR p.fecha_entrega <= $2::date)
+        AND ($1::timestamptz IS NULL OR p.fecha_entrega >= $1::timestamptz)
+        AND ($2::timestamptz IS NULL OR p.fecha_entrega <= $2::timestamptz)
       ORDER BY p.fecha_entrega DESC
     `, [fecha_inicio || null, fecha_fin || null])
     ok(res, rows)

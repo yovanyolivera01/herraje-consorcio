@@ -1,6 +1,6 @@
 import { mxDayBound } from './utils'
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const API = import.meta.env.VITE_API_URL || ''
 
 async function apiFetch(path, options = {}) {
   const { method = 'GET', body } = options
