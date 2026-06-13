@@ -9,6 +9,7 @@ import {
   LogOut, Menu, ChevronDown, ChevronLeft, ChevronRight, Crown, User,
   Frame, DoorOpen, Hammer, Warehouse, Box,
   ShoppingCart, TrendingUp, Archive,
+  CardSim,
 } from 'lucide-react'
 
 // ── Navegacion del sistema Herraje ────────────────────────────────────────
@@ -126,6 +127,13 @@ const personalNavItems = [
   ]},
 ]
 
+const EgresosNavItes =[
+  {section:'Egresos',links: [
+    {to:'/admin/usuarios',icon:<CardSim size={16}></CardSim>,label:'Registrar Egreso'},
+  ]},
+]
+
+
 // ── Iconos de sistema ─────────────────────────────────────────────────────
 const sistemaIconos = {
   herraje:     <DoorOpen size={18} />,
@@ -134,6 +142,7 @@ const sistemaIconos = {
   reportes:    <TrendingUp size={18} />,
   inventarios: <Archive size={18} />,
   personal:    <HardHat size={18} />,
+  egresos:     <CardSim size={18}/>,
 }
 
 export default function Layout() {
@@ -185,6 +194,7 @@ export default function Layout() {
       { key: 'inventarios', label: 'Almacén',   items: inventariosNavItems },
       { key: 'vidrio',      label: 'Catalogos', items: cotNavItems },
       { key: 'personal',    label: 'Personal',  items: personalNavItems },
+      {key:  'egresos',     label: 'Egresos',   items: EgresosNavItes}
     ]
     : role === 'vendedor' ? [
       { key: 'ventas',   label: 'Ventas',   items: ventasNavVendedor },

@@ -199,10 +199,10 @@ router.get('/procesos', async (req, res) => {
 
 router.post('/procesos', async (req, res) => {
   try {
-    const { nombre, id_unidad_cobro, precio_unitario = 0 } = req.body
+    const { nombre, id_unidad_cobro, precio_unitario = 0, tipo = 'PROCESO', diametro_mm = null } = req.body
     const { rows: ins } = await query(
-      'INSERT INTO proceso (nombre, id_unidad_cobro, precio_unitario) VALUES ($1,$2,$3) RETURNING id_proceso',
-      [nombre, id_unidad_cobro, Number(precio_unitario)]
+      'INSERT INTO proceso (nombre, id_unidad_cobro, precio_unitario, tipo, diametro_mm) VALUES ($1,$2,$3,$4,$5) RETURNING id_proceso',
+      [nombre, id_unidad_cobro, Number(precio_unitario), tipo, diametro_mm ?? null]
     )
     const { rows } = await query(`
       SELECT p.*,

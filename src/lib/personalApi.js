@@ -1,17 +1,29 @@
-import { supabase } from './supabase'
+const API = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
-// ── Horario base (constantes) ─────────────────────────────────
+async function apiFetch(path, options = {}) {
+  const { method = 'GET', body } = options
+  const res = await fetch(`${API}/api${path}`, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data.message ?? `HTTP ${res.status}`)
+  return data
+}
+
+// ── Horario base (constantes) ─────────────────────────────────────────────────
 export const HORARIO_BASE = {
   SEMANA: { entrada: '09:30', salida: '19:30', minutosEsperados: 600 },
   SABADO: { entrada: '09:30', salida: '16:30', minutosEsperados: 420 },
 }
-export const MINUTOS_SEMANA_COMPLETA = 600 * 5 + 420 // 3420 min = 57 hrs
+export const MINUTOS_SEMANA_COMPLETA = 600 * 5 + 420
 
 export function getTipoDia(nombreDia) {
   return nombreDia === 'Sábado' ? 'SABADO' : 'SEMANA'
 }
 
-// ── Helpers de tiempo ─────────────────────────────────────────
+// ── Helpers de tiempo ─────────────────────────────────────────────────────────
 export function timeToMin(t) {
   if (!t) return null
   const [h, m] = t.split(':').map(Number)
@@ -24,12 +36,11 @@ export function minToHHMM(min) {
   return String(Math.floor(abs / 60)).padStart(2, '0') + ':' + String(abs % 60).padStart(2, '0')
 }
 
-// Supabase devuelve TIME como "HH:MM:SS", normalizamos a "HH:MM"
 function normTime(t) {
   return t ? t.slice(0, 5) : null
 }
 
-// ── Cálculo por día ───────────────────────────────────────────
+// ── Cálculo por día ───────────────────────────────────────────────────────────
 export function calcularDia(horaEntrada, horaSalida, nombreDia) {
   const tipo    = getTipoDia(nombreDia)
   const horario = HORARIO_BASE[tipo]
@@ -65,7 +76,7 @@ export function calcularDia(horaEntrada, horaSalida, nombreDia) {
   }
 }
 
-// ── Cálculo resumen semanal ───────────────────────────────────
+// ── Cálculo resumen semanal ───────────────────────────────────────────────────
 export function calcularResumenSemanal(registros) {
   let minutosTrabajados = 0
   let minutosExtra      = 0
@@ -82,10 +93,10 @@ export function calcularResumenSemanal(registros) {
     }
   }
 
-  const DIAS_LABORALES = 6 // Lun–Sáb
-
+  const DIAS_LABORALES = 6
   let bonoPuntualidad = false
   let motivoBono      = null
+
   if (diasCompletos === 0) {
     motivoBono = 'Sin registros completos en la semana.'
   } else if (diasCompletos < DIAS_LABORALES) {
@@ -106,15 +117,14 @@ export function calcularResumenSemanal(registros) {
   }
 }
 
-// ── Helpers de semana ─────────────────────────────────────────
-// Convierte un objeto Date a "YYYY-MM-DD" usando hora LOCAL (no UTC)
+// ── Helpers de semana ─────────────────────────────────────────────────────────
 function localStr(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 export function getLunesDeSemana(fechaStr) {
   const d   = new Date(fechaStr + 'T12:00:00')
-  const dia = d.getDay() // 0=dom
+  const dia = d.getDay()
   const off = dia === 0 ? -6 : 1 - dia
   d.setDate(d.getDate() + off)
   return localStr(d)
@@ -144,7 +154,6 @@ export function getNombreDia(fechaStr) {
   return NOMBRES_DIA[new Date(fechaStr + 'T12:00:00').getDay()]
 }
 
-// Devuelve las 6 fechas de la semana (Lun–Sáb) a partir del lunes
 export function getDiasDeSemana(fechaLunes) {
   return Array.from({ length: 6 }, (_, i) => {
     const d = new Date(fechaLunes + 'T12:00:00')
@@ -153,85 +162,42 @@ export function getDiasDeSemana(fechaLunes) {
   })
 }
 
-// ── Semanas (Supabase) ────────────────────────────────────────
+// ── Semanas ───────────────────────────────────────────────────────────────────
 export async function getOrCreateSemana(fechaRef) {
   const lunes  = getLunesDeSemana(fechaRef)
   const sabado = (() => { const d = new Date(lunes + 'T12:00:00'); d.setDate(d.getDate() + 5); return localStr(d) })()
   const desc   = `Semana del ${fmtCorto(lunes)} al ${fmtCorto(sabado)}`
-
-  const { data: existente } = await supabase
-    .from('semanas')
-    .select('*')
-    .eq('fecha_inicio', lunes)
-    .maybeSingle()
-  if (existente) return existente
-
-  const { data, error } = await supabase
-    .from('semanas')
-    .insert({ fecha_inicio: lunes, fecha_fin: sabado, descripcion: desc })
-    .select()
-    .single()
-  if (error) throw error
-  return data
+  return apiFetch('/personal/semanas', {
+    method: 'POST',
+    body: { fecha_inicio: lunes, fecha_fin: sabado, descripcion: desc },
+  })
 }
 
 export async function getSemanas() {
-  const { data, error } = await supabase
-    .from('semanas')
-    .select('*')
-    .order('fecha_inicio', { ascending: false })
-  if (error) throw error
-  return data ?? []
+  return apiFetch('/personal/semanas')
 }
 
-// ── Empleados (Supabase) ──────────────────────────────────────
+// ── Empleados ─────────────────────────────────────────────────────────────────
 export async function getEmpleados() {
-  const { data, error } = await supabase
-    .from('empleados')
-    .select('*')
-    .eq('activo', true)
-    .order('nombre')
-  if (error) throw error
-  return data ?? []
+  return apiFetch('/personal/empleados')
 }
 
 export async function createEmpleado(nombre, telefono) {
-  const { data, error } = await supabase
-    .from('empleados')
-    .insert({ nombre: nombre.trim(), telefono: telefono.trim() })
-    .select()
-    .single()
-  if (error) throw error
-  return data
+  return apiFetch('/personal/empleados', { method: 'POST', body: { nombre, telefono } })
 }
 
 export async function updateEmpleado(id, nombre, telefono) {
-  const { data, error } = await supabase
-    .from('empleados')
-    .update({ nombre: nombre.trim(), telefono: telefono.trim() })
-    .eq('empleado_id', id)
-    .select()
-    .single()
-  if (error) throw error
-  return data
+  return apiFetch(`/personal/empleados/${id}`, { method: 'PUT', body: { nombre, telefono } })
 }
 
 export async function deleteEmpleado(id) {
-  const { error } = await supabase
-    .from('empleados')
-    .update({ activo: false })
-    .eq('empleado_id', id)
-  if (error) throw error
+  return apiFetch(`/personal/empleados/${id}`, { method: 'DELETE' })
 }
 
-// ── Registros diarios (Supabase) ──────────────────────────────
+// ── Registros diarios ─────────────────────────────────────────────────────────
 export async function getRegistrosSemana(semanaId) {
-  const { data, error } = await supabase
-    .from('registros_diarios')
-    .select('*')
-    .eq('semana_id', semanaId)
-  if (error) throw error
-  return (data ?? []).map(r => ({
+  const rows = await apiFetch(`/personal/registros/${semanaId}`)
+  return rows.map(r => ({
     ...r,
     hora_entrada: normTime(r.hora_entrada),
     hora_salida:  normTime(r.hora_salida),
@@ -239,42 +205,28 @@ export async function getRegistrosSemana(semanaId) {
 }
 
 export async function upsertRegistro(empleadoId, semanaId, fecha, horaEntrada, horaSalida) {
-  const { data, error } = await supabase
-    .from('registros_diarios')
-    .upsert(
-      {
-        empleado_id:        empleadoId,
-        semana_id:          semanaId,
-        fecha,
-        nombre_dia:         getNombreDia(fecha),
-        hora_entrada:       horaEntrada || null,
-        hora_salida:        horaSalida  || null,
-        fecha_modificacion: new Date().toISOString(),
-      },
-      { onConflict: 'empleado_id,fecha' }
-    )
-    .select()
-    .single()
-  if (error) throw error
+  const data = await apiFetch('/personal/registros', {
+    method: 'POST',
+    body: {
+      empleadoId,
+      semanaId,
+      fecha,
+      nombreDia:    getNombreDia(fecha),
+      horaEntrada:  horaEntrada || null,
+      horaSalida:   horaSalida  || null,
+    },
+  })
   return { ...data, hora_entrada: normTime(data.hora_entrada), hora_salida: normTime(data.hora_salida) }
 }
 
-// ── Resumen semanal (Supabase) ────────────────────────────────
+// ── Resumen semanal ───────────────────────────────────────────────────────────
 export async function getResumenesSemana(semanaId) {
-  const { data, error } = await supabase
-    .from('resumen_semanal')
-    .select('*')
-    .eq('semana_id', semanaId)
-  if (error) throw error
-  return data ?? []
+  return apiFetch(`/personal/resumenes/${semanaId}`)
 }
 
 export async function upsertResumen(empleadoId, semanaId, resumen) {
-  const { error } = await supabase
-    .from('resumen_semanal')
-    .upsert(
-      { empleado_id: empleadoId, semana_id: semanaId, ...resumen, fecha_calculo: new Date().toISOString() },
-      { onConflict: 'empleado_id,semana_id' }
-    )
-  if (error) throw error
+  return apiFetch('/personal/resumenes', {
+    method: 'POST',
+    body: { empleadoId, semanaId, resumen },
+  })
 }

@@ -2,11 +2,10 @@ const express = require('express')
 const { query } = require('../db')
 const router = express.Router()
 
-// ── Helpers ───────────────────────────────────────────────────────────────
 function ok(res, data)  { res.json(data) }
 function err(res, e, status = 500) { res.status(status).json({ message: e.message }) }
 
-// ── Proveedores ───────────────────────────────────────────────────────────
+// ── Proveedores ───────────────────────────────────────────────────────────────
 
 router.get('/proveedores', async (req, res) => {
   try {
@@ -16,14 +15,26 @@ router.get('/proveedores', async (req, res) => {
 })
 
 router.post('/proveedores', async (req, res) => {
+  const client = await require('../db').pool.connect()
   try {
+    await client.query('BEGIN')
     const { nombre, telefono } = req.body
-    const { rows } = await query(
-      'INSERT INTO proveedores (nombre, telefono) VALUES ($1, $2) RETURNING *',
-      [nombre, telefono || null]
+    const { rows: ins } = await client.query(
+      'INSERT INTO proveedores (codigo, nombre, telefono) VALUES ($1, $2, $3) RETURNING id',
+      ['__tmp__', nombre, telefono || null]
     )
+    const id     = ins[0].id
+    const codigo = 'PROV-' + String(id).padStart(4, '0')
+    const { rows } = await client.query(
+      'UPDATE proveedores SET codigo=$1 WHERE id=$2 RETURNING *',
+      [codigo, id]
+    )
+    await client.query('COMMIT')
     ok(res, rows[0])
-  } catch (e) { err(res, e) }
+  } catch (e) {
+    await client.query('ROLLBACK')
+    err(res, e)
+  } finally { client.release() }
 })
 
 router.put('/proveedores/:codigo', async (req, res) => {
@@ -45,7 +56,7 @@ router.delete('/proveedores/:codigo', async (req, res) => {
   } catch (e) { err(res, e) }
 })
 
-// ── Productos ─────────────────────────────────────────────────────────────
+// ── Productos ─────────────────────────────────────────────────────────────────
 
 const PRODUCTOS_QUERY = `
   SELECT
@@ -148,14 +159,14 @@ router.post('/productos/:id/ajustar', async (req, res) => {
   }
 })
 
-// ── Ventas ────────────────────────────────────────────────────────────────
+// ── Ventas ────────────────────────────────────────────────────────────────────
 
 router.get('/ventas', async (req, res) => {
   try {
     const { rows } = await query(`
       SELECT
         v.id, v.folio, v.fecha_hora, v.total,
-        COUNT(dv.id)           AS num_partidas,
+        COUNT(dv.id)                  AS num_partidas,
         COALESCE(SUM(dv.cantidad), 0) AS total_piezas
       FROM ventas v
       LEFT JOIN detalle_venta dv ON dv.venta_id = v.id
@@ -178,17 +189,38 @@ router.post('/ventas', async (req, res) => {
     )
     const venta = ventaRes.rows[0]
 
+    let total = 0
     for (const p of partidas) {
-      await client.query(
-        `INSERT INTO detalle_venta (venta_id, producto_id, cantidad, precio_unitario)
-         VALUES ($1, $2, $3, $4)`,
-        [venta.id, p.productoId, p.cantidad, p.precioUnitario]
-      )
+      if (p.tipo === 'GENERAL' || p.idProductoGeneral) {
+        await client.query(
+          `INSERT INTO detalle_venta (venta_id, id_producto_general, producto_id, cantidad, precio_unitario)
+           VALUES ($1, $2, NULL, $3, $4)`,
+          [venta.id, p.idProductoGeneral, p.cantidad, p.precioUnitario]
+        )
+        const cur = await client.query(
+          'SELECT existencias FROM producto_general WHERE id_producto_general=$1', [p.idProductoGeneral]
+        )
+        if (cur.rows.length) {
+          const nuevas = Math.max(0, (cur.rows[0].existencias ?? 0) - p.cantidad)
+          await client.query(
+            'UPDATE producto_general SET existencias=$1 WHERE id_producto_general=$2',
+            [nuevas, p.idProductoGeneral]
+          )
+        }
+      } else {
+        await client.query(
+          `INSERT INTO detalle_venta (venta_id, producto_id, cantidad, precio_unitario)
+           VALUES ($1, $2, $3, $4)`,
+          [venta.id, p.productoId, p.cantidad, p.precioUnitario]
+        )
+      }
+      total += Number(p.subtotal ?? (p.cantidad * p.precioUnitario))
     }
 
+    await client.query('UPDATE ventas SET total=$1 WHERE id=$2', [total, venta.id])
     const finalRes = await client.query('SELECT * FROM ventas WHERE id=$1', [venta.id])
     await client.query('COMMIT')
-    ok(res, { venta: finalRes.rows[0], partidas })
+    ok(res, finalRes.rows[0])
   } catch (e) {
     await client.query('ROLLBACK')
     err(res, e)
@@ -203,10 +235,13 @@ router.get('/ventas/:id', async (req, res) => {
       query('SELECT id, folio, fecha_hora, total FROM ventas WHERE id=$1', [req.params.id]),
       query(`
         SELECT dv.cantidad, dv.precio_unitario, dv.subtotal,
-               p.codigo, p.descripcion, p.tono
+               p.codigo,
+               COALESCE(p.descripcion, pg.nombre, '') AS descripcion,
+               COALESCE(p.tono, '')                   AS tono
         FROM detalle_venta dv
-        JOIN productos p ON p.id = dv.producto_id
-        WHERE dv.venta_id=$1
+        LEFT JOIN productos        p  ON p.id                   = dv.producto_id
+        LEFT JOIN producto_general pg ON pg.id_producto_general = dv.id_producto_general
+        WHERE dv.venta_id = $1
       `, [req.params.id]),
     ])
     if (!ventaRes.rows.length) return res.status(404).json({ message: 'Venta no encontrada' })

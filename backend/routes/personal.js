@@ -17,12 +17,9 @@ router.get('/personal/semanas', async (req, res) => {
 router.post('/personal/semanas', async (req, res) => {
   try {
     const { fecha_inicio, fecha_fin, descripcion } = req.body
-
-    const existente = await query('SELECT * FROM semanas WHERE fecha_inicio=$1', [fecha_inicio])
-    if (existente.rows.length) return ok(res, existente.rows[0])
-
     const { rows } = await query(
-      'INSERT INTO semanas (fecha_inicio, fecha_fin, descripcion) VALUES ($1,$2,$3) RETURNING *',
+      `INSERT INTO semanas (fecha_inicio, fecha_fin, descripcion) VALUES ($1,$2,$3)
+       ON CONFLICT (fecha_inicio) DO UPDATE SET fecha_fin=EXCLUDED.fecha_fin RETURNING *`,
       [fecha_inicio, fecha_fin, descripcion]
     )
     ok(res, rows[0])

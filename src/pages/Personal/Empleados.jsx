@@ -6,6 +6,7 @@ function EmpleadoModal({ empleado, onClose, onSave }) {
   const [form, setForm] = useState({
     nombre:   empleado?.nombre   ?? '',
     telefono: empleado?.telefono ?? '',
+    
   })
   const [errors, setErrors]   = useState({})
   const [loading, setLoading] = useState(false)
