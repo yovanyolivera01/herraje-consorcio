@@ -13,7 +13,8 @@ export default function RegistrarEgreso() {
     const [saving, setSaving] = useState(false)
     const [egresos, setEgresos] = useState([])
     const [toast,setToast] = useState(null)
-
+    const [desde,setDesde] = useState('')
+    const [hasta, setHasta] = useState('')
     useEffect(() => {
         getEgresos().then(data => setEgresos(data))
     }, [])
@@ -40,7 +41,13 @@ export default function RegistrarEgreso() {
         setToast('Egreso Registrado  ✅ ')
         getEgresos().then(data => setEgresos(data))
     }
+    
+    const egresosFiltrados = egresos.filter(e =>{
+        if(desde && e.fecha < desde) return false
+        if (hasta && e.fecha> hasta ) return false 
+        return true 
 
+    })
 
     return (
 
@@ -57,12 +64,21 @@ export default function RegistrarEgreso() {
                     + Nuevo egreso
                 </button>
             </div>
+            <div className="card">
+                <div>Total de egresos</div>
+                <strong>${egresosFiltrados.reduce((sum,e)=> sum+Number(e.monto),0).toFixed(2)}</strong>
+            </div>
 
             {toast && <div className="alert alert-success">{toast}</div>}
-
+           
+              
 
             <div className="page-body">
-                <div className="table-container">
+                <input type="date" value={desde} onChange={e=>setDesde(e.target.value)}/>
+                <input type="date" value={hasta} onChange={e=>setHasta(e.target.value)}/>
+
+
+                  <div className="table-container">
                     <table className="table">
                         <thead>
                             <tr>
@@ -72,7 +88,7 @@ export default function RegistrarEgreso() {
                             </tr>
                         </thead>
                         <tbody>
-                            {egresos.map(e => (
+                            {egresosFiltrados.map(e => (
                                 <tr key={e.id_egreso}>
                                     <td>{e.description}</td>
                                     <td>${Number(e.monto).toFixed(2)}</td>
@@ -80,6 +96,14 @@ export default function RegistrarEgreso() {
                                 </tr>
                             ))}
                         </tbody>
+                        <tfoot>
+                            <tr>
+                                <td><strong>Total</strong></td>
+                                <td><strong>${egresosFiltrados.reduce((sum, e) => sum + Number(e.monto), 0).toFixed(2)}</strong></td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+
 
                     </table>
 
