@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { SquareDashed } from 'lucide-react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { HOME_POR_ROL, PERMISOS } from '../context/AuthContext'
@@ -41,10 +42,10 @@ export default function Login() {
       <div style={{ width: '100%', maxWidth: 360 }}>
 
         <div style={{ textAlign: 'center', marginBottom: 32, color: '#fff' }}>
-          <div style={{ fontSize: 48, marginBottom: 8 }}>🔩</div>
-          <h1 style={{ fontSize: 26, fontWeight: 900, letterSpacing: 2, margin: 0 }}>TEMPLADOS</h1>
+          <SquareDashed size={48} color="white" />
+          <h1 style={{ fontSize: 26, fontWeight: 900, letterSpacing: 2, margin: 0 }}>VIDRIO TEMPLADO ROSALES </h1>
           <p style={{ fontSize: 13, color: 'rgba(180,210,255,.8)', margin: '4px 0 0', letterSpacing: 4 }}>
-            C O N S O R C I O
+            
           </p>
         </div>
 

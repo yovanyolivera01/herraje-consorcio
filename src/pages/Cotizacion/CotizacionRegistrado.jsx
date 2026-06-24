@@ -10,7 +10,7 @@ import { exportCotizacionPDF } from '../../utils/pdf'
 function parseNotacion(texto) {
   if (!texto?.trim()) return { error: 'Ingresa una medida (ej. 3-22x45)' }
   const limpio = texto.trim().replace(/\s/g, '')
-  const match  = limpio.match(/^(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)[xX](\d+(?:\.\d+)?)$/)
+  const match  = limpio.match(/^(\d+)-(\d+(?:\.\d+)?)[xX](\d+(?:\.\d+)?)$/)
   if (!match) return { error: 'Formato invalido. Usa: {piezas}-{largo}x{ancho} — ej. 3-22x45' }
   const piezas = Number(match[1]); const largo = Number(match[2]); const ancho = Number(match[3])
   if (piezas <= 0) return { error: 'Piezas debe ser mayor a 0' }

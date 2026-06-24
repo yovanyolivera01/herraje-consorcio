@@ -147,7 +147,8 @@ const sistemaIconos = {
 
 export default function Layout() {
   const [drawerOpen, setDrawerOpen] = useState(false)
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => window.innerWidth < 1024)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => window.innerWidth >= 768 && window.innerWidth < 1024
+)
   const [busqueda, setBusqueda] = useState('')
   const location = useLocation()
   const { role, user, logout } = useAuth()
@@ -157,6 +158,12 @@ export default function Layout() {
     return () => { document.body.style.overflow = '' }
   }, [drawerOpen])
 
+  useEffect(() => {
+    const handleResize = () => setSidebarCollapsed(window.innerWidth >= 768 && window.innerWidth < 1024)
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
   const path       = location.pathname
   const isPersonal = path.startsWith('/personal')
 
@@ -165,12 +172,15 @@ export default function Layout() {
   const inventariosRoutes= ['/cot/inventario', '/productos']
   const vidrioRoutes     = ['/cot/tipos-vidrio', '/cot/procesos', '/cot/empresas', '/cot/precios', '/cot/clientes']
 
+  const egresosRoutes = ['/admin/usuarios']
+
   const sistemaActivo = isPersonal
     ? 'personal'
     : ventasRoutes.some(r => path.startsWith(r))      ? 'ventas'
     : reportesRoutes.some(r => path.startsWith(r))    ? 'reportes'
     : inventariosRoutes.some(r => path.startsWith(r)) ? 'inventarios'
     : vidrioRoutes.some(r => path.startsWith(r))      ? 'vidrio'
+    : egresosRoutes.some(r => path.startsWith(r))     ? 'egresos'
     : 'herraje'
 
   const [expanded, setExpanded] = useState(sistemaActivo)
@@ -179,7 +189,7 @@ export default function Layout() {
 
   const sistemaLabel = {
     herraje: 'Templados Consorcio', vidrio: 'Catalogos',
-    ventas: 'Ventas', reportes: 'Reportes', inventarios: 'Almacén', personal: 'Personal',
+    ventas: 'Ventas', reportes: 'Reportes', inventarios: 'Almacén', personal: 'Personal', egresos: 'Egresos',
   }
   const topbarTitle = sistemaLabel[sistemaActivo] ?? 'Templados Consorcio'
 
@@ -235,7 +245,7 @@ export default function Layout() {
             {sistemaIconos[sistemaActivo]}
           </span>
           <div className="sidebar-logo-text">
-            <h1>{{ herraje: 'Herraje', vidrio: 'Catalogos', ventas: 'Ventas', reportes: 'Reportes', inventarios: 'Almacén', personal: 'Personal' }[sistemaActivo] ?? 'Herraje'}</h1>
+            <h1>{{ herraje: 'Herraje', vidrio: 'Catalogos', ventas: 'Ventas', reportes: 'Reportes', inventarios: 'Almacén', personal: 'Personal', egresos: 'Egresos' }[sistemaActivo] ?? 'Herraje'}</h1>
             <p>Consorcio</p>
           </div>
         </div>

@@ -67,7 +67,7 @@ function parseNotacion(texto) {
     .replace(/,/g, '.')
 
   // Formato completo: piezas-largo x ancho
-  let m = limpio.match(/^(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)[xX](\d+(?:\.\d+)?)$/)
+  let m = limpio.match(/^(\d+)-(\d+(?:\.\d+)?)[xX](\d+(?:\.\d+)?)$/)
   if (m) {
     const piezas = Number(m[1])
     const largo  = Number(m[2])
@@ -98,8 +98,8 @@ function TicketCotizacion({ cotizacion }) {
   return (
     <div className="ticket-preview">
       <div className="ticket-header">
-        <h2>TEMPLADOS CONSORCIO</h2>
-        <p style={{ fontWeight: 700 }}>ARTE EN VIDRIO</p>
+        <h2>VIDRIO TEMPLADO ROSALES</h2>
+        <p style={{ fontWeight: 700 }}>CONSTRUYENDO SUEÑOS</p>
         <p style={{ fontWeight: 700 }}>Cotizacion</p>
       </div>
       <hr className="ticket-divider" />

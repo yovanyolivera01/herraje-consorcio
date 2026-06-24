@@ -6,7 +6,7 @@ import { useCotizacion } from '../../context/CotizacionContext'
 function parseNotacion(texto) {
   if (!texto || !texto.trim()) return { error: 'Ingresa una medida (ej. 3-22x45)' }
   const limpio = texto.trim().replace(/\s/g, '')
-  const match  = limpio.match(/^(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)[xX](\d+(?:\.\d+)?)$/)
+  const match  = limpio.match(/^(\d+)-(\d+(?:\.\d+)?)[xX](\d+(?:\.\d+)?)$/)
   if (!match) return { error: 'Formato invalido. Usa: {piezas}-{largo}x{ancho}' }
   const piezas = Number(match[1])
   const largo  = Number(match[2])
