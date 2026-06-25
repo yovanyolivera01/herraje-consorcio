@@ -22,7 +22,7 @@ function TicketMaquila({ cotizacion }) {
   return (
     <div className="ticket-preview">
       <div className="ticket-header">
-        <h2>TEMPLADOS CONSORCIO</h2>
+        <h2>VIDRIO TEMPLADO Y ALUMINIO ROSALES</h2>
         <p style={{ fontWeight: 700 }}>COTIZACION MAQUILA</p>
       </div>
       <hr className="ticket-divider" />
@@ -62,7 +62,7 @@ function TicketPedidoMaquila({ pedido, total, clienteNombre, nivelNombre }) {
   return (
     <div className="ticket-preview">
       <div className="ticket-header">
-        <h2>TEMPLADOS CONSORCIO</h2>
+        <h2>VIDRIO TEMPLADO Y ALUMINIO ROSALES</h2>
         <p style={{ fontWeight: 700 }}>PEDIDO MAQUILA</p>
       </div>
       <hr className="ticket-divider" />

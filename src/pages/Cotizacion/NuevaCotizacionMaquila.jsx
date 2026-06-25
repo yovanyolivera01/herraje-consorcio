@@ -8,7 +8,7 @@ function TicketMaquila({ detalle, onConvertir, convirtiendo }) {
     <div style={{ maxWidth: 380, margin: '0 auto' }}>
       <div className="ticket-preview">
         <div className="ticket-header">
-          <h2>TEMPLADOS CONSORCIO</h2>
+          <h2>VIDRIO TEMPLADO Y ALUMINIO ROSALES</h2>
           <p style={{ fontWeight: 700 }}>COTIZACION MAQUILA</p>
         </div>
         <hr className="ticket-divider" />

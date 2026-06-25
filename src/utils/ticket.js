@@ -114,8 +114,11 @@ export function printTicketVidrio(detalle) {
 </head>
 <body>
   <div class="header center">
-    <h1>TEMPLADOS CONSORCIO</h1>
-    <p>ARTE EN VIDRIO</p>
+    <h1>VIDRIO TEMPLADO Y ALUMINIO ROSALES</h1>
+    <p>Rosales #35 C.P. 55270, Granjas Valle de Guadalupe</p>
+    <p>Ecatepec de Morelos, Estado de Mexico</p>
+    <p>Tel: 5523134256, 5522161432, 5547912671</p>
+    <p>rosalesvidriotempladofernando@gmail.com</p>
     <p>${titulo}</p>
   </div>
   <hr class="divider">
@@ -203,8 +206,11 @@ export function printPedidoPendiente(detalle) {
 </head>
 <body>
   <div class="center" style="margin-bottom:8px">
-    <div style="font-size:16px;font-weight:900;letter-spacing:1px">TEMPLADOS CONSORCIO</div>
-    <div style="font-size:11px;font-weight:600">ARTE EN VIDRIO</div>
+    <div style="font-size:14px;font-weight:900;letter-spacing:0.5px">VIDRIO TEMPLADO Y ALUMINIO ROSALES</div>
+    <div style="font-size:10px">Rosales #35 C.P. 55270, Granjas Valle de Guadalupe</div>
+    <div style="font-size:10px">Ecatepec de Morelos, Estado de Mexico</div>
+    <div style="font-size:10px">Tel: 5523134256, 5522161432, 5547912671</div>
+    <div style="font-size:10px">rosalesvidriotempladofernando@gmail.com</div>
     <div style="font-size:12px;font-weight:700;margin-top:3px">PEDIDO PENDIENTE</div>
   </div>
   <hr class="divider">
@@ -396,9 +402,9 @@ export function printCotizacionCarta(detalle) {
     <div class="diamond-left"></div>
     <div class="diamond-right"></div>
     <div class="top-diamond"></div>
-    <h1>TEMPLADOS</h1>
-    <div class="consorcio">C O N S O R C I O</div>
-    <div class="slogan">Arte en Vidrio</div>
+    <h1 style="font-size:26px">VIDRIO TEMPLADO Y ALUMINIO ROSALES</h1>
+    <div class="slogan">Rosales #35 C.P. 55270, Granjas Valle de Guadalupe · Ecatepec de Morelos, Estado de Mexico</div>
+    <div class="slogan" style="margin-top:4px">Tel: 5523134256, 5522161432, 5547912671 · rosalesvidriotempladofernando@gmail.com</div>
   </div>
 
   <!-- Marcas -->
@@ -475,7 +481,7 @@ export function printCotizacionCarta(detalle) {
   <!-- Pie -->
   <div class="footer-doc">
     ${pie}<br>
-    Templados Consorcio · Arte en Vidrio
+    Vidrio Templado y Aluminio Rosales · Tel: 5523134256, 5522161432, 5547912671
   </div>
 
 </body>
@@ -544,8 +550,11 @@ export function printTicket(venta, modo = '80mm') {
 </head>
 <body>
   <div class="header center">
-    <h1>TEMPLADOS CONSORCIO</h1>
-    <p class="bold">ARTE EN VIDRIO</p>
+    <h1>VIDRIO TEMPLADO Y ALUMINIO ROSALES</h1>
+    <p>Rosales #35 C.P. 55270, Granjas Valle de Guadalupe</p>
+    <p>Ecatepec de Morelos, Estado de Mexico</p>
+    <p>Tel: 5523134256, 5522161432, 5547912671</p>
+    <p>rosalesvidriotempladofernando@gmail.com</p>
     <p class="bold">Pedido herraje</p>
   </div>
   <hr class="divider">

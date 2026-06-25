@@ -9,7 +9,7 @@ function TicketPedido({ detalle, extras = [] }) {
   return (
     <div className="ticket-preview">
       <div className="ticket-header">
-        <h2>TEMPLADOS CONSORCIO</h2>
+        <h2>VIDRIO TEMPLADO Y ALUMINIO ROSALES</h2>
         <p style={{ fontWeight: 700 }}>PEDIDO DE VIDRIO</p>
       </div>
       <hr className="ticket-divider" />
@@ -87,7 +87,7 @@ function TicketEntrega({ detalle, saldoCobrado, extras = [] }) {
   return (
     <div className="ticket-preview">
       <div className="ticket-header">
-        <h2>TEMPLADOS CONSORCIO</h2>
+        <h2>VIDRIO TEMPLADO Y ALUMINIO ROSALES</h2>
         <p style={{ fontWeight: 700 }}>COMPROBANTE DE ENTREGA</p>
       </div>
       <hr className="ticket-divider" />

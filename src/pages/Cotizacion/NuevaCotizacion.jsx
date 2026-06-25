@@ -183,7 +183,7 @@ function TicketPedidoRapido({ detalle, extras = [] }) {
   return (
     <div className="ticket-preview">
       <div className="ticket-header">
-        <h2>TEMPLADOS CONSORCIO</h2>
+        <h2>VIDRIO TEMPLADO Y ALUMINIO ROSALES</h2>
         <p style={{ fontWeight: 700 }}>ARTE EN VIDRIO</p>
         <p style={{ fontWeight: 700 }}>Pedido</p>
       </div>
