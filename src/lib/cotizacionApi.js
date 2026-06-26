@@ -108,6 +108,8 @@ export const guardarPreciosProcesoEspecial = async (id_proceso, precios) => {
 
 export const getUnidadesCobro = async () => apiFetch('/unidades-cobro')
 
+export const getTiposPago = async () => apiFetch('/tipos-pago')
+
 // ── Cotizaciones ──────────────────────────────────────────────────────────────
 
 export const iniciarCotizacion = async ({ id_nivel_precio, id_cliente = null, observaciones = null }) =>

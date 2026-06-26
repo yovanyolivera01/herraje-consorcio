@@ -267,6 +267,15 @@ router.get('/unidades-cobro', async (req, res) => {
   } catch (e) { err(res, e) }
 })
 
+// ── Tipos de pago ──────────────────────────────────────────────────────────
+
+router.get('/tipos-pago', async (req, res) => {
+  try {
+    const { rows } = await query('SELECT * FROM tipo_pago ORDER BY id_tipo_pago ASC')
+    ok(res, rows)
+  } catch (e) { err(res, e) }
+})
+
 // ── Cotizaciones ──────────────────────────────────────────────────────────
 
 router.get('/cotizaciones', async (req, res) => {

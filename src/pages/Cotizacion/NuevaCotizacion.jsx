@@ -289,7 +289,7 @@ export default function NuevaCotizacion() {
   const cotEdit  = location.state?.cotEdit ?? null
 
   const {
-    tiposVidrio, espesores, nivelesPrecio, clientes, procesos, barrenos, saques, extras,
+    tiposVidrio, espesores, nivelesPrecio, clientes, procesos, barrenos, saques, extras, tiposPago,
     getPrecioVidrio, getPrecioProceso, getPrecioProcesoEspecial,
     getPreciosClienteRegistrado,
     iniciarCotizacion, agregarPartida, agregarPartidaExtra, deletePartidasExtra,
@@ -2099,23 +2099,21 @@ export default function NuevaCotizacion() {
                 <div className="form-group">
                   <label className="form-label required">Forma de pago</label>
                   <div style={{ display: 'flex', gap: 10, marginTop: 6, flexWrap: 'wrap' }}>
-                    {[['LIQUIDADO', 'Liquidado', 'Pago completo · entrega inmediata'],
-                      ['ANTICIPO',  'Anticipo',  'Pago parcial · queda pendiente']].map(([val, label, desc]) => (
+                    {tiposPago.map(tp => (
                       <label
-                        key={val}
+                        key={tp.id_tipo_pago}
                         style={{
                           flex: 1, minWidth: 140, display: 'flex', flexDirection: 'column', gap: 3,
                           padding: '10px 12px', borderRadius: 8, cursor: 'pointer',
-                          border: `2px solid ${modalFormaPago === val ? 'var(--accent)' : 'var(--border)'}`,
-                          background: modalFormaPago === val ? 'var(--accent-subtle, #ede9fe)' : 'white',
+                          border: `2px solid ${modalFormaPago === tp.descripcion ? 'var(--accent)' : 'var(--border)'}`,
+                          background: modalFormaPago === tp.descripcion ? 'var(--accent-subtle, #ede9fe)' : 'white',
                         }}
-                        onClick={() => { setModalFormaPago(val); setModalAnticipoStr(''); setModalError(null) }}
+                        onClick={() => { setModalFormaPago(tp.descripcion); setModalAnticipoStr(''); setModalError(null) }}
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <input type="radio" name="modalFP" value={val} checked={modalFormaPago === val} onChange={() => {}} />
-                          <span style={{ fontWeight: 600, fontSize: 14 }}>{label}</span>
+                          <input type="radio" name="modalFP" value={tp.descripcion} checked={modalFormaPago === tp.descripcion} onChange={() => {}} />
+                          <span style={{ fontWeight: 600, fontSize: 14 }}>{tp.descripcion.charAt(0) + tp.descripcion.slice(1).toLowerCase()}</span>
                         </div>
-                        <span style={{ fontSize: 11, color: 'var(--text-muted)', paddingLeft: 20 }}>{desc}</span>
                       </label>
                     ))}
                   </div>

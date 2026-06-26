@@ -93,6 +93,7 @@ function TicketCotizacion({ cot }) {
 
 // ── Modal convertir a pedido ──────────────────────────────────────────────
 function ConvertirModal({ cotizacion, onClose, onCreado }) {
+  const { tiposPago } = useCotizacion()
   const [formaPago, setFormaPago] = useState('LIQUIDADO')
   const [anticipo,  setAnticipo]  = useState('')
   const [saving,    setSaving]    = useState(false)
@@ -159,10 +160,10 @@ function ConvertirModal({ cotizacion, onClose, onCreado }) {
           <div className="form-group">
             <label className="form-label required">Forma de pago</label>
             <div style={{ display: 'flex', gap: 16, marginTop: 6 }}>
-              {[['LIQUIDADO','Liquidado — pago total'],['ANTICIPO','Anticipo — pago parcial']].map(([val, lbl]) => (
-                <label key={val} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 14 }}>
-                  <input type="radio" name="fp" value={val} checked={formaPago === val} onChange={() => { setFormaPago(val); setError(null) }} />
-                  {lbl}
+              {tiposPago.map(tp => (
+                <label key={tp.id_tipo_pago} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 14 }}>
+                  <input type="radio" name="fp" value={tp.descripcion} checked={formaPago === tp.descripcion} onChange={() => { setFormaPago(tp.descripcion); setError(null) }} />
+                  {tp.descripcion.charAt(0) + tp.descripcion.slice(1).toLowerCase()}
                 </label>
               ))}
             </div>

@@ -96,7 +96,7 @@ function TicketPedidoMaquila({ pedido, total, clienteNombre, nivelNombre }) {
 // ── Sección principal ─────────────────────────────────────────────────────
 export default function MaquilaSection() {
   const {
-    nivelesPrecio, clientes, procesos,
+    nivelesPrecio, clientes, procesos, tiposPago,
     getPrecioProceso, getPrecioProcesoEspecial,
     iniciarCotizacionMaquila, agregarPartidaMaquila, eliminarPartidaMaquila,
     finalizarCotizacionMaquila, convertirMaquilaAPedido,
@@ -666,18 +666,17 @@ export default function MaquilaSection() {
                 <div className="form-group">
                   <label className="form-label required">Forma de pago</label>
                   <div style={{ display:'flex', gap:10, marginTop:6, flexWrap:'wrap' }}>
-                    {[['LIQUIDADO','Liquidado','Pago completo'],['ANTICIPO','Anticipo','Pago parcial']].map(([val, label, desc]) => (
-                      <label key={val} style={{
+                    {tiposPago.map(tp => (
+                      <label key={tp.id_tipo_pago} style={{
                         flex:1, minWidth:140, display:'flex', flexDirection:'column', gap:3,
                         padding:'10px 12px', borderRadius:8, cursor:'pointer',
-                        border:`2px solid ${modalTipoPago === val ? 'var(--accent)' : 'var(--border)'}`,
-                        background: modalTipoPago === val ? 'var(--accent-subtle, #ede9fe)' : 'white',
-                      }} onClick={() => { setModalTipoPago(val); setModalAnticipo(''); setModalError(null) }}>
+                        border:`2px solid ${modalTipoPago === tp.descripcion ? 'var(--accent)' : 'var(--border)'}`,
+                        background: modalTipoPago === tp.descripcion ? 'var(--accent-subtle, #ede9fe)' : 'white',
+                      }} onClick={() => { setModalTipoPago(tp.descripcion); setModalAnticipo(''); setModalError(null) }}>
                         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                          <input type="radio" name="maqFP" value={val} checked={modalTipoPago === val} onChange={() => {}} />
-                          <span style={{ fontWeight:600, fontSize:14 }}>{label}</span>
+                          <input type="radio" name="maqFP" value={tp.descripcion} checked={modalTipoPago === tp.descripcion} onChange={() => {}} />
+                          <span style={{ fontWeight:600, fontSize:14 }}>{tp.descripcion.charAt(0) + tp.descripcion.slice(1).toLowerCase()}</span>
                         </div>
-                        <span style={{ fontSize:11, color:'var(--text-muted)', paddingLeft:20 }}>{desc}</span>
                       </label>
                     ))}
                   </div>
