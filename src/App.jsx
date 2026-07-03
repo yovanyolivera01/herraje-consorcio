@@ -30,6 +30,7 @@ import HistorialHerraje         from './pages/Herraje/HistorialHerraje'
 import ReporteVidrio            from './pages/Cotizacion/ReporteVidrio'
 import RegistrarEgreso          from './pages/Egresos/RegistrarEgreso'
 
+
 export default function App() {
   return (
     <ErrorBoundary>

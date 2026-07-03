@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
-import { fmt5 } from '../../lib/utils'
+import { fmt5, r5 } from '../../lib/utils'
 import { useCotizacion } from '../../context/CotizacionContext'
+import { printTicketVidrio } from '../../utils/ticket'
 
 // ── Parser (mismo que vidrio) ─────────────────────────────────────────────
 function parseNotacion(texto) {
@@ -47,7 +48,7 @@ function TicketMaquila({ cotizacion }) {
       <hr className="ticket-divider" />
       <div className="ticket-total">
         <span>TOTAL</span>
-        <span>${fmt5(cotizacion.partidas.reduce((s, p) => s + p.subtotal, 0))}</span>
+        <span>${fmt5(cotizacion.partidas.reduce((s, p) => s + r5(Number(p.subtotal ?? 0)), 0))}</span>
       </div>
       <hr className="ticket-divider" />
       <div style={{ textAlign: 'center', fontSize: 11, color: 'var(--text-muted)', marginTop: 8 }}>
@@ -137,7 +138,7 @@ export default function MaquilaSection() {
   const nivelSel    = nivelesPrecio.find(n => n.id_nivel_precio === Number(nivelId))
   const clienteSel  = clientes.find(c => c.id_cliente === Number(clienteId))
   const activos     = procesos.filter(p => p.activo)
-  const totalGeneral = partidas.reduce((s, p) => s + p.subtotal, 0)
+  const totalGeneral = partidas.reduce((s, p) => s + r5(Number(p.subtotal ?? 0)), 0)
 
   // Parse notation en vivo
   const parsed = useMemo(() => parseNotacion(notacion), [notacion])
@@ -306,7 +307,33 @@ export default function MaquilaSection() {
               {pedidoCreado.tipo_pago === 'CONTADO' ? 'Liquidado' : 'Pendiente de entrega'}
             </div>
           </div>
-          <button className="btn btn-primary" onClick={nuevaCotizacion}>+ Nueva cotizacion</button>
+          <div style={{ display:'flex', gap:8 }}>
+            <button className="btn btn-outline" onClick={() => printTicketVidrio({
+              tipo:          'pedido',
+              folio:         pedidoCreado.folio,
+              fecha:         new Date().toLocaleDateString('es-MX'),
+              hora:          new Date().toLocaleTimeString('es-MX', { hour:'2-digit', minute:'2-digit' }),
+              clienteNombre: cotCreada.clienteNombre ?? 'Mostrador',
+              nivelNombre:   cotCreada.nivelNombre   ?? '',
+              formaPago:     pedidoCreado.tipo_pago,
+              anticipo:      pedidoCreado.anticipo,
+              saldo:         pedidoCreado.saldo,
+              esEntregado:   false,
+              partidas:      cotCreada.partidas.map(p => ({
+                tipo:             'MAQUILA',
+                piezas:           p.cantidad ?? 1,
+                cantidad:         p.cantidad ?? 1,
+                largo_cm:         p.largo_cm,
+                ancho_cm:         p.ancho_cm,
+                clave:            p.descripcion || `${p.largo_cm}×${p.ancho_cm}cm`,
+                descripcion:      p.descripcion,
+                subtotal_partida: p.subtotal,
+                subtotal_vidrio:  null,
+                procesos:         [],
+              })),
+            })}>🖨️ Imprimir</button>
+            <button className="btn btn-primary" onClick={nuevaCotizacion}>+ Nueva cotizacion</button>
+          </div>
         </div>
         <div className="alert alert-success">
           ✅ Pedido <strong>{pedidoCreado.folio}</strong> registrado correctamente.
@@ -335,6 +362,28 @@ export default function MaquilaSection() {
           <button className="btn btn-primary" onClick={nuevaCotizacion}>+ Nueva cotizacion</button>
         </div>
         <div className="alert alert-success">✅ Cotizacion guardada correctamente con folio {cotCreada.folio}.</div>
+        <div style={{ marginBottom:12 }}>
+          <button className="btn btn-outline" onClick={() => printTicketVidrio({
+            tipo:          'cotizacion',
+            folio:         cotCreada.folio,
+            fecha:         new Date().toLocaleDateString('es-MX'),
+            hora:          new Date().toLocaleTimeString('es-MX', { hour:'2-digit', minute:'2-digit' }),
+            clienteNombre: cotCreada.clienteNombre ?? 'Mostrador',
+            nivelNombre:   cotCreada.nivelNombre   ?? '',
+            partidas:      cotCreada.partidas.map(p => ({
+              tipo:             'MAQUILA',
+              piezas:           p.cantidad ?? 1,
+              cantidad:         p.cantidad ?? 1,
+              largo_cm:         p.largo_cm,
+              ancho_cm:         p.ancho_cm,
+              clave:            p.descripcion || `${p.largo_cm}×${p.ancho_cm}cm`,
+              descripcion:      p.descripcion,
+              subtotal_partida: p.subtotal,
+              subtotal_vidrio:  null,
+              procesos:         [],
+            })),
+          })}>🖨️ Imprimir cotizacion</button>
+        </div>
         <TicketMaquila cotizacion={cotCreada} />
       </>
     )

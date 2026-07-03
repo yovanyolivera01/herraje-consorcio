@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
-import { fmt5 } from '../../lib/utils'
+import { fmt5, r5 } from '../../lib/utils'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useCotizacion } from '../../context/CotizacionContext'
 import { useApp } from '../../context/AppContext'
@@ -91,9 +91,22 @@ function parseNotacion(texto) {
   return { error: 'Formato invalido. Ej: 98x45  o  3-98x45' }
 }
 
+// ── Rounding helper: r5 per partida, per-piece for VIDRIO ────────────────
+function calcTotal(partidas) {
+  return partidas.reduce((s, p) => {
+    if (!p.tipo || p.tipo === 'VIDRIO') {
+      const pzas = Number(p.piezas ?? 1)
+      const cuVid = r5(Number(p.subtotal_vidrio || p.subtotal_partida || 0) / pzas)
+      const totProc = (p.procesos ?? []).reduce((ps, pr) => ps + r5(Number(pr.subtotal) / pzas) * pzas, 0)
+      return s + cuVid * pzas + totProc
+    }
+    return s + r5(Number(p.subtotal_partida ?? 0))
+  }, 0)
+}
+
 // ── Ticket de cotizacion ──────────────────────────────────────────────────
 function TicketCotizacion({ cotizacion }) {
-  const total = cotizacion.partidas.reduce((s, p) => s + p.subtotal_partida, 0)
+  const total = calcTotal(cotizacion.partidas)
 
   return (
     <div className="ticket-preview">
@@ -859,7 +872,7 @@ export default function NuevaCotizacion() {
 
   // ── Totales ───────────────────────────────────────────────────────────────
   const totalM2      = partidas.filter(p => p.tipo === 'VIDRIO' || !p.tipo).reduce((s, p) => s + p.metros2, 0)
-  const totalGeneral = partidas.reduce((s, p) => s + p.subtotal_partida, 0)
+  const totalGeneral = calcTotal(partidas)
   const tieneExtras  = partidas.some(p => p.tipo && p.tipo !== 'VIDRIO')
   const tieneVidrio  = partidas.some(p => p.tipo === 'VIDRIO' || !p.tipo)
   const nivelValido  = !tieneVidrio || usarPreciosCli || !!nivelId
@@ -1178,7 +1191,7 @@ export default function NuevaCotizacion() {
               clienteNombre: cotCreada.clienteNombre ?? 'Mostrador',
               nivelNombre: cotCreada.nivelNombre ?? '',
               esEntregado: false,
-              total: cotCreada.partidas.reduce((s, p) => s + p.subtotal_partida, 0),
+              total: calcTotal(cotCreada.partidas),
               partidas: cotCreada.partidas.map(p => {
                 if (!p.tipo || p.tipo === 'VIDRIO') return {
                   tipo: 'VIDRIO',
@@ -2099,7 +2112,9 @@ export default function NuevaCotizacion() {
                 <div className="form-group">
                   <label className="form-label required">Forma de pago</label>
                   <div style={{ display: 'flex', gap: 10, marginTop: 6, flexWrap: 'wrap' }}>
-                    {tiposPago.map(tp => (
+                    {tiposPago
+  //falta acabar               //    .filter(tp => tp.descripcion !== 'CREDITO' || clienteSeleccionado?.credito_activo)
+                      .map(tp => (
                       <label
                         key={tp.id_tipo_pago}
                         style={{

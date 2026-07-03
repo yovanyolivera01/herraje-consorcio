@@ -99,6 +99,8 @@ function ClienteModal({ cliente, onClose, onSave }) {
               </select>
               <div className="form-hint">Se aplicara automaticamente al crear una cotizacion para este cliente</div>
             </div>
+
+
           </div>
           <div className="modal-footer">
             <button type="button" className="btn btn-outline" onClick={onClose}>Cancelar</button>
@@ -380,6 +382,12 @@ export default function Clientes() {
     else showToast(cliente.activo ? 'Cliente desactivado' : 'Cliente activado ✅')
   }
 
+  const handleToggleCredito = async (cliente) => {
+    const { error } = await editCliente(cliente.id_cliente, { credito_activo: !cliente.credito_activo })
+    if (error) showToast(error, 'error')
+    else showToast(cliente.credito_activo ? 'Crédito desactivado' : 'Crédito habilitado 💳')
+  }
+
   const filtered = clientes
     .filter(c => filtroActivo === 'todos' || (filtroActivo === 'activos' ? c.activo : !c.activo))
     .filter(c =>
@@ -457,9 +465,14 @@ export default function Clientes() {
                       )}
                     </td>
                     <td data-label="Estado">
-                      <span className={`badge ${c.activo ? 'badge-green' : 'badge-gray'}`}>
-                        {c.activo ? 'Activo' : 'Inactivo'}
-                      </span>
+                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                        <span className={`badge ${c.activo ? 'badge-green' : 'badge-gray'}`}>
+                          {c.activo ? 'Activo' : 'Inactivo'}
+                        </span>
+                        {c.credito_activo && (
+                          <span className="badge badge-blue">💳 Crédito</span>
+                        )}
+                      </div>
                     </td>
                     <td data-label="">
                       <div style={{ display: 'flex', gap: 2 }}>
@@ -468,6 +481,9 @@ export default function Clientes() {
                         <button className="btn-icon" title="Vincular empresa" onClick={() => setModal({ type: 'vincular', data: c })}>🏢</button>
                         <button className="btn-icon" title={c.activo ? 'Desactivar' : 'Activar'} onClick={() => handleToggleActivo(c)}>
                           {c.activo ? '🔕' : '✅'}
+                        </button>
+                        <button className="btn-icon" title={c.credito_activo ? 'Quitar crédito' : 'Habilitar crédito'} onClick={() => handleToggleCredito(c)}>
+                          {c.credito_activo ? '💳' : '🚫'}
                         </button>
                       </div>
                     </td>

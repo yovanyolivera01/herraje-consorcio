@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
-import { fmt5 } from '../../lib/utils'
+import { fmt5, r5 } from '../../lib/utils'
 import { useCotizacion } from '../../context/CotizacionContext'
 import { useApp } from '../../context/AppContext'
 import { convertirCotizacionAPedido, getDetallePedido } from '../../lib/pedidosApi'
@@ -93,7 +93,8 @@ function TicketCotizacion({ cot }) {
 
 // ── Modal convertir a pedido ──────────────────────────────────────────────
 function ConvertirModal({ cotizacion, onClose, onCreado }) {
-  const { tiposPago } = useCotizacion()
+  const { tiposPago, clientes } = useCotizacion()
+  const clienteSeleccionado = clientes.find(c => c.id_cliente === cotizacion.id_cliente)
   const [formaPago, setFormaPago] = useState('LIQUIDADO')
   const [anticipo,  setAnticipo]  = useState('')
   const [saving,    setSaving]    = useState(false)
@@ -111,11 +112,12 @@ function ConvertirModal({ cotizacion, onClose, onCreado }) {
     }
     setSaving(true); setError(null)
     try {
-      const monto    = formaPago === 'LIQUIDADO' ? cotizacion.total : parseFloat(anticipo)
+      const monto = formaPago === 'LIQUIDADO' ? r5(cotizacion.total) : formaPago === 'CREDITO' ? 0 : parseFloat(anticipo)
+
       const idPedido = await convertirCotizacionAPedido(cotizacion.id, formaPago, monto)
 
       // Registrar productos herraje como venta en historial de ventas
-      if (formaPago === 'LIQUIDADO') {
+      if (formaPago === 'LIQUIDADO' || formaPago === 'CREDITO') {
         const prodExtras = (cotizacion.partidas ?? []).filter(p => p.tipo === 'PRODUCTO')
         if (prodExtras.length > 0) {
           const ventaPartidas = prodExtras.map(p => ({
@@ -160,7 +162,9 @@ function ConvertirModal({ cotizacion, onClose, onCreado }) {
           <div className="form-group">
             <label className="form-label required">Forma de pago</label>
             <div style={{ display: 'flex', gap: 16, marginTop: 6 }}>
-              {tiposPago.map(tp => (
+              {tiposPago
+                .filter(tp => tp.descripcion !== 'CREDITO' || clienteSeleccionado?.credito_activo)
+                .map(tp => (
                 <label key={tp.id_tipo_pago} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 14 }}>
                   <input type="radio" name="fp" value={tp.descripcion} checked={formaPago === tp.descripcion} onChange={() => { setFormaPago(tp.descripcion); setError(null) }} />
                   {tp.descripcion.charAt(0) + tp.descripcion.slice(1).toLowerCase()}
@@ -497,6 +501,7 @@ export default function CotizacionRegistrado() {
       if (e3) throw new Error(e3)
       setCotCreada({
         id:            cot.id_cotizacion,
+        id_cliente:    clienteSeleccionado?.id_cliente ?? null,
         folio:         final?.folio ?? cot.folio,
         clienteNombre: clienteSeleccionado?.nombre ?? '',
         clienteTel:    clienteSeleccionado?.telefono ?? null,

@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
-import { fmt5 } from '../../lib/utils'
+import { fmt5, r5 } from '../../lib/utils'
 import { useCotizacion } from '../../context/CotizacionContext'
+import { printTicketVidrio } from '../../utils/ticket'
 
 // ── Ticket preview ────────────────────────────────────────────────────────
 function TicketMaquila({ detalle, onConvertir, convirtiendo }) {
@@ -50,17 +51,43 @@ function TicketMaquila({ detalle, onConvertir, convirtiendo }) {
         <hr className="ticket-divider" />
         <div className="ticket-total">
           <span>TOTAL</span>
-          <span>${fmt5(detalle.total)}</span>
+          <span>${fmt5(detalle.partidas.reduce((s, p) => s + r5(Number(p.subtotal_partida)), 0))}</span>
         </div>
       </div>
-      <button
-        className="btn btn-primary"
-        style={{ width: '100%', marginTop: 16 }}
-        onClick={onConvertir}
-        disabled={convirtiendo}
-      >
-        {convirtiendo ? 'Procesando...' : '📋 Convertir a pedido'}
-      </button>
+      <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+        <button
+          className="btn btn-outline"
+          style={{ flex: 1 }}
+          onClick={() => printTicketVidrio({
+            tipo:          'cotizacion',
+            folio:         detalle.folio,
+            fecha:         detalle.fecha,
+            hora:          detalle.hora ?? '',
+            clienteNombre: detalle.cliente?.nombre ?? 'Mostrador',
+            nivelNombre:   detalle.nivel?.nombre ?? '',
+            partidas:      detalle.partidas.map(p => ({
+              tipo:             'MAQUILA',
+              piezas:           p.cantidad ?? 1,
+              cantidad:         p.cantidad ?? 1,
+              largo_cm:         p.largo_cm,
+              ancho_cm:         p.ancho_cm,
+              clave:            p.descripcion || `${p.largo_cm}×${p.ancho_cm}cm`,
+              descripcion:      p.descripcion,
+              subtotal_partida: p.subtotal_partida,
+              subtotal_vidrio:  null,
+              procesos:         (p.procesos ?? []).map(pr => ({ nombre: pr.nombre, subtotal: pr.subtotal })),
+            })),
+          })}
+        >🖨️ Imprimir</button>
+        <button
+          className="btn btn-primary"
+          style={{ flex: 1 }}
+          onClick={onConvertir}
+          disabled={convirtiendo}
+        >
+          {convirtiendo ? 'Procesando...' : '📋 Convertir a pedido'}
+        </button>
+      </div>
     </div>
   )
 }
@@ -265,7 +292,7 @@ export default function NuevaCotizacionMaquila() {
   const [error,       setError]       = useState(null)
   const [modalConv,   setModalConv]   = useState(false)
 
-  const totalParcial = partidas.reduce((s, p) => s + p.subtotal, 0)
+  const totalParcial = partidas.reduce((s, p) => s + r5(Number(p.subtotal ?? 0)), 0)
 
   const handleIniciar = async () => {
     if (!nivelId) { setError('Selecciona el nivel de precio'); return }

@@ -16,7 +16,7 @@ import {
 const herrajeNavItems = [
   { section: 'Proveedores', links: [{ to: '/proveedores', icon: <Truck size={16} />, label: 'Proveedores' }] },
   { section: 'Ventas', links: [
-    { to: '/ventas/nueva',     icon: <ReceiptText size={16} />, label: 'Nueva venta' },
+    { to: '/ventas/nueva',     icon: <ReceiptText size={16} />, label: 'Venta Herraje' },
   ]},
 ]
 
@@ -37,7 +37,7 @@ const cotNavEmpleado = []
 const ventasNavItems = [
   { section: 'Ventas', links: [
     { to: '/cot/nueva',              icon: <ClipboardList size={16} />,  label: 'Nueva cotizacion' },
-    { to: '/cot/registrado',         icon: <ClipboardCheck size={16} />, label: 'Cliente registrado' },
+  //  { to: '/cot/registrado',         icon: <ClipboardCheck size={16} />, label: 'Cliente registrado' },
     { to: '/cot/pedidos-pendientes', icon: <Clock size={16} />,          label: 'Pendientes' },
   ]},
 ]

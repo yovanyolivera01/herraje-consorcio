@@ -80,6 +80,7 @@ export const getPedidosPendientes = async () => {
       anticipo:           Number(row.monto_anticipo),
       saldo:              r5(Number(row.total)) - Number(row.monto_anticipo),
       estatus:            row.estatus,
+      tipo_pago:          row.tipo_pago ?? null,
       diasPendiente:      0,
       numPartidas:        Number(row.partidas_total      ?? 0),
       partidasPendientes: Number(row.partidas_pendientes ?? 0),
@@ -95,26 +96,39 @@ export const getPedidosEntregados = async (fechaDesde, fechaHasta) => {
   if (fechaDesde) params.set('fecha_inicio', fechaDesde)
   if (fechaHasta) params.set('fecha_fin',    fechaHasta)
   const rows = await apiFetch(`/pedidos/historial?${params}`)
-  return rows.map(row => {
-    const { fecha, hora }     = formatearFechaHora(row.fecha_creacion)
-    const { fecha: fechaEnt } = row.fecha_entrega ? formatearFechaHora(row.fecha_entrega) : { fecha: '—' }
-    return {
-      id:              row.id_pedido,
-      folio:           fmtFolio(row.folio),
-      fecha,
-      hora,
-      fechaEntrega:    fechaEnt,
-      fechaEntregaISO: row.fecha_entrega,
-      clienteNombre:   row.cliente ?? 'Mostrador',
-      nivelNombre:     row.nivel_precio ?? '',
-      tipo_pago:       row.tipo_pago,
-      forma_pago:      row.tipo_pago,
-      total:           Number(row.total),
-      anticipo:        Number(row.monto_anticipo),
-      saldo_cobrado:   row.monto_cobrado_entrega != null ? Number(row.monto_cobrado_entrega) : null,
-      totalCobrado:    Number(row.total_cobrado),
+
+  const map = new Map()
+  for (const row of rows) {
+    if (!map.has(row.id_pedido)) {
+      const { fecha, hora }     = formatearFechaHora(row.fecha_creacion)
+      const { fecha: fechaEnt } = row.fecha_entrega ? formatearFechaHora(row.fecha_entrega) : { fecha: '—' }
+      map.set(row.id_pedido, {
+        id:              row.id_pedido,
+        folio:           fmtFolio(row.folio),
+        fecha,
+        hora,
+        fechaEntrega:    fechaEnt,
+        fechaEntregaISO: row.fecha_entrega,
+        clienteNombre:   row.cliente ?? 'Mostrador',
+        nivelNombre:     row.nivel_precio ?? '',
+        tipo_pago:       row.tipo_pago,
+        forma_pago:      row.tipo_pago,
+        total:           Number(row.total),
+        anticipo:        Number(row.monto_anticipo),
+        saldo_cobrado:   row.monto_cobrado_entrega != null ? Number(row.monto_cobrado_entrega) : null,
+        totalCobrado:    Number(row.total_cobrado),
+        partidas:        [],
+      })
     }
-  })
+    if (row.largo_cm != null) {
+      map.get(row.id_pedido).partidas.push({
+        tipo_vidrio: row.tipo_vidrio ?? '—',
+        largo_cm:    Number(row.largo_cm),
+        ancho_cm:    Number(row.ancho_cm),
+      })
+    }
+  }
+  return Array.from(map.values())
 }
 
 // ── Detalle completo de un pedido ─────────────────────────────────────────────
@@ -200,4 +214,25 @@ export const getPedidosParaExport = async (fechaDesde, fechaHasta) => {
   if (fechaDesde) params.set('fecha_inicio', fechaDesde)
   if (fechaHasta) params.set('fecha_fin',    fechaHasta)
   return apiFetch(`/pedidos/exportar?${params}`)
+}
+
+export const getPedidosCredito = async () => {
+  const rows = await apiFetch('/pedidos/credito')
+  return rows.map(row => {
+    const { fecha, hora } = formatearFechaHora(row.fecha_creacion)
+    return {
+      id:             row.id_pedido,
+      folio:          fmtFolio(row.folio),
+      fecha,
+      hora,
+      fechaCreacionISO: row.fecha_creacion,
+      clienteNombre:  row.cliente ?? 'Mostrador',
+      total:          r5(Number(row.total)),
+      anticipo:       Number(row.monto_anticipo ?? 0),
+      saldo:          r5(Number(row.total)) - Number(row.monto_anticipo ?? 0),
+      estatus:        row.estatus,
+      tipo:           row.tipo ?? 'VIDRIO',
+      tipo_pago:      'CREDITO',
+    }
+  })
 }

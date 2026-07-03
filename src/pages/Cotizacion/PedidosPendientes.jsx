@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { fmt5 } from '../../lib/utils'
-import { getPedidosPendientes, getDetallePedido, marcarComoEntregado } from '../../lib/pedidosApi'
+import { getPedidosPendientes, getDetallePedido, marcarComoEntregado, getPedidosCredito } from '../../lib/pedidosApi'
 import { getPedidosPendientesMaquila, getDetallePedidoMaquila, entregarPartidaMaquila, marcarAnticipoLiquidado as marcarAnticipoMaquila } from '../../lib/maquilaApi'
 import { printPedidoPendiente, printTicketVidrio } from '../../utils/ticket'
 
@@ -240,7 +240,6 @@ function DetallePedidoModal({ resumen, onClose, onEntregado }) {
   const [loading,      setLoading]      = useState(true)
   const [error,        setError]        = useState(null)
   const [showEntregar, setShowEntregar] = useState(false)
-
   useEffect(() => {
     getDetallePedido(resumen.id)
       .then(d => {
@@ -555,6 +554,32 @@ function DetalleMaquilaModal({ resumen, onClose, onActualizado }) {
 
         <div className="modal-footer">
           <button className="btn btn-outline" onClick={onClose}>Cerrar</button>
+          {detalle && (
+            <button className="btn btn-outline" onClick={() => printTicketVidrio({
+              tipo:         'pedido',
+              folio:        detalle.folio,
+              fecha:        detalle.fecha,
+              hora:         detalle.hora,
+              clienteNombre: detalle.cliente?.nombre ?? 'Mostrador',
+              nivelNombre:  '',
+              formaPago:    detalle.tipo_pago,
+              anticipo:     detalle.anticipo,
+              saldo:        detalle.saldo,
+              esEntregado:  false,
+              partidas:     detalle.partidas.map(p => ({
+                tipo:             'MAQUILA',
+                piezas:           p.cantidad ?? 1,
+                cantidad:         p.cantidad ?? 1,
+                largo_cm:         p.largo_cm,
+                ancho_cm:         p.ancho_cm,
+                clave:            p.descripcion || `${p.largo_cm}×${p.ancho_cm}cm`,
+                descripcion:      p.descripcion,
+                subtotal_partida: p.subtotal_partida,
+                subtotal_vidrio:  null,
+                procesos:         [],
+              })),
+            })}>🖨️ Imprimir</button>
+          )}
           {puedeLiquidar && (
             <button className="btn btn-outline" onClick={handleLiquidar} disabled={liquidando}>
               {liquidando ? '...' : '💳 Marcar anticipo liquidado'}
@@ -573,6 +598,14 @@ export default function PedidosPendientes() {
   const [error,        setError]        = useState(null)
   const [seleccionado, setSeleccionado] = useState(null)
   const [toast,        setToast]        = useState(null)
+  const [tab,           setTab]           = useState('pendientes')
+  const [pedidosCredito, setPedidosCredito] = useState([])
+
+  useEffect(() => {
+    if (tab === 'credito') getPedidosCredito().then(setPedidosCredito)
+  }, [tab])
+
+  const pedidosFiltrados = tab === 'credito' ? pedidosCredito : pedidos.filter(p => p.tipo_pago !== 'CREDITO')
 
   useEffect(() => {
     if (!toast) return
@@ -632,6 +665,15 @@ export default function PedidosPendientes() {
         <button className="btn btn-outline" onClick={cargar}>↻ Actualizar</button>
       </div>
 
+      <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+        <button className={`btn ${tab === 'pendientes' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setTab('pendientes')}>
+          📦 Pendientes
+        </button>
+        <button className={`btn ${tab === 'credito' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setTab('credito')}>
+          💳 Crédito
+        </button>
+      </div>
+
       <div className="page-body">
         {/* Stats */}
         <div className="stats-row">
@@ -647,7 +689,7 @@ export default function PedidosPendientes() {
           </div>
         </div>
 
-        {pedidos.length === 0 ? (
+        {pedidosFiltrados.length === 0 ? (
           <div className="empty-state">
             <div className="empty-state-icon">📦</div>
             <h3>Sin pedidos pendientes</h3>
@@ -673,8 +715,8 @@ export default function PedidosPendientes() {
                     </tr>
                   </thead>
                   <tbody>
-                    {pedidos.map(p => (
-                      <tr key={p.id} style={{ cursor:'pointer' }} onClick={() => setSeleccionado(p)}>
+                    {pedidosFiltrados.map(p => (
+                      <tr key={p.id ?? p.id_pedido} style={{ cursor:'pointer' }} onClick={() => setSeleccionado({ ...p, id: p.id ?? p.id_pedido })}>
                         <td><span className="badge badge-orange">{p.folio}</span></td>
                         <td>
                           <span className={`badge ${p.tipo === 'MAQUILA' ? 'badge-blue' : 'badge-gray'}`} style={{ fontSize:11 }}>
@@ -690,8 +732,8 @@ export default function PedidosPendientes() {
                           }
                         </td>
                         <td style={{ textAlign:'right', fontWeight:600 }}>${fmt5(p.total)}</td>
-                        <td style={{ textAlign:'right', color:'var(--accent)', fontWeight:600 }}>${p.anticipo.toFixed(2)}</td>
-                        <td style={{ textAlign:'right', color:'var(--danger)', fontWeight:700 }}>${p.saldo.toFixed(2)}</td>
+                        <td style={{ textAlign:'right', color:'var(--accent)', fontWeight:600 }}>${(p.anticipo ?? 0).toFixed(2)}</td>
+                        <td style={{ textAlign:'right', color:'var(--danger)', fontWeight:700 }}>${(p.saldo ?? 0).toFixed(2)}</td>
                         <td>
                           <button className="btn btn-outline btn-sm" onClick={e => { e.stopPropagation(); setSeleccionado(p) }}>
                             Ver
@@ -706,8 +748,8 @@ export default function PedidosPendientes() {
 
             {/* ── Tarjetas (tablet / móvil <1024px) ── */}
             <div className="hist-mobile">
-              {pedidos.map(p => (
-                <div key={p.id} className="hist-card" onClick={() => setSeleccionado(p)}>
+              {pedidosFiltrados.map(p => (
+                <div key={p.id ?? p.id_pedido} className="hist-card" onClick={() => setSeleccionado({ ...p, id: p.id ?? p.id_pedido })}>
                   <div className="hist-card-header">
                     <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
                       <span className="badge badge-orange">{p.folio}</span>
@@ -717,14 +759,14 @@ export default function PedidosPendientes() {
                       {p.nivelNombre && <span className="badge badge-gray" style={{ fontSize:11 }}>{p.nivelNombre}</span>}
                     </div>
                     <span style={{ fontWeight:700, fontSize:17, color:'var(--danger)' }}>
-                      ⚠️ ${p.saldo.toFixed(2)}
+                      ⚠️ ${(p.saldo ?? 0).toFixed(2)}
                     </span>
                   </div>
                   <div className="hist-card-body">
                     <div style={{ fontWeight:600, fontSize:15 }}>{p.clienteNombre}</div>
                     <div style={{ fontSize:13, color:'var(--text-muted)', marginTop:3 }}>
                       Total: <strong style={{ color:'var(--text)' }}>${fmt5(p.total)}</strong>
-                      {p.anticipo > 0 && <span> · Anticipo: <strong style={{ color:'var(--accent)' }}>${p.anticipo.toFixed(2)}</strong></span>}
+                      {p.anticipo > 0 && <span> · Anticipo: <strong style={{ color:'var(--accent)' }}>${(p.anticipo ?? 0).toFixed(2)}</strong></span>}
                     </div>
                   </div>
                   <div className="hist-card-footer">

@@ -117,6 +117,15 @@ router.get('/pedidos/exportar', async (req, res) => {
   } catch (e) { err(res, e) }
 })
 
+// ── Pedidos a crédito ─────────────────────────────────────────────────────────
+
+router.get('/pedidos/credito', async (req, res) => {
+  try {
+    const { rows } = await query('SELECT * FROM v_pedidos_credito')
+    ok(res, rows)
+  } catch (e) { err(res, e) }
+})
+
 // ── Detalle de pedido ─────────────────────────────────────────────────────────
 
 router.get('/pedidos/:id', async (req, res) => {
@@ -195,5 +204,7 @@ router.post('/pedidos/:id/liquidar', async (req, res) => {
     ok(res, { ok: true })
   } catch (e) { err(res, e) }
 })
+
+
 
 module.exports = router
