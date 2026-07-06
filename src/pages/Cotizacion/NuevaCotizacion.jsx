@@ -1153,12 +1153,22 @@ export default function NuevaCotizacion() {
                 saldo_cobrado: pedidoCreado.saldo_cobrado,
                 esEntregado: pedidoCreado.estado === 'ENTREGADO',
                 total: pedidoCreado.total,
-                partidas: pedidoCreado.partidas.map(p => ({
-                  piezas: p.cantidad, clave: p.clave_vidrio,
-                  largo_cm: p.largo_cm, ancho_cm: p.ancho_cm,
-                  subtotal_vidrio: p.subtotal_vidrio, procesos: p.procesos,
-                  subtotal_partida: p.subtotal_partida,
-                })),
+                partidas: [
+                  ...pedidoCreado.partidas.map(p => ({
+                    piezas: p.cantidad, clave: p.clave_vidrio,
+                    largo_cm: p.largo_cm, ancho_cm: p.ancho_cm,
+                    subtotal_vidrio: p.subtotal_vidrio, procesos: p.procesos,
+                    subtotal_partida: p.subtotal_partida,
+                  })),
+                  ...pedidoExtras.map(e => ({
+                    tipo: e.tipo === 'HERRAJE' || e.tipo === 'PRODUCTO' ? e.tipo : 'MAQUILA',
+                    descripcion: e.descripcion,
+                    cantidad: e.cantidad,
+                    unidad: e.unidad,
+                    subtotal_partida: Number(e.subtotal),
+                    procesos: [],
+                  })),
+                ],
               })}>🖨️ Imprimir</button>
               <button className="btn btn-primary" onClick={nuevaCotizacion}>+ Nueva cotizacion</button>
             </div>
