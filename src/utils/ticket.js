@@ -59,7 +59,7 @@ export function printTicketVidrio(detalle) {
           ${p.descripcion ? `<div style="font-size:11px;padding-left:10px;margin-bottom:2px">${p.descripcion}</div>` : ''}
           </div>`
     }
-    const prefix = p.cantidad != null ? `${p.cantidad}${p.unidad ? ' ' + p.unidad : ''} · ` : ''
+    const prefix = (p.tipo !== 'MAQUILA' && p.cantidad != null) ? `${p.cantidad}${p.unidad ? ' ' + p.unidad : ''} · ` : ''
     const label  = p.descripcion || p.clave || '—'
     return `
       <div class="partida">
@@ -268,20 +268,25 @@ export function printPedidoPendiente(detalle) {
     .partida { margin-bottom: 4px; }
     .total-row { font-size: 16px; font-weight: 700; }
     .pago-box { background: #f0f0f0; border: 1px solid #ccc; border-radius: 4px; padding: 6px 8px; margin: 6px 0; }
+    .header { margin-bottom: 10px; }
+    .header h1 { font-size: 16px; font-weight: 700; letter-spacing: 0.5px; }
+    .header p { font-size: 12px; font-weight: 600; }
   </style>
 </head>
 <body>
-  <div class="center" style="margin-bottom:8px">
-    <div style="font-size:14px;font-weight:900;letter-spacing:0.5px">VIDRIO TEMPLADO Y ALUMINIO ROSALES</div>
-    <div style="font-size:10px">Rosales #35 C.P. 55270, Granjas Valle de Guadalupe</div>
-    <div style="font-size:10px">Ecatepec de Morelos, Estado de Mexico</div>
-    <div style="font-size:10px">Tel: 5523134256, 5522161432, 5547912671</div>
-    <div style="font-size:10px">rosalesvidriotempladofernando@gmail.com</div>
-    <div style="font-size:12px;font-weight:700;margin-top:3px">PEDIDO PENDIENTE</div>
+  <div class="header center">
+    <h1>VIDRIO TEMPLADO Y ALUMINIO ROSALES</h1>
+    <p>Rosales #35 C.P. 55270, Granjas Valle de Guadalupe</p>
+    <p>Ecatepec de Morelos, Estado de Mexico</p>
+    <p>Tel: 5523134256, 5522161432, 5547912671</p>
+    <p>rosalesvidriotempladofernando@gmail.com</p>
+    <p>${extras.length > 0 && detalle.partidas.length === 0 ? 'Pedido maquila' : 'Pedido vidrio'}</p>
   </div>
   <hr class="divider">
   <div class="row"><span>Pedido:</span><span class="bold">${detalle.folio}</span></div>
+  ${detalle.id_cotizacion ? `<div class="row"><span>Cotizacion:</span><span>COT-${String(detalle.id_cotizacion).padStart(5,'0')}</span></div>` : ''}
   <div class="row"><span>Fecha:</span><span>${detalle.fecha}</span></div>
+  ${detalle.hora ? `<div class="row"><span>Hora:</span><span>${detalle.hora}</span></div>` : ''}
   <div class="row"><span>Cliente:</span><span class="bold">${detalle.cliente?.nombre ?? 'Mostrador'}</span></div>
   ${detalle.nivel?.nombre ? `<div class="row"><span>Nivel:</span><span>${detalle.nivel.nombre}</span></div>` : ''}
   <hr class="divider">
