@@ -352,6 +352,32 @@ export default function NuevaCotizacionMaquila() {
             ✅ Pedido <strong>{pedidoCreado.folio}</strong> creado exitosamente.
           </div>
           <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
+            {detalle && (
+              <button className="btn btn-outline" onClick={() => printTicketVidrio({
+                tipo:          'pedido',
+                folio:         pedidoCreado.folio,
+                fecha:         new Date().toLocaleDateString('es-MX'),
+                hora:          new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }),
+                clienteNombre: detalle.cliente?.nombre ?? 'Mostrador',
+                nivelNombre:   detalle.nivel?.nombre ?? '',
+                formaPago:     'CONTADO',
+                anticipo:      0,
+                saldo:         0,
+                esEntregado:   false,
+                partidas:      detalle.partidas.map(p => ({
+                  tipo:             'MAQUILA',
+                  piezas:           p.cantidad ?? 1,
+                  cantidad:         p.cantidad ?? 1,
+                  largo_cm:         p.largo_cm,
+                  ancho_cm:         p.ancho_cm,
+                  clave:            p.descripcion || null,
+                  descripcion:      p.descripcion,
+                  subtotal_partida: p.subtotal_partida,
+                  subtotal_vidrio:  null,
+                  procesos:         (p.procesos ?? []).map(pr => ({ nombre: pr.nombre, subtotal: pr.subtotal })),
+                })),
+              })}>🖨️ Imprimir pedido</button>
+            )}
             <button className="btn btn-primary" onClick={handleReset}>+ Nueva cotización</button>
           </div>
         </div>

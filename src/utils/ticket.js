@@ -43,7 +43,8 @@ export function printTicketVidrio(detalle) {
   const renderMaquila = p => {
     if (p.largo_cm && Number(p.largo_cm) > 0) {
       const pzas  = p.piezas ?? 1
-      const clave = p.clave ? ` · ${p.clave}` : ''
+      const dimStr = `${p.largo_cm}×${p.ancho_cm}cm`
+      const clave = (p.clave && p.clave !== dimStr) ? ` · ${p.clave}` : ''
       const procRows = (p.procesos ?? []).map(pr => `
         <div class="row" style="padding-left:10px;font-size:12px">
           <span>+${pr.nombre}</span><span>$${r5(Number(pr.subtotal ?? 0)).toFixed(2)}</span>
@@ -124,10 +125,13 @@ export function printTicketVidrio(detalle) {
 
   ` : ''
 
-  const titulo = detalle.tipo === 'pedido' ? 'Pedido vidrio' : 'Cotizacion vidrio'
+  const esMaquila = maquilas.length > 0 && vidrios.length === 0
+  const titulo = detalle.tipo === 'pedido'
+    ? (esMaquila ? 'Pedido maquila' : 'Pedido vidrio')
+    : (esMaquila ? 'Cotizacion maquila' : 'Cotizacion vidrio')
   const folioLabel = detalle.tipo === 'pedido' ? 'Pedido:' : 'Folio:'
   const cotLabel = detalle.tipo === 'pedido' ? `<div class="row"><span>Cotizacion:</span><span>${detalle.foliosCot ?? ''}</span></div>` : ''
-  const pie = detalle.esEntregado ? '¡Gracias por su compra!' : detalle.tipo === 'pedido' ? 'Pedido entregado.' : 'Cotizacion con vigencia de 15 dias.'
+  const pie = detalle.esEntregado ? '¡Gracias por su compra!' : detalle.tipo === 'pedido' ? 'Pendiente de entrega.' : 'Cotizacion con vigencia de 15 dias.'
 
   const html = `<!DOCTYPE html>
 <html lang="es">

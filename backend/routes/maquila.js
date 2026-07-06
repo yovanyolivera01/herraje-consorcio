@@ -207,7 +207,35 @@ router.get('/maquila/pedidos/:id', async (req, res) => {
       `, [id]),
     ])
     if (!pedRes.rows.length) return res.status(404).json({ message: 'Pedido no encontrado' })
-    ok(res, { ...pedRes.rows[0], partidas: partidasRes.rows })
+
+    let partidas = partidasRes.rows
+
+    // Si no hay snapshot en partida_pedido_maquila, leer desde partida_maquila via id_cotizacion
+    if (partidas.length === 0 && pedRes.rows[0].id_cotizacion) {
+      const fallback = await query(`
+        SELECT pm.id_partida_maquila AS id_partida_ped_maq,
+               pm.descripcion, pm.largo_cm, pm.ancho_cm, pm.cantidad,
+               pm.metros2, pm.subtotal_partida, 'PENDIENTE' AS estatus_entrega,
+               NULL AS fecha_entrega_real,
+          json_agg(json_build_object(
+            'nombre',            pr.nombre,
+            'unidad',            uc.nombre,
+            'cantidad_unidades', ppm.cantidad_unidades,
+            'precio_unitario',   ppm.precio_unitario,
+            'subtotal',          ppm.subtotal
+          )) FILTER (WHERE ppm.id_proceso_pm IS NOT NULL) AS procesos
+        FROM partida_maquila pm
+        LEFT JOIN proceso_partida_maquila ppm ON ppm.id_partida_maquila = pm.id_partida_maquila
+        LEFT JOIN proceso      pr ON pr.id_proceso      = ppm.id_proceso
+        LEFT JOIN unidad_cobro uc ON uc.id_unidad_cobro = pr.id_unidad_cobro
+        WHERE pm.id_cotizacion = $1
+        GROUP BY pm.id_partida_maquila
+        ORDER BY pm.id_partida_maquila
+      `, [pedRes.rows[0].id_cotizacion])
+      partidas = fallback.rows
+    }
+
+    ok(res, { ...pedRes.rows[0], partidas })
   } catch (e) { err(res, e) }
 })
 

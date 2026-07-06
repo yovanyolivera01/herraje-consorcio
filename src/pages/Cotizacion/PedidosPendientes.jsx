@@ -572,11 +572,11 @@ function DetalleMaquilaModal({ resumen, onClose, onActualizado }) {
                 cantidad:         p.cantidad ?? 1,
                 largo_cm:         p.largo_cm,
                 ancho_cm:         p.ancho_cm,
-                clave:            p.descripcion || `${p.largo_cm}×${p.ancho_cm}cm`,
+                clave:            p.descripcion || null,
                 descripcion:      p.descripcion,
                 subtotal_partida: p.subtotal_partida,
                 subtotal_vidrio:  null,
-                procesos:         [],
+                procesos:         (p.procesos ?? []).map(pr => ({ nombre: pr.nombre, subtotal: pr.subtotal })),
               })),
             })}>🖨️ Imprimir</button>
           )}

@@ -325,11 +325,11 @@ export default function MaquilaSection() {
                 cantidad:         p.cantidad ?? 1,
                 largo_cm:         p.largo_cm,
                 ancho_cm:         p.ancho_cm,
-                clave:            p.descripcion || `${p.largo_cm}×${p.ancho_cm}cm`,
+                clave:            p.descripcion || null,
                 descripcion:      p.descripcion,
                 subtotal_partida: p.subtotal,
                 subtotal_vidrio:  null,
-                procesos:         [],
+                procesos:         (p.procesos ?? []).map(pr => ({ nombre: pr.nombre, subtotal: pr.subtotal ?? 0 })),
               })),
             })}>🖨️ Imprimir</button>
             <button className="btn btn-primary" onClick={nuevaCotizacion}>+ Nueva cotizacion</button>
@@ -376,11 +376,11 @@ export default function MaquilaSection() {
               cantidad:         p.cantidad ?? 1,
               largo_cm:         p.largo_cm,
               ancho_cm:         p.ancho_cm,
-              clave:            p.descripcion || `${p.largo_cm}×${p.ancho_cm}cm`,
+              clave:            p.descripcion || null,
               descripcion:      p.descripcion,
               subtotal_partida: p.subtotal,
               subtotal_vidrio:  null,
-              procesos:         [],
+              procesos:         (p.procesos ?? []).map(pr => ({ nombre: pr.nombre, subtotal: pr.subtotal ?? 0 })),
             })),
           })}>🖨️ Imprimir cotizacion</button>
         </div>
