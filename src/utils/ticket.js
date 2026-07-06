@@ -59,13 +59,17 @@ export function printTicketVidrio(detalle) {
           ${p.descripcion ? `<div style="font-size:11px;padding-left:10px;margin-bottom:2px">${p.descripcion}</div>` : ''}
           </div>`
     }
-    const prefix = (p.tipo !== 'MAQUILA' && p.cantidad != null) ? `${p.cantidad}${p.unidad ? ' ' + p.unidad : ''} · ` : ''
-    const label  = p.descripcion || p.clave || '—'
+    const cant = p.cantidad != null ? (Number.isInteger(Number(p.cantidad)) ? Number(p.cantidad) : parseFloat(Number(p.cantidad).toFixed(2))) : '—'
+    const label = p.descripcion || p.clave || '—'
+    const cu    = p.precio_unitario != null ? `$${r5(Number(p.precio_unitario)).toFixed(2)}` : ''
+    const tot   = `$${r5(Number(p.subtotal_partida)).toFixed(2)}`
     return `
       <div class="partida">
-        <div class="row">
-          <span>${prefix}${label}</span>
-          <span class="bold">$${r5(Number(p.subtotal_partida)).toFixed(2)}</span>
+        <div style="display:flex;align-items:baseline;font-size:11px;margin-bottom:2px;gap:2px">
+          <span style="width:18px;flex-shrink:0">${cant}</span>
+          <span style="flex:1">${label}</span>
+          <span style="width:50px;flex-shrink:0;text-align:right">${cu}</span>
+          <span style="width:50px;flex-shrink:0;text-align:right;font-weight:700">${tot}</span>
         </div>
       </div>`
   }
@@ -88,6 +92,13 @@ export function printTicketVidrio(detalle) {
     <span class="c-tot">Total</span>
   </div>`
 
+  const maqColHeader = `<div style="display:flex;align-items:baseline;font-size:9px;color:#555;border-bottom:1px dashed #aaa;margin-bottom:3px;gap:2px">
+    <span style="width:18px;flex-shrink:0">Cant</span>
+    <span style="flex:1">Descripción</span>
+    <span style="width:50px;flex-shrink:0;text-align:right">C.U.</span>
+    <span style="width:50px;flex-shrink:0;text-align:right">Total</span>
+  </div>`
+
   const totalCalculado = detalle.partidas.reduce((sum, p) => {
     if (p.tipo === 'MAQUILA' || p.tipo === 'HERRAJE' || p.tipo === 'PRODUCTO') {
       return sum + r5(Number(p.subtotal_partida))
@@ -101,7 +112,7 @@ export function printTicketVidrio(detalle) {
 
   let rows = ''
   if (vidrios.length)  rows += sectionLbl('Vidrio') + colHeader + vidrios.map(renderVidrio).join('')
-  if (maquilas.length) rows += sectionLbl('Maquila') + maquilas.map(renderMaquila).join('')
+  if (maquilas.length) rows += sectionLbl('Maquila') + maqColHeader + maquilas.map(renderMaquila).join('')
   if (herrajes.length) rows += sectionLbl('Herraje') + herrajes.map(renderHerraje).join('')
 
   const pagoRows = detalle.tipo === 'pedido' ? `
@@ -240,16 +251,29 @@ export function printPedidoPendiente(detalle) {
   }).join('<div style="border-top:1px dashed #ccc;margin:5px 0"></div>')
 
   const extrasHtml = extras.length === 0 ? '' : `
-    <div style="font-weight:700;font-size:11px;margin:8px 0 6px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px dashed #888;padding-bottom:2px">
+    <div style="font-weight:700;font-size:11px;margin:8px 0 3px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px dashed #888;padding-bottom:2px">
       Maquila / Extras
     </div>
-    ${extras.map(e => `
+    <div style="display:flex;align-items:baseline;font-size:9px;color:#555;border-bottom:1px dashed #aaa;margin-bottom:3px;gap:2px">
+      <span style="width:18px;flex-shrink:0">Cant</span>
+      <span style="flex:1">Descripción</span>
+      <span style="width:50px;flex-shrink:0;text-align:right">C.U.</span>
+      <span style="width:50px;flex-shrink:0;text-align:right">Total</span>
+    </div>
+    ${extras.map(e => {
+      const cant = e.cantidad != null ? (Number.isInteger(Number(e.cantidad)) ? Number(e.cantidad) : parseFloat(Number(e.cantidad).toFixed(2))) : '—'
+      const cu   = e.precio_unitario != null ? `$${r5(Number(e.precio_unitario)).toFixed(2)}` : ''
+      const tot  = `$${r5(Number(e.subtotal)).toFixed(2)}`
+      return `
       <div class="partida">
-        <div class="row">
-          <span style="font-size:12px">${e.descripcion ?? ''}</span>
-          <span class="bold">$${r5(Number(e.subtotal)).toFixed(2)}</span>
+        <div style="display:flex;align-items:baseline;font-size:11px;margin-bottom:2px;gap:2px">
+          <span style="width:18px;flex-shrink:0">${cant}</span>
+          <span style="flex:1">${e.descripcion ?? ''}</span>
+          <span style="width:50px;flex-shrink:0;text-align:right">${cu}</span>
+          <span style="width:50px;flex-shrink:0;text-align:right;font-weight:700">${tot}</span>
         </div>
-      </div>`).join('')}`
+      </div>`
+    }).join('')}`
 
   const html = `<!DOCTYPE html>
 <html lang="es">

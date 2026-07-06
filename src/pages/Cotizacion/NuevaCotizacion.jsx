@@ -1165,6 +1165,7 @@ export default function NuevaCotizacion() {
                     descripcion: e.descripcion,
                     cantidad: e.cantidad,
                     unidad: e.unidad,
+                    precio_unitario: e.precio_unitario != null ? Number(e.precio_unitario) : null,
                     subtotal_partida: Number(e.subtotal),
                     procesos: [],
                   })),
