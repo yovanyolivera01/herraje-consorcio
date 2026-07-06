@@ -1011,11 +1011,6 @@ export default function NuevaCotizacion() {
     const antN = parseFloat(modalAnticipoStr) || 0
     if (!nivelValido) { setModalError('Selecciona un nivel de precio'); return }
     if (!partidas.length) { setModalError('Agrega al menos una partida'); return }
-    const vidrioPartidas = partidas.filter(p => p.tipo === 'VIDRIO' || !p.tipo)
-    if (!cotEdit && vidrioPartidas.length === 0) {
-      setModalError('Este pedido no tiene vidrio. Para pedidos de maquila usa la pestaña "Nueva Maquila".')
-      return
-    }
     if (modalFormaPago === 'ANTICIPO') {
       if (antN <= 0)            { setModalError('Ingresa un monto de anticipo valido'); return }
       if (antN >= totalGeneral) { setModalError('El anticipo debe ser menor al total'); return }
