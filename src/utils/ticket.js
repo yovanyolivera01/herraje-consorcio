@@ -214,7 +214,9 @@ export function printTicketVidrio(detalle) {
  * Imprime el detalle de un pedido pendiente como ticket de 80mm.
  */
 export function printPedidoPendiente(detalle) {
-  const totalCalculado = detalle.partidas.reduce((sum, p) => sum + r5(Number(p.subtotal_partida)), 0)
+  const extras = detalle.extras ?? []
+  const extrasTotal = extras.reduce((sum, e) => sum + r5(Number(e.subtotal)), 0)
+  const totalCalculado = detalle.partidas.reduce((sum, p) => sum + r5(Number(p.subtotal_partida)), 0) + extrasTotal
   const rows = detalle.partidas.map((p, i) => {
     const cant = p.cantidad ?? 1
     const procRows = (p.procesos ?? []).map(pr => {
@@ -236,6 +238,18 @@ export function printPedidoPendiente(detalle) {
         ${procRows}
       </div>`
   }).join('<div style="border-top:1px dashed #ccc;margin:5px 0"></div>')
+
+  const extrasHtml = extras.length === 0 ? '' : `
+    <div style="font-weight:700;font-size:11px;margin:8px 0 6px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px dashed #888;padding-bottom:2px">
+      Maquila / Extras
+    </div>
+    ${extras.map(e => `
+      <div class="partida">
+        <div class="row">
+          <span style="font-size:12px">${e.descripcion ?? ''}</span>
+          <span class="bold">$${r5(Number(e.subtotal)).toFixed(2)}</span>
+        </div>
+      </div>`).join('')}`
 
   const html = `<!DOCTYPE html>
 <html lang="es">
@@ -271,10 +285,8 @@ export function printPedidoPendiente(detalle) {
   <div class="row"><span>Cliente:</span><span class="bold">${detalle.cliente?.nombre ?? 'Mostrador'}</span></div>
   ${detalle.nivel?.nombre ? `<div class="row"><span>Nivel:</span><span>${detalle.nivel.nombre}</span></div>` : ''}
   <hr class="divider">
-  <div style="font-weight:700;font-size:11px;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px dashed #888;padding-bottom:2px">
-    Vidrio
-  </div>
-  ${rows}
+  ${detalle.partidas.length > 0 ? `<div style="font-weight:700;font-size:11px;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px dashed #888;padding-bottom:2px">Vidrio</div>${rows}` : ''}
+  ${extrasHtml}
   <hr class="divider">
   <div class="row total-row"><span>TOTAL</span><span>$${totalCalculado.toFixed(2)}</span></div>
   <hr class="divider-thin">
