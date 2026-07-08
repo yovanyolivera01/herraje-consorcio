@@ -1,7 +1,21 @@
-import { http } from './http'
+const API = import.meta.env.VITE_API_URL || ''
+
+async function apiFetch(path, options = {}) {
+  const { method = 'GET', body } = options
+  const res = await fetch(`${API}/api${path}`, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data.message ?? `HTTP ${res.status}`)
+  return data
+}
+
+// ── Consulta de inventario ────────────────────────────────────────────────────
 
 export const getInventarioVidrio = async () => {
-  const rows = await http.get('/api/inventario-vidrio')
+  const rows = await apiFetch('/inventario-vidrio')
   return rows.map(row => ({
     id_inventario:    row.id_inventario,
     id_tipo_vidrio:   row.id_tipo_vidrio,
@@ -19,14 +33,34 @@ export const getInventarioVidrio = async () => {
   }))
 }
 
-export const setLotePreferido = (id_inventario) =>
-  http.post(`/api/inventario-vidrio/${id_inventario}/preferido`)
+// ── Marcar lote como preferido ────────────────────────────────────────────────
 
-export const registrarInventarioVidrio = ({ id_tipo_vidrio, largo_cm, ancho_cm, cantidad_hojas }) =>
-  http.post('/api/inventario-vidrio', { id_tipo_vidrio, largo_cm, ancho_cm, cantidad_hojas })
+export const setLotePreferido = async (id_inventario) =>
+  apiFetch(`/inventario-vidrio/${id_inventario}/preferido`, { method: 'POST', body: {} })
 
-export const ajustarInventario = (id_inventario, hojas_delta, nota) =>
-  http.post(`/api/inventario-vidrio/${id_inventario}/ajustar`, { hojas_delta, nota })
+// ── Registrar entrada de hojas ────────────────────────────────────────────────
 
-export const getMovimientosInventario = (id_inventario) =>
-  http.get(`/api/inventario-vidrio/${id_inventario}/movimientos`)
+export const registrarInventarioVidrio = async ({ id_tipo_vidrio, largo_cm, ancho_cm, cantidad_hojas }) => {
+  const data = await apiFetch('/inventario-vidrio', {
+    method: 'POST',
+    body: { id_tipo_vidrio, largo_cm: Number(largo_cm), ancho_cm: Number(ancho_cm), cantidad_hojas: Number(cantidad_hojas) },
+  })
+  return {
+    id_inventario: data.id_inventario,
+    m2_total:      Number(data.m2_total),
+    mensaje:       data.mensaje,
+  }
+}
+
+// ── Ajuste manual por hojas completas ─────────────────────────────────────────
+
+export const ajustarInventario = async (id_inventario, hojas_delta, nota) =>
+  apiFetch(`/inventario-vidrio/${id_inventario}/ajustar`, {
+    method: 'POST',
+    body: { hojas_delta, nota: nota ?? null },
+  })
+
+// ── Historial de movimientos de un lote ──────────────────────────────────────
+
+export const getMovimientosInventario = async (id_inventario) =>
+  apiFetch(`/inventario-vidrio/${id_inventario}/movimientos`)

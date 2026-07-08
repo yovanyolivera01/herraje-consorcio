@@ -199,10 +199,10 @@ router.get('/procesos', async (req, res) => {
 
 router.post('/procesos', async (req, res) => {
   try {
-    const { nombre, id_unidad_cobro, precio_unitario = 0 } = req.body
+    const { nombre, id_unidad_cobro, precio_unitario = 0, tipo = 'PROCESO', diametro_mm = null } = req.body
     const { rows: ins } = await query(
-      'INSERT INTO proceso (nombre, id_unidad_cobro, precio_unitario) VALUES ($1,$2,$3) RETURNING id_proceso',
-      [nombre, id_unidad_cobro, Number(precio_unitario)]
+      'INSERT INTO proceso (nombre, id_unidad_cobro, precio_unitario, tipo, diametro_mm) VALUES ($1,$2,$3,$4,$5) RETURNING id_proceso',
+      [nombre, id_unidad_cobro, Number(precio_unitario), tipo, diametro_mm ?? null]
     )
     const { rows } = await query(`
       SELECT p.*,
@@ -267,6 +267,15 @@ router.get('/unidades-cobro', async (req, res) => {
   } catch (e) { err(res, e) }
 })
 
+// ── Tipos de pago ──────────────────────────────────────────────────────────
+
+router.get('/tipos-pago', async (req, res) => {
+  try {
+    const { rows } = await query('SELECT * FROM tipo_pago ORDER BY id_tipo_pago ASC')
+    ok(res, rows)
+  } catch (e) { err(res, e) }
+})
+
 // ── Cotizaciones ──────────────────────────────────────────────────────────
 
 router.get('/cotizaciones', async (req, res) => {
@@ -289,7 +298,6 @@ router.get('/cotizaciones', async (req, res) => {
 router.post('/cotizaciones', async (req, res) => {
   try {
     const { id_nivel_precio, id_cliente, observaciones } = req.body
-    if (!id_nivel_precio) return res.status(400).json({ message: 'Nivel de precio requerido' })
     const { rows: ins } = await query(
       `INSERT INTO cotizacion (folio, id_nivel_precio, id_cliente, observaciones, fecha)
        VALUES ('COT-00000', $1, $2, $3, $4) RETURNING id_cotizacion`,

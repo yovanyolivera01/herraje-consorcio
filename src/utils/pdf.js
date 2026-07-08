@@ -78,9 +78,9 @@ function buildCotizacionHTML(detalle) {
   <div class="brand">
     <div class="oval-l"></div><div class="oval-r"></div>
     <div class="diamond"></div>
-    <h1>TEMPLADOS</h1>
-    <div class="consorcio">C O N S O R C I O</div>
-    <div class="slogan">Arte en Vidrio</div>
+    <h1 style="font-size:22px">VIDRIO TEMPLADO Y ALUMINIO ROSALES</h1>
+    <div class="slogan">Rosales #35 C.P. 55270, Granjas Valle de Guadalupe · Ecatepec de Morelos, Estado de Mexico</div>
+    <div class="slogan" style="margin-top:3px">Tel: 5523134256, 5522161432, 5547912671 · rosalesvidriotempladofernando@gmail.com</div>
   </div>
   <div class="marcas">
     <div class="marcas-lbl">Marcas que distribuimos</div>
@@ -106,7 +106,7 @@ function buildCotizacionHTML(detalle) {
   <div class="total-box">
     <div class="total-inner">TOTAL: $${r5(Number(detalle.total)).toFixed(2)}</div>
   </div>
-  <div class="footer">${pie}<br>Templados Consorcio · Arte en Vidrio</div>
+  <div class="footer">${pie}<br>Vidrio Templado y Aluminio Rosales · Tel: 5523134256, 5522161432, 5547912671</div>
 </body></html>`
 }
 
@@ -124,7 +124,7 @@ export async function exportCotizacionPDF(detalle) {
       logging: false,
     })
 
-    const pdf    = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' })
+    const pdf    = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
     const pageW  = pdf.internal.pageSize.getWidth()
     const pageH  = pdf.internal.pageSize.getHeight()
     const margin = 10

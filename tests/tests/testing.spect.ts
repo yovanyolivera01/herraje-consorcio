@@ -7,7 +7,7 @@ test('cotizacion vidrio y maquila', async ({ page }) => {
     await page.goto(base)
     await page.waitForTimeout(4000)
     //login 
-    await page.locator('input[type="text"]').fill('129')
+    await page.locator('input[type="text"]').fill('user')
     await page.locator('input[type="password"]').fill('129')
     await page.getByRole('button', { name: 'Entrar' }).click()
     await page.waitForTimeout(4000)

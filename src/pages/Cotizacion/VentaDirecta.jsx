@@ -7,7 +7,7 @@ import { crearPedidoDirecto, getDetallePedido } from '../../lib/pedidosApi'
 function parseNotacion(texto) {
   if (!texto || !texto.trim()) return { error: 'Ingresa una medida (ej. 3-22x45)' }
   const limpio = texto.trim().replace(/\s/g, '')
-  const match  = limpio.match(/^(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)[xX](\d+(?:\.\d+)?)$/)
+  const match  = limpio.match(/^(\d+)-(\d+(?:\.\d+)?)[xX](\d+(?:\.\d+)?)$/)
   if (!match) return { error: 'Formato invalido. Usa: {piezas}-{largo}x{ancho} — ej. 2-30x45' }
   const piezas = Number(match[1])
   const largo  = Number(match[2])
@@ -23,7 +23,7 @@ function TicketVentaDirecta({ detalle }) {
   return (
     <div className="ticket-preview">
       <div className="ticket-header">
-        <h2>TEMPLADOS CONSORCIO</h2>
+        <h2>VIDRIO TEMPLADO Y ALUMINIO ROSALES</h2>
         <p style={{ fontWeight: 700 }}>
           {detalle.estado === 'ENTREGADO' ? 'COMPROBANTE DE VENTA' : 'PEDIDO DE VIDRIO'}
         </p>

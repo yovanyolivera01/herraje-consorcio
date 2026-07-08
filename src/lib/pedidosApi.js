@@ -1,8 +1,24 @@
-import { http } from './http'
+import { r5, mxDayBound } from './utils'
 
-// ── Helpers ───────────────────────────────────────────────────────────────
+const API = import.meta.env.VITE_API_URL || ''
+
+async function apiFetch(path, options = {}) {
+  const { method = 'GET', body } = options
+  const res = await fetch(`${API}/api${path}`, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data.message ?? `HTTP ${res.status}`)
+  return data
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 const TZ = 'America/Mexico_City'
+const fmtFolio = (folio) => folio ? folio.replace(/^([A-Z]+-?)0+(\d)/, '$1$2') : ''
+
 function formatearFechaHora(isoString) {
   if (!isoString) return { fecha: '—', hora: '—' }
   const d = new Date(isoString)
@@ -12,83 +28,120 @@ function formatearFechaHora(isoString) {
   }
 }
 
-// ── Conversión cotización → pedido  (HU-08) ───────────────────────────────
+// ── Conversión cotización → pedido ────────────────────────────────────────────
 
 export const convertirCotizacionAPedido = async (id_cotizacion, tipo_pago, monto_anticipo) => {
-  const data = await http.post('/api/pedidos/convertir', { id_cotizacion, tipo_pago, monto_anticipo })
+  const data = await apiFetch('/pedidos/convertir', {
+    method: 'POST',
+    body: { id_cotizacion, tipo_pago, monto_anticipo: Number(monto_anticipo) },
+  })
   return data.id_pedido
 }
 
-// ── Crear pedido directo (sin cotización) ─────────────────────────────────
+// ── Decrementar inventario desde partidas en memoria ─────────────────────────
+
+export const decrementarInventarioDesdePartidas = async (partidas, folioRef = '') => {
+  try {
+    await apiFetch('/pedidos/decrementar-inventario', {
+      method: 'POST',
+      body: { partidas, folioRef },
+    })
+  } catch (e) {
+    console.error('[inventario]', e.message)
+  }
+}
+
+// ── Crear pedido directo ──────────────────────────────────────────────────────
 
 export const crearPedidoDirecto = async ({ id_cliente, id_nivel_precio, partidas, tipo_pago, monto_anticipo }) => {
-  const data = await http.post('/api/pedidos/directo', { id_cliente, id_nivel_precio, partidas, tipo_pago, monto_anticipo })
+  const data = await apiFetch('/pedidos/directo', {
+    method: 'POST',
+    body: { id_cliente: id_cliente ?? null, id_nivel_precio, partidas, tipo_pago, monto_anticipo: Number(monto_anticipo) },
+  })
   return data.id_pedido
 }
 
-// ── Pedidos pendientes  (HU-10) ───────────────────────────────────────────
+// ── Pedidos pendientes ────────────────────────────────────────────────────────
 
 export const getPedidosPendientes = async () => {
-  const rows = await http.get('/api/pedidos/pendientes')
+  const rows = await apiFetch('/pedidos/pendientes')
   return rows.map(row => {
-    const { fecha, hora } = formatearFechaHora(row.fecha_creacion)
+    const { fecha, hora } = formatearFechaHora(row.fecha_pedido)
     return {
       id:               row.id_pedido,
       folio:            row.folio,
       fecha,
       hora,
-      fechaCreacionISO: row.fecha_creacion,
-      clienteNombre:    row.cliente         ?? 'Mostrador',
-      telefono:         row.telefono_cliente ?? '',
-      total:            Number(row.total),
-      anticipo:         Number(row.monto_anticipo),
-      saldo:            Number(row.saldo_pendiente),
-      diasPendiente:    row.dias_pendiente   ?? 0,
-      numPartidas:      Number(row.num_partidas ?? 0),
-      observaciones:    row.observaciones    ?? '',
+      fechaCreacionISO:   row.fecha_pedido,
+      clienteNombre:      row.cliente ?? 'Mostrador',
+      telefono:           '',
+      total:              r5(Number(row.total)),
+      anticipo:           Number(row.monto_anticipo),
+      saldo:              r5(Number(row.total)) - Number(row.monto_anticipo),
+      estatus:            row.estatus,
+      tipo_pago:          row.tipo_pago ?? null,
+      diasPendiente:      0,
+      numPartidas:        Number(row.partidas_total      ?? 0),
+      partidasPendientes: Number(row.partidas_pendientes ?? 0),
+      observaciones:      '',
     }
   })
 }
 
-// ── Pedidos entregados / historial de ventas  (HU-09) ─────────────────────
+// ── Pedidos entregados / historial de ventas ──────────────────────────────────
 
 export const getPedidosEntregados = async (fechaDesde, fechaHasta) => {
   const params = new URLSearchParams()
   if (fechaDesde) params.set('fecha_inicio', fechaDesde)
-  if (fechaHasta) params.set('fecha_fin', fechaHasta)
-  const rows = await http.get(`/api/pedidos/historial?${params}`)
-  return rows.map(row => {
-    const { fecha, hora }     = formatearFechaHora(row.fecha_creacion)
-    const { fecha: fechaEnt } = row.fecha_entrega ? formatearFechaHora(row.fecha_entrega) : { fecha: '—' }
-    return {
-      id:              row.id_pedido,
-      folio:           row.folio,
-      fecha,
-      hora,
-      fechaEntrega:    fechaEnt,
-      fechaEntregaISO: row.fecha_entrega,
-      clienteNombre:   row.cliente       ?? 'Mostrador',
-      nivelNombre:     row.nivel_precio  ?? '',
-      tipo_pago:       row.tipo_pago,
-      forma_pago:      row.tipo_pago,
-      total:           Number(row.total),
-      anticipo:        Number(row.monto_anticipo),
-      saldo_cobrado:   row.monto_cobrado_entrega != null ? Number(row.monto_cobrado_entrega) : null,
-      totalCobrado:    Number(row.total_cobrado),
+  if (fechaHasta) params.set('fecha_fin',    fechaHasta)
+  const rows = await apiFetch(`/pedidos/historial?${params}`)
+
+  const map = new Map()
+  for (const row of rows) {
+    if (!map.has(row.id_pedido)) {
+      const { fecha, hora }     = formatearFechaHora(row.fecha_creacion)
+      const { fecha: fechaEnt } = row.fecha_entrega ? formatearFechaHora(row.fecha_entrega) : { fecha: '—' }
+      map.set(row.id_pedido, {
+        id:              row.id_pedido,
+        folio:           fmtFolio(row.folio),
+        fecha,
+        hora,
+        fechaEntrega:    fechaEnt,
+        fechaEntregaISO: row.fecha_entrega,
+        clienteNombre:   row.cliente ?? 'Mostrador',
+        nivelNombre:     row.nivel_precio ?? '',
+        tipo_pago:       row.tipo_pago,
+        forma_pago:      row.tipo_pago,
+        total:           Number(row.total),
+        anticipo:        Number(row.monto_anticipo),
+        saldo_cobrado:   row.monto_cobrado_entrega != null ? Number(row.monto_cobrado_entrega) : null,
+        totalCobrado:    Number(row.total_cobrado),
+        partidas:        [],
+      })
     }
-  })
+    if (row.largo_cm != null) {
+      map.get(row.id_pedido).partidas.push({
+        tipo_vidrio: row.tipo_vidrio ?? '—',
+        largo_cm:    Number(row.largo_cm),
+        ancho_cm:    Number(row.ancho_cm),
+      })
+    }
+  }
+  return Array.from(map.values())
 }
 
-// ── Detalle completo de un pedido ─────────────────────────────────────────
+// ── Detalle completo de un pedido ─────────────────────────────────────────────
 
 export const getDetallePedido = async (id_pedido) => {
-  const { cabecera: cab, partidas: partsRaw, procesos: procsRaw } = await http.get(`/api/pedidos/${id_pedido}`)
+  const data = await apiFetch(`/pedidos/${id_pedido}`)
+  const cab  = data.cabecera
 
+  const id_cotizacion = cab.id_cotizacion ?? null
   const { fecha, hora }     = formatearFechaHora(cab.fecha_creacion)
   const { fecha: fechaEnt } = cab.fecha_entrega ? formatearFechaHora(cab.fecha_entrega) : { fecha: '—' }
 
   const procesosPorPartida = {}
-  for (const pr of (procsRaw ?? [])) {
+  for (const pr of (data.procesos ?? [])) {
     const pid = pr.id_partida_pedido
     if (!procesosPorPartida[pid]) procesosPorPartida[pid] = []
     procesosPorPartida[pid].push({
@@ -102,8 +155,8 @@ export const getDetallePedido = async (id_pedido) => {
 
   return {
     id:               cab.id_pedido,
-    id_cotizacion:    cab.id_cotizacion,
-    folio:            cab.folio,
+    id_cotizacion,
+    folio:            fmtFolio(cab.folio),
     fecha,
     hora,
     fechaEntrega:     fechaEnt,
@@ -111,71 +164,74 @@ export const getDetallePedido = async (id_pedido) => {
     fechaEntregaISO:  cab.fecha_entrega,
     cliente:  { nombre: cab.cliente ?? 'Mostrador', telefono: cab.telefono_cliente ?? '' },
     nivel:    { nombre: cab.nivel_precio ?? '' },
-    total:    Number(cab.total),
+    total:    r5(Number(cab.total)),
     tipo_pago:    cab.tipo_pago,
     forma_pago:   cab.tipo_pago,
     anticipo:     Number(cab.monto_anticipo),
-    saldo:        Number(cab.saldo_pendiente),
+    saldo:        r5(Number(cab.total)) - Number(cab.monto_anticipo),
     saldo_cobrado: cab.monto_cobrado_entrega != null ? Number(cab.monto_cobrado_entrega) : null,
-    estado:    cab.estatus,
-    estatus:   cab.estatus,
+    estado:       cab.estatus,
+    estatus:      cab.estatus,
     observaciones: cab.observaciones ?? '',
-    partidas: (partsRaw ?? []).map(p => {
-      const tipo = p.tipo_linea ?? 'VIDRIO'
-      const base = {
-        id:              p.id_partida_pedido,
-        tipo_linea:      tipo,
-        subtotal_partida: Number(p.total_partida),
-        cantidad:         Number(p.cantidad ?? 0),
-      }
-      if (tipo === 'VIDRIO') {
-        return {
-          ...base,
-          clave_vidrio:       p.tipo_vidrio      ?? '—',
-          descripcion_vidrio: '',
-          largo_cm:           Number(p.largo_cm),
-          ancho_cm:           Number(p.ancho_cm),
-          metros2:            Number(p.metros_cuadrados),
-          precio_m2_aplicado: Number(p.precio_m2),
-          subtotal_vidrio:    Number(p.subtotal_vidrio),
-          subtotal_procesos:  Number(p.subtotal_procesos),
-          procesos:           procesosPorPartida[p.id_partida_pedido] ?? [],
-        }
-      }
-      if (tipo === 'HERRAJE') {
-        return {
-          ...base,
-          id_producto:     p.id_producto,
-          descripcion:     p.descripcion ?? '',
-          precio_unitario: Number(p.precio_unitario),
-        }
-      }
-      // MAQUILA
-      return {
-        ...base,
-        id_proceso:      p.id_proceso_d,
-        descripcion:     p.descripcion ?? '',
-        precio_unitario: Number(p.precio_unitario),
-      }
-    }),
+    extras: data.extras ?? [],
+    partidas: (data.partidas ?? []).map(p => ({
+      id:                 p.id_partida_pedido,
+      clave_vidrio:       p.tipo_vidrio      ?? '—',
+      descripcion_vidrio: '',
+      largo_cm:           Number(p.largo_cm),
+      ancho_cm:           Number(p.ancho_cm),
+      metros2:            Number(p.metros_cuadrados),
+      precio_m2_aplicado: Number(p.precio_m2),
+      subtotal_vidrio:    Number(p.subtotal_vidrio),
+      subtotal_procesos:  Number(p.subtotal_procesos),
+      subtotal_partida:   Number(p.total_partida),
+      cantidad:           p.cantidad,
+      procesos:           procesosPorPartida[p.id_partida_pedido] ?? [],
+    })),
   }
 }
 
-// El backend ya descuenta inventario dentro de POST /pedidos/directo
-export const decrementarInventarioDesdePartidas = async () => {}
+// ── Marcar pedido como entregado ──────────────────────────────────────────────
 
-// ── Marcar pedido como entregado  (HU-11) ────────────────────────────────
+export const marcarComoEntregado = async (id_pedido, monto_cobrado) =>
+  apiFetch(`/pedidos/${id_pedido}/entregar`, { method: 'POST', body: { monto_cobrado: Number(monto_cobrado) } })
 
-export const marcarComoEntregado = async (id_pedido, monto_cobrado) => {
-  await http.post(`/api/pedidos/${id_pedido}/entregar`, { monto_cobrado })
-  return true
-}
+// ── Entregar línea específica del pedido ──────────────────────────────────────
 
-// ── Export a Excel  (HU-09) ───────────────────────────────────────────────
+export const entregarPartidaPedido = async (id_partida_pedido) =>
+  apiFetch(`/pedidos/${id_partida_pedido}/entregar-partida`, { method: 'POST', body: {} })
+
+// ── Marcar anticipo como liquidado ────────────────────────────────────────────
+
+export const marcarAnticipoLiquidado = async (id_pedido) =>
+  apiFetch(`/pedidos/${id_pedido}/liquidar`, { method: 'POST', body: {} })
+
+// ── Export a Excel ────────────────────────────────────────────────────────────
 
 export const getPedidosParaExport = async (fechaDesde, fechaHasta) => {
   const params = new URLSearchParams()
   if (fechaDesde) params.set('fecha_inicio', fechaDesde)
-  if (fechaHasta) params.set('fecha_fin', fechaHasta)
-  return http.get(`/api/pedidos/exportar?${params}`)
+  if (fechaHasta) params.set('fecha_fin',    fechaHasta)
+  return apiFetch(`/pedidos/exportar?${params}`)
+}
+
+export const getPedidosCredito = async () => {
+  const rows = await apiFetch('/pedidos/credito')
+  return rows.map(row => {
+    const { fecha, hora } = formatearFechaHora(row.fecha_creacion)
+    return {
+      id:             row.id_pedido,
+      folio:          fmtFolio(row.folio),
+      fecha,
+      hora,
+      fechaCreacionISO: row.fecha_creacion,
+      clienteNombre:  row.cliente ?? 'Mostrador',
+      total:          r5(Number(row.total)),
+      anticipo:       Number(row.monto_anticipo ?? 0),
+      saldo:          r5(Number(row.total)) - Number(row.monto_anticipo ?? 0),
+      estatus:        row.estatus,
+      tipo:           row.tipo ?? 'VIDRIO',
+      tipo_pago:      'CREDITO',
+    }
+  })
 }

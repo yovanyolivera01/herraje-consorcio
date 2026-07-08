@@ -1,4 +1,4 @@
-require('dotenv').config()
+require('dotenv').config({ path: require('path').join(__dirname, '.env') })
 const express = require('express')
 const cors    = require('cors')
 const path    = require('path')
@@ -12,7 +12,8 @@ const maquilaRoutes          = require('./routes/maquila')
 const inventarioRoutes       = require('./routes/inventario')
 const productosGeneralesRoutes = require('./routes/productosGenerales')
 const reportesRoutes         = require('./routes/reportes')
-
+const authRoutes             = require('./routes/auth')
+const egresosRoutes = require('./routes/egresos')
 const app  = express()
 const PORT = process.env.PORT || 3001
 
@@ -29,6 +30,8 @@ app.use('/api', maquilaRoutes)
 app.use('/api', inventarioRoutes)
 app.use('/api', productosGeneralesRoutes)
 app.use('/api', reportesRoutes)
+app.use('/api', authRoutes)
+app.use('/api',egresosRoutes)
 
 // Serve React build in production
 const distPath = path.join(__dirname, '..', 'dist')

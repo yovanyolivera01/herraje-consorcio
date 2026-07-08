@@ -1,35 +1,41 @@
-import { http } from './http'
+const API = import.meta.env.VITE_API_URL || ''
 
-// ── Helpers ───────────────────────────────────────────────────────────────
+async function apiFetch(path, options = {}) {
+  const { method = 'GET', body } = options
+  const res = await fetch(`${API}/api${path}`, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data.message ?? `HTTP ${res.status}`)
+  return data
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 const TZ = 'America/Mexico_City'
 function formatearFechaHora(isoString) {
   const utc = /Z|[+-]\d{2}:?\d{2}$/.test(isoString ?? '') ? isoString : (isoString ?? '') + 'Z'
   const d = new Date(utc)
-  const fechaFormatter = new Intl.DateTimeFormat('es-MX', {
-    year: 'numeric', month: '2-digit', day: '2-digit', timeZone: TZ,
-  })
-  const horaFormatter = new Intl.DateTimeFormat('es-MX', {
-    hour: '2-digit', minute: '2-digit', hour12: false, timeZone: TZ,
-  })
   return {
-    fecha: fechaFormatter.format(d),
-    hora:  horaFormatter.format(d).slice(0, 5),
+    fecha: new Intl.DateTimeFormat('es-MX', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: TZ }).format(d),
+    hora:  new Intl.DateTimeFormat('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: TZ }).format(d).slice(0, 5),
   }
 }
 
 const mapProducto = (row) => ({
   id:              row.id,
-  codigo:          row.codigo          ?? '',
+  codigo:          row.codigo ?? '',
   codigoProveedor: row.codigo_proveedor ?? '',
   proveedorNombre: row.proveedor_nombre,
-  marca:           row.marca            || '',
-  tono:            row.tono             || '',
+  marca:           row.marca || '',
+  tono:            row.tono  || '',
   descripcion:     row.descripcion,
   espesor:         row.espesor_mm,
   precio:          Number(row.precio),
   existencias:     row.existencias,
-  imagen:          row.imagen_url        || '',
+  imagen:          row.imagen_url || '',
   stockBajo:       row.stock_bajo,
 })
 
@@ -47,44 +53,51 @@ const mapVentaResumen = (row) => {
   }
 }
 
-// ── Proveedores ───────────────────────────────────────────────────────────
+// ── Proveedores ───────────────────────────────────────────────────────────────
 
-export const getProveedores = () => http.get('/api/proveedores')
+export const getProveedores = async () => apiFetch('/proveedores')
 
-export const createProveedor = ({ nombre, telefono }) =>
-  http.post('/api/proveedores', { nombre, telefono })
+export const createProveedor = async ({ nombre, telefono }) =>
+  apiFetch('/proveedores', { method: 'POST', body: { nombre, telefono } })
 
-export const updateProveedor = (codigo, { nombre, telefono }) =>
-  http.put(`/api/proveedores/${codigo}`, { nombre, telefono })
+export const updateProveedor = async (codigo, { nombre, telefono }) =>
+  apiFetch(`/proveedores/${codigo}`, { method: 'PUT', body: { nombre, telefono } })
 
-export const deleteProveedor = (codigo) => http.del(`/api/proveedores/${codigo}`)
+export const deleteProveedor = async (codigo) =>
+  apiFetch(`/proveedores/${codigo}`, { method: 'DELETE' })
 
-// ── Productos ─────────────────────────────────────────────────────────────
+// ── Productos ─────────────────────────────────────────────────────────────────
 
 export const getProductos = async () => {
-  const rows = await http.get('/api/productos')
+  const rows = await apiFetch('/productos')
   return rows.map(mapProducto)
 }
 
-export const createProducto = (formData) => http.post('/api/productos', formData)
+export const createProducto = async (formData) => {
+  const row = await apiFetch('/productos', { method: 'POST', body: formData })
+  return mapProducto(row)
+}
 
-export const updateProducto = (productoId, formData) =>
-  http.put(`/api/productos/${productoId}`, formData)
+export const updateProducto = async (productoId, formData) => {
+  const row = await apiFetch(`/productos/${productoId}`, { method: 'PUT', body: formData })
+  return mapProducto(row)
+}
 
-export const deleteProducto = (codigo) => http.del(`/api/productos/${codigo}`)
+export const deleteProducto = async (codigo) =>
+  apiFetch(`/productos/${codigo}`, { method: 'DELETE' })
 
-export const ajustarExistencias = (productoId, delta, tipo, nota = null) =>
-  http.post(`/api/productos/${productoId}/ajustar`, { delta, tipo, nota })
+export const ajustarExistencias = async (productoId, delta, tipo, nota = null) =>
+  apiFetch(`/productos/${productoId}/ajustar`, { method: 'POST', body: { delta, tipo, nota } })
 
-// ── Ventas ────────────────────────────────────────────────────────────────
+// ── Ventas ────────────────────────────────────────────────────────────────────
 
 export const getVentas = async () => {
-  const rows = await http.get('/api/ventas')
+  const rows = await apiFetch('/ventas')
   return rows.map(mapVentaResumen)
 }
 
 export const createVenta = async (partidas) => {
-  const { venta, partidas: perts } = await http.post('/api/ventas', { partidas })
+  const venta = await apiFetch('/ventas', { method: 'POST', body: { partidas } })
   const { fecha, hora } = formatearFechaHora(venta.fecha_hora)
   return {
     id:       venta.id,
@@ -93,7 +106,7 @@ export const createVenta = async (partidas) => {
     hora,
     fechaISO: venta.fecha_hora,
     total:    Number(venta.total),
-    partidas: perts.map(p => ({
+    partidas: partidas.map(p => ({
       codigoProducto: p.codigoProducto,
       descripcion:    p.descripcion,
       tono:           p.tono,
@@ -105,19 +118,19 @@ export const createVenta = async (partidas) => {
 }
 
 export const getDetalleVenta = async (ventaId) => {
-  const { venta, detalles } = await http.get(`/api/ventas/${ventaId}`)
-  const { fecha, hora } = formatearFechaHora(venta.fecha_hora)
+  const data = await apiFetch(`/ventas/${ventaId}`)
+  const { fecha, hora } = formatearFechaHora(data.venta.fecha_hora)
   return {
-    id:       venta.id,
-    folio:    venta.folio,
+    id:       data.venta.id,
+    folio:    data.venta.folio,
     fecha,
     hora,
-    fechaISO: venta.fecha_hora,
-    total:    Number(venta.total),
-    partidas: detalles.map(row => ({
-      codigoProducto: row.codigo      ?? '',
-      descripcion:    row.descripcion ?? '',
-      tono:           row.tono        ?? '',
+    fechaISO: data.venta.fecha_hora,
+    total:    Number(data.venta.total),
+    partidas: (data.detalles ?? []).map(row => ({
+      codigoProducto: row.codigo        ?? '',
+      descripcion:    row.descripcion   ?? '',
+      tono:           row.tono          ?? '',
       precioUnitario: Number(row.precio_unitario),
       cantidad:       row.cantidad,
       subtotal:       Number(row.subtotal),

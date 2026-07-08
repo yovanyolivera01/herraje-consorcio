@@ -1,12 +1,13 @@
 import { useState, useMemo } from 'react'
-import { fmt5 } from '../../lib/utils'
+import { fmt5, r5 } from '../../lib/utils'
 import { useCotizacion } from '../../context/CotizacionContext'
+import { printTicketVidrio, printPedidoA4 } from '../../utils/ticket'
 
 // ── Parser (mismo que vidrio) ─────────────────────────────────────────────
 function parseNotacion(texto) {
   if (!texto || !texto.trim()) return { error: 'Ingresa una medida (ej. 3-22x45)' }
   const limpio = texto.trim().replace(/\s/g, '')
-  const match  = limpio.match(/^(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)[xX](\d+(?:\.\d+)?)$/)
+  const match  = limpio.match(/^(\d+)-(\d+(?:\.\d+)?)[xX](\d+(?:\.\d+)?)$/)
   if (!match) return { error: 'Formato invalido. Usa: {piezas}-{largo}x{ancho}' }
   const piezas = Number(match[1])
   const largo  = Number(match[2])
@@ -22,7 +23,7 @@ function TicketMaquila({ cotizacion }) {
   return (
     <div className="ticket-preview">
       <div className="ticket-header">
-        <h2>TEMPLADOS CONSORCIO</h2>
+        <h2>VIDRIO TEMPLADO Y ALUMINIO ROSALES</h2>
         <p style={{ fontWeight: 700 }}>COTIZACION MAQUILA</p>
       </div>
       <hr className="ticket-divider" />
@@ -47,7 +48,7 @@ function TicketMaquila({ cotizacion }) {
       <hr className="ticket-divider" />
       <div className="ticket-total">
         <span>TOTAL</span>
-        <span>${fmt5(cotizacion.partidas.reduce((s, p) => s + p.subtotal, 0))}</span>
+        <span>${fmt5(cotizacion.partidas.reduce((s, p) => s + r5(Number(p.subtotal ?? 0)), 0))}</span>
       </div>
       <hr className="ticket-divider" />
       <div style={{ textAlign: 'center', fontSize: 11, color: 'var(--text-muted)', marginTop: 8 }}>
@@ -62,7 +63,7 @@ function TicketPedidoMaquila({ pedido, total, clienteNombre, nivelNombre }) {
   return (
     <div className="ticket-preview">
       <div className="ticket-header">
-        <h2>TEMPLADOS CONSORCIO</h2>
+        <h2>VIDRIO TEMPLADO Y ALUMINIO ROSALES</h2>
         <p style={{ fontWeight: 700 }}>PEDIDO MAQUILA</p>
       </div>
       <hr className="ticket-divider" />
@@ -96,10 +97,10 @@ function TicketPedidoMaquila({ pedido, total, clienteNombre, nivelNombre }) {
 // ── Sección principal ─────────────────────────────────────────────────────
 export default function MaquilaSection() {
   const {
-    nivelesPrecio, clientes, procesos,
+    nivelesPrecio, clientes, procesos, tiposPago,
     getPrecioProceso, getPrecioProcesoEspecial,
     iniciarCotizacionMaquila, agregarPartidaMaquila, eliminarPartidaMaquila,
-    finalizarCotizacionMaquila, convertirMaquilaAPedido,
+    finalizarCotizacionMaquila, convertirMaquilaAPedidoDirecto,
   } = useCotizacion()
 
   // ── Header ────────────────────────────────────────────────────────────
@@ -137,7 +138,7 @@ export default function MaquilaSection() {
   const nivelSel    = nivelesPrecio.find(n => n.id_nivel_precio === Number(nivelId))
   const clienteSel  = clientes.find(c => c.id_cliente === Number(clienteId))
   const activos     = procesos.filter(p => p.activo)
-  const totalGeneral = partidas.reduce((s, p) => s + p.subtotal, 0)
+  const totalGeneral = partidas.reduce((s, p) => s + r5(Number(p.subtotal ?? 0)), 0)
 
   // Parse notation en vivo
   const parsed = useMemo(() => parseNotacion(notacion), [notacion])
@@ -274,7 +275,7 @@ export default function MaquilaSection() {
     if (resF.error) { setConverting(false); setModalError(resF.error); return }
 
     const monto = modalTipoPago === 'LIQUIDADO' ? totalGeneral : antN
-    const resC  = await convertirMaquilaAPedido({
+    const resC  = await convertirMaquilaAPedidoDirecto({
       id_cotizacion:  cotizacion.id_cotizacion,
       tipo_pago:      modalTipoPago,
       monto_anticipo: monto,
@@ -306,7 +307,39 @@ export default function MaquilaSection() {
               {pedidoCreado.tipo_pago === 'CONTADO' ? 'Liquidado' : 'Pendiente de entrega'}
             </div>
           </div>
-          <button className="btn btn-primary" onClick={nuevaCotizacion}>+ Nueva cotizacion</button>
+          <div style={{ display:'flex', gap:8 }}>
+            {(() => {
+              const detallePed = {
+                tipo:          'pedido',
+                folio:         pedidoCreado.folio,
+                fecha:         new Date().toLocaleDateString('es-MX'),
+                hora:          new Date().toLocaleTimeString('es-MX', { hour:'2-digit', minute:'2-digit' }),
+                clienteNombre: cotCreada.clienteNombre ?? 'Mostrador',
+                nivelNombre:   cotCreada.nivelNombre   ?? '',
+                formaPago:     pedidoCreado.tipo_pago,
+                anticipo:      pedidoCreado.anticipo,
+                saldo:         pedidoCreado.saldo,
+                esEntregado:   pedidoCreado.tipo_pago === 'LIQUIDADO',
+                partidas:      cotCreada.partidas.map(p => ({
+                  tipo:             'MAQUILA',
+                  piezas:           p.cantidad ?? 1,
+                  cantidad:         p.cantidad ?? 1,
+                  largo_cm:         p.largo_cm,
+                  ancho_cm:         p.ancho_cm,
+                  clave:            p.descripcion || null,
+                  descripcion:      p.descripcion,
+                  subtotal_partida: p.subtotal,
+                  subtotal_vidrio:  null,
+                  procesos:         (p.procesos ?? []).map(pr => ({ nombre: pr.nombre, subtotal: pr.subtotal ?? 0 })),
+                })),
+              }
+              return (<>
+                <button className="btn btn-outline" onClick={() => printTicketVidrio(detallePed)}>🖨️ Ticket</button>
+                <button className="btn btn-outline" onClick={() => printPedidoA4(detallePed)}>🖨️ Hoja</button>
+              </>)
+            })()}
+            <button className="btn btn-primary" onClick={nuevaCotizacion}>+ Nueva cotizacion</button>
+          </div>
         </div>
         <div className="alert alert-success">
           ✅ Pedido <strong>{pedidoCreado.folio}</strong> registrado correctamente.
@@ -335,6 +368,28 @@ export default function MaquilaSection() {
           <button className="btn btn-primary" onClick={nuevaCotizacion}>+ Nueva cotizacion</button>
         </div>
         <div className="alert alert-success">✅ Cotizacion guardada correctamente con folio {cotCreada.folio}.</div>
+        <div style={{ marginBottom:12 }}>
+          <button className="btn btn-outline" onClick={() => printTicketVidrio({
+            tipo:          'cotizacion',
+            folio:         cotCreada.folio,
+            fecha:         new Date().toLocaleDateString('es-MX'),
+            hora:          new Date().toLocaleTimeString('es-MX', { hour:'2-digit', minute:'2-digit' }),
+            clienteNombre: cotCreada.clienteNombre ?? 'Mostrador',
+            nivelNombre:   cotCreada.nivelNombre   ?? '',
+            partidas:      cotCreada.partidas.map(p => ({
+              tipo:             'MAQUILA',
+              piezas:           p.cantidad ?? 1,
+              cantidad:         p.cantidad ?? 1,
+              largo_cm:         p.largo_cm,
+              ancho_cm:         p.ancho_cm,
+              clave:            p.descripcion || null,
+              descripcion:      p.descripcion,
+              subtotal_partida: p.subtotal,
+              subtotal_vidrio:  null,
+              procesos:         (p.procesos ?? []).map(pr => ({ nombre: pr.nombre, subtotal: pr.subtotal ?? 0 })),
+            })),
+          })}>🖨️ Imprimir cotizacion</button>
+        </div>
         <TicketMaquila cotizacion={cotCreada} />
       </>
     )
@@ -666,18 +721,17 @@ export default function MaquilaSection() {
                 <div className="form-group">
                   <label className="form-label required">Forma de pago</label>
                   <div style={{ display:'flex', gap:10, marginTop:6, flexWrap:'wrap' }}>
-                    {[['LIQUIDADO','Liquidado','Pago completo'],['ANTICIPO','Anticipo','Pago parcial']].map(([val, label, desc]) => (
-                      <label key={val} style={{
+                    {tiposPago.filter(tp => tp.descripcion !== 'CREDITO' || clienteSel?.credito_activo).map(tp => (
+                      <label key={tp.id_tipo_pago} style={{
                         flex:1, minWidth:140, display:'flex', flexDirection:'column', gap:3,
                         padding:'10px 12px', borderRadius:8, cursor:'pointer',
-                        border:`2px solid ${modalTipoPago === val ? 'var(--accent)' : 'var(--border)'}`,
-                        background: modalTipoPago === val ? 'var(--accent-subtle, #ede9fe)' : 'white',
-                      }} onClick={() => { setModalTipoPago(val); setModalAnticipo(''); setModalError(null) }}>
+                        border:`2px solid ${modalTipoPago === tp.descripcion ? 'var(--accent)' : 'var(--border)'}`,
+                        background: modalTipoPago === tp.descripcion ? 'var(--accent-subtle, #ede9fe)' : 'white',
+                      }} onClick={() => { setModalTipoPago(tp.descripcion); setModalAnticipo(''); setModalError(null) }}>
                         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                          <input type="radio" name="maqFP" value={val} checked={modalTipoPago === val} onChange={() => {}} />
-                          <span style={{ fontWeight:600, fontSize:14 }}>{label}</span>
+                          <input type="radio" name="maqFP" value={tp.descripcion} checked={modalTipoPago === tp.descripcion} onChange={() => {}} />
+                          <span style={{ fontWeight:600, fontSize:14 }}>{tp.descripcion.charAt(0) + tp.descripcion.slice(1).toLowerCase()}</span>
                         </div>
-                        <span style={{ fontSize:11, color:'var(--text-muted)', paddingLeft:20 }}>{desc}</span>
                       </label>
                     ))}
                   </div>

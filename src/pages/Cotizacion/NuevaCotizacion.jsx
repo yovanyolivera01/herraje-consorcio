@@ -1,12 +1,13 @@
 import { useState, useMemo, useEffect } from 'react'
-import { fmt5 } from '../../lib/utils'
+import { fmt5, r5 } from '../../lib/utils'
+import { parseNotacion, calcTotal } from '../../lib/cotizacionUtils'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useCotizacion } from '../../context/CotizacionContext'
 import { useApp } from '../../context/AppContext'
 import { crearPedidoDirecto, getDetallePedido, convertirCotizacionAPedido, decrementarInventarioDesdePartidas } from '../../lib/pedidosApi'
 import { getPartidasExtra } from '../../lib/cotizacionApi'
 import { venderProductoGeneral } from '../../lib/productosGeneralesApi'
-import { printTicketVidrio } from '../../utils/ticket'
+import { printTicketVidrio, printPedidoA4 } from '../../utils/ticket'
 
 const TIPO_META = {
   VIDRIO:   { label: 'Vidrio',   bg: '#dbeafe', color: '#1d4ed8' },
@@ -57,49 +58,16 @@ function convertirExtraDesdeDB(e) {
   }
 }
 
-// ── Parser de notacion: "{piezas}-{largo}x{ancho}"  o  "{largo}x{ancho}" ──
-function parseNotacion(texto) {
-  if (!texto || !texto.trim()) return { error: 'Ingresa una medida (ej. 3-22x45)' }
-  // Normalizar: quitar espacios, convertir × y , al separador estándar
-  const limpio = texto.trim()
-    .replace(/\s/g, '')
-    .replace(/[×\*]/g, 'x')
-    .replace(/,/g, '.')
-
-  // Formato completo: piezas-largo x ancho
-  let m = limpio.match(/^(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)[xX](\d+(?:\.\d+)?)$/)
-  if (m) {
-    const piezas = Number(m[1])
-    const largo  = Number(m[2])
-    const ancho  = Number(m[3])
-    if (piezas <= 0) return { error: 'La cantidad de piezas debe ser mayor a 0' }
-    if (largo  <= 0) return { error: 'El largo debe ser mayor a 0' }
-    if (ancho  <= 0) return { error: 'El ancho debe ser mayor a 0' }
-    return { piezas, largo, ancho }
-  }
-
-  // Formato corto: largo x ancho  (piezas = 1)
-  m = limpio.match(/^(\d+(?:\.\d+)?)[xX](\d+(?:\.\d+)?)$/)
-  if (m) {
-    const largo = Number(m[1])
-    const ancho = Number(m[2])
-    if (largo <= 0) return { error: 'El largo debe ser mayor a 0' }
-    if (ancho <= 0) return { error: 'El ancho debe ser mayor a 0' }
-    return { piezas: 1, largo, ancho }
-  }
-
-  return { error: 'Formato invalido. Ej: 98x45  o  3-98x45' }
-}
 
 // ── Ticket de cotizacion ──────────────────────────────────────────────────
 function TicketCotizacion({ cotizacion }) {
-  const total = cotizacion.partidas.reduce((s, p) => s + p.subtotal_partida, 0)
+  const total = calcTotal(cotizacion.partidas)
 
   return (
     <div className="ticket-preview">
       <div className="ticket-header">
-        <h2>TEMPLADOS CONSORCIO</h2>
-        <p style={{ fontWeight: 700 }}>ARTE EN VIDRIO</p>
+        <h2>VIDRIO TEMPLADO ROSALES</h2>
+        <p style={{ fontWeight: 700 }}>CONSTRUYENDO SUEÑOS</p>
         <p style={{ fontWeight: 700 }}>Cotizacion</p>
       </div>
       <hr className="ticket-divider" />
@@ -183,7 +151,7 @@ function TicketPedidoRapido({ detalle, extras = [] }) {
   return (
     <div className="ticket-preview">
       <div className="ticket-header">
-        <h2>TEMPLADOS CONSORCIO</h2>
+        <h2>VIDRIO TEMPLADO Y ALUMINIO ROSALES</h2>
         <p style={{ fontWeight: 700 }}>ARTE EN VIDRIO</p>
         <p style={{ fontWeight: 700 }}>Pedido</p>
       </div>
@@ -289,7 +257,7 @@ export default function NuevaCotizacion() {
   const cotEdit  = location.state?.cotEdit ?? null
 
   const {
-    tiposVidrio, espesores, nivelesPrecio, clientes, procesos, barrenos, saques, extras,
+    tiposVidrio, espesores, nivelesPrecio, clientes, procesos, barrenos, saques, extras, tiposPago,
     getPrecioVidrio, getPrecioProceso, getPrecioProcesoEspecial,
     getPreciosClienteRegistrado,
     iniciarCotizacion, agregarPartida, agregarPartidaExtra, deletePartidasExtra,
@@ -602,6 +570,7 @@ export default function NuevaCotizacion() {
     if (cid) { setDatosCotOpen(false)
       const cl = clientes.find(c => c.id_cliente === Number(cid))
       setNivelId(cl?.id_nivel_precio ? String(cl.id_nivel_precio) : '')
+      if (modalFormaPago === 'CREDITO' && !cl?.credito_activo) setModalFormaPago('LIQUIDADO')
       setCargandoCli(true)
       getPreciosClienteRegistrado(Number(cid))
         .then(data => setPreciosCli(data ?? []))
@@ -609,6 +578,7 @@ export default function NuevaCotizacion() {
         .finally(() => setCargandoCli(false))
     } else {
       setNivelId('')
+      if (modalFormaPago === 'CREDITO') setModalFormaPago('LIQUIDADO')
     }
   }
 
@@ -630,7 +600,10 @@ export default function NuevaCotizacion() {
     const esPequena   = preview.metros2_total / parsed.piezas <= 0.12 ||
                         (preview.metros2_total / parsed.piezas < 0.45 && preview.procesosCalc.length > 0)
     const manualNum   = esPequena && precioManual !== '' ? parseFloat(precioManual) : NaN
-    const subtotalFin = (!isNaN(manualNum) && manualNum > 0) ? manualNum : preview.subtotal_total
+    const pzas        = parsed.piezas
+    const roundedVid  = r5(preview.subtotal_vidrio / pzas) * pzas
+    const roundedProc = preview.procesosCalc.reduce((s, pr) => s + r5(Number(pr.subtotal) / pzas) * pzas, 0)
+    const subtotalFin = (!isNaN(manualNum) && manualNum > 0) ? manualNum : (roundedVid + roundedProc)
 
     const nuevaPartida = {
       _key:              Date.now() + Math.random(),
@@ -859,7 +832,7 @@ export default function NuevaCotizacion() {
 
   // ── Totales ───────────────────────────────────────────────────────────────
   const totalM2      = partidas.filter(p => p.tipo === 'VIDRIO' || !p.tipo).reduce((s, p) => s + p.metros2, 0)
-  const totalGeneral = partidas.reduce((s, p) => s + p.subtotal_partida, 0)
+  const totalGeneral = calcTotal(partidas)
   const tieneExtras  = partidas.some(p => p.tipo && p.tipo !== 'VIDRIO')
   const tieneVidrio  = partidas.some(p => p.tipo === 'VIDRIO' || !p.tipo)
   const nivelValido  = !tieneVidrio || usarPreciosCli || !!nivelId
@@ -998,6 +971,7 @@ export default function NuevaCotizacion() {
     const antN = parseFloat(modalAnticipoStr) || 0
     if (!nivelValido) { setModalError('Selecciona un nivel de precio'); return }
     if (!partidas.length) { setModalError('Agrega al menos una partida'); return }
+    const vidrioPartidas = partidas.filter(p => p.tipo === 'VIDRIO' || !p.tipo)
     if (modalFormaPago === 'ANTICIPO') {
       if (antN <= 0)            { setModalError('Ingresa un monto de anticipo valido'); return }
       if (antN >= totalGeneral) { setModalError('El anticipo debe ser menor al total'); return }
@@ -1007,7 +981,6 @@ export default function NuevaCotizacion() {
     const nivelParaGuardar = usarPreciosCli
       ? (clienteSeleccionado?.id_nivel_precio ?? nivelesPrecio[0]?.id_nivel_precio ?? null)
       : Number(nivelId) || nivelesPrecio[0]?.id_nivel_precio || null
-    const vidrioPartidas = partidas.filter(p => p.tipo === 'VIDRIO' || !p.tipo)
     try {
       const monto = modalFormaPago === 'LIQUIDADO' ? totalGeneral : antN
 
@@ -1126,27 +1099,44 @@ export default function NuevaCotizacion() {
               </div>
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
-              <button className="btn btn-outline" onClick={() => printTicketVidrio({
-                tipo: 'pedido',
-                folio: pedidoCreado.folio,
-                foliosCot: pedidoCreado.id_cotizacion ? `COT-${String(pedidoCreado.id_cotizacion).padStart(5,'0')}` : null,
-                fecha: pedidoCreado.fecha,
-                hora: pedidoCreado.hora ?? '',
-                clienteNombre: pedidoCreado.cliente?.nombre ?? 'Mostrador',
-                nivelNombre: pedidoCreado.nivel?.es_hoja_completa ? 'POR HOJA' : (pedidoCreado.nivel?.nombre ?? ''),
-                formaPago: pedidoCreado.forma_pago,
-                anticipo: pedidoCreado.anticipo,
-                saldo: pedidoCreado.saldo,
-                saldo_cobrado: pedidoCreado.saldo_cobrado,
-                esEntregado: pedidoCreado.estado === 'ENTREGADO',
-                total: pedidoCreado.total,
-                partidas: pedidoCreado.partidas.map(p => ({
-                  piezas: p.cantidad, clave: p.clave_vidrio,
-                  largo_cm: p.largo_cm, ancho_cm: p.ancho_cm,
-                  subtotal_vidrio: p.subtotal_vidrio, procesos: p.procesos,
-                  subtotal_partida: p.subtotal_partida,
-                })),
-              })}>🖨️ Imprimir</button>
+              {(() => {
+                const detallePedido = {
+                  tipo: 'pedido',
+                  folio: pedidoCreado.folio,
+                  foliosCot: pedidoCreado.id_cotizacion ? `COT-${String(pedidoCreado.id_cotizacion).padStart(5,'0')}` : null,
+                  fecha: pedidoCreado.fecha,
+                  hora: pedidoCreado.hora ?? '',
+                  clienteNombre: pedidoCreado.cliente?.nombre ?? 'Mostrador',
+                  nivelNombre: pedidoCreado.nivel?.es_hoja_completa ? 'POR HOJA' : (pedidoCreado.nivel?.nombre ?? ''),
+                  formaPago: pedidoCreado.forma_pago,
+                  anticipo: pedidoCreado.anticipo,
+                  saldo: pedidoCreado.saldo,
+                  saldo_cobrado: pedidoCreado.saldo_cobrado,
+                  esEntregado: pedidoCreado.estado === 'ENTREGADO',
+                  total: pedidoCreado.total,
+                  partidas: [
+                    ...pedidoCreado.partidas.map(p => ({
+                      piezas: p.cantidad, clave: p.clave_vidrio,
+                      largo_cm: p.largo_cm, ancho_cm: p.ancho_cm,
+                      subtotal_vidrio: p.subtotal_vidrio, procesos: p.procesos,
+                      subtotal_partida: p.subtotal_partida,
+                    })),
+                    ...pedidoExtras.map(e => ({
+                      tipo: e.tipo === 'HERRAJE' || e.tipo === 'PRODUCTO' ? e.tipo : 'MAQUILA',
+                      descripcion: e.descripcion,
+                      cantidad: e.cantidad,
+                      unidad: e.unidad,
+                      precio_unitario: e.precio_unitario != null ? Number(e.precio_unitario) : null,
+                      subtotal_partida: Number(e.subtotal),
+                      procesos: [],
+                    })),
+                  ],
+                }
+                return (<>
+                  <button className="btn btn-outline" onClick={() => printTicketVidrio(detallePedido)}>🖨️ Ticket</button>
+                  <button className="btn btn-outline" onClick={() => printPedidoA4(detallePedido)}>🖨️ Hoja</button>
+                </>)
+              })()}
               <button className="btn btn-primary" onClick={nuevaCotizacion}>+ Nueva cotizacion</button>
             </div>
           </div>
@@ -1178,7 +1168,7 @@ export default function NuevaCotizacion() {
               clienteNombre: cotCreada.clienteNombre ?? 'Mostrador',
               nivelNombre: cotCreada.nivelNombre ?? '',
               esEntregado: false,
-              total: cotCreada.partidas.reduce((s, p) => s + p.subtotal_partida, 0),
+              total: calcTotal(cotCreada.partidas),
               partidas: cotCreada.partidas.map(p => {
                 if (!p.tipo || p.tipo === 'VIDRIO') return {
                   tipo: 'VIDRIO',
@@ -1310,7 +1300,8 @@ export default function NuevaCotizacion() {
                     <label className="form-label required">Nivel de precio</label>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
                       {nivelesPrecio.map(n => {
-                        const activo  = nivelId === String(n.id_nivel_precio)
+                        const activo   = nivelId === String(n.id_nivel_precio)
+                        const bloqueado = !!clienteId
                         const precioM2 = tipoVidrioId
                           ? getPrecioVidrio(Number(tipoVidrioId), n.id_nivel_precio)
                           : null
@@ -1318,13 +1309,17 @@ export default function NuevaCotizacion() {
                           <button
                             key={n.id_nivel_precio}
                             type="button"
-                            onClick={() => { setNivelId(String(n.id_nivel_precio)); setDatosCotOpen(false) }}
+                            disabled={bloqueado && !activo}
+                            onClick={() => { if (!bloqueado) { setNivelId(String(n.id_nivel_precio)); setDatosCotOpen(false) } }}
+                            title={bloqueado && !activo ? 'Nivel bloqueado al cliente seleccionado' : undefined}
                             style={{
-                              padding: '7px 14px', borderRadius: 8, fontSize: 14, cursor: 'pointer',
+                              padding: '7px 14px', borderRadius: 8, fontSize: 14,
+                              cursor: bloqueado && !activo ? 'not-allowed' : 'pointer',
                               border: `2px solid ${activo ? 'var(--accent)' : 'var(--border)'}`,
-                              background: activo ? 'var(--accent)' : 'white',
-                              color: activo ? 'white' : 'var(--text)',
+                              background: activo ? 'var(--accent)' : bloqueado ? 'var(--bg)' : 'white',
+                              color: activo ? 'white' : bloqueado ? 'var(--text-muted)' : 'var(--text)',
                               fontWeight: activo ? 700 : 400,
+                              opacity: bloqueado && !activo ? 0.4 : 1,
                               transition: 'all 0.15s',
                               display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1,
                             }}
@@ -1339,6 +1334,11 @@ export default function NuevaCotizacion() {
                         )
                       })}
                     </div>
+                    {clienteId && (
+                      <div className="form-hint" style={{ marginTop: 6 }}>
+                        🔒 Nivel bloqueado al cliente seleccionado
+                      </div>
+                    )}
                   </div>
                 )}
                 {usarPreciosCli && (
@@ -2099,23 +2099,23 @@ export default function NuevaCotizacion() {
                 <div className="form-group">
                   <label className="form-label required">Forma de pago</label>
                   <div style={{ display: 'flex', gap: 10, marginTop: 6, flexWrap: 'wrap' }}>
-                    {[['LIQUIDADO', 'Liquidado', 'Pago completo · entrega inmediata'],
-                      ['ANTICIPO',  'Anticipo',  'Pago parcial · queda pendiente']].map(([val, label, desc]) => (
+                    {tiposPago
+                      .filter(tp => tp.descripcion !== 'CREDITO' || clienteSeleccionado?.credito_activo)
+                      .map(tp => (
                       <label
-                        key={val}
+                        key={tp.id_tipo_pago}
                         style={{
                           flex: 1, minWidth: 140, display: 'flex', flexDirection: 'column', gap: 3,
                           padding: '10px 12px', borderRadius: 8, cursor: 'pointer',
-                          border: `2px solid ${modalFormaPago === val ? 'var(--accent)' : 'var(--border)'}`,
-                          background: modalFormaPago === val ? 'var(--accent-subtle, #ede9fe)' : 'white',
+                          border: `2px solid ${modalFormaPago === tp.descripcion ? 'var(--accent)' : 'var(--border)'}`,
+                          background: modalFormaPago === tp.descripcion ? 'var(--accent-subtle, #ede9fe)' : 'white',
                         }}
-                        onClick={() => { setModalFormaPago(val); setModalAnticipoStr(''); setModalError(null) }}
+                        onClick={() => { setModalFormaPago(tp.descripcion); setModalAnticipoStr(''); setModalError(null) }}
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <input type="radio" name="modalFP" value={val} checked={modalFormaPago === val} onChange={() => {}} />
-                          <span style={{ fontWeight: 600, fontSize: 14 }}>{label}</span>
+                          <input type="radio" name="modalFP" value={tp.descripcion} checked={modalFormaPago === tp.descripcion} onChange={() => {}} />
+                          <span style={{ fontWeight: 600, fontSize: 14 }}>{tp.descripcion.charAt(0) + tp.descripcion.slice(1).toLowerCase()}</span>
                         </div>
-                        <span style={{ fontSize: 11, color: 'var(--text-muted)', paddingLeft: 20 }}>{desc}</span>
                       </label>
                     ))}
                   </div>

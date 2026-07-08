@@ -1,16 +1,23 @@
-import { http } from './http'
+const API = import.meta.env.VITE_API_URL || ''
 
-// Wrapper para compatibilidad con componentes que esperan { data, error }
-async function safe(fn) {
-  try   { return { data: await fn(), error: null } }
-  catch (e) { return { data: null, error: e.message ?? String(e) } }
+async function apiFetch(path, options = {}) {
+  const { method = 'GET', body } = options
+  const res = await fetch(`${API}/api${path}`, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data.message ?? `HTTP ${res.status}`)
+  return data
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 const TZ = 'America/Mexico_City'
 function formatearFechaHora(isoString) {
-  const utc = /Z|[+-]\d{2}:?\d{2}$/.test(isoString ?? '') ? isoString : (isoString ?? '') + 'Z'
+  if (!isoString) return { fecha: '—', hora: '—' }
+  const utc = /Z|[+-]\d{2}:?\d{2}$/.test(isoString) ? isoString : isoString + 'Z'
   const d = new Date(utc)
   return {
     fecha: new Intl.DateTimeFormat('es-MX', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: TZ }).format(d),
@@ -18,106 +25,110 @@ function formatearFechaHora(isoString) {
   }
 }
 
-// ── Tonos ─────────────────────────────────────────────────────────────────
+// ── Tonos ─────────────────────────────────────────────────────────────────────
 
-export const getTonos = () => http.get('/api/tonos')
+export const getTonos = async () => apiFetch('/tonos')
 
-export const createTono = ({ nombre }) => http.post('/api/tonos', { nombre })
+export const createTono = async ({ nombre }) =>
+  apiFetch('/tonos', { method: 'POST', body: { nombre } })
 
-export const updateTono = (id_tono, campos) => http.put(`/api/tonos/${id_tono}`, campos)
+export const updateTono = async (id_tono, campos) =>
+  apiFetch(`/tonos/${id_tono}`, { method: 'PUT', body: campos })
 
-// ── Espesores ─────────────────────────────────────────────────────────────
+// ── Espesores ─────────────────────────────────────────────────────────────────
 
-export const getEspesores = () => http.get('/api/espesores')
+export const getEspesores = async () => apiFetch('/espesores')
 
-export const createEspesor = ({ valor_mm, etiqueta }) =>
-  http.post('/api/espesores', { valor_mm: Number(valor_mm), etiqueta })
+export const createEspesor = async ({ valor_mm, etiqueta }) =>
+  apiFetch('/espesores', { method: 'POST', body: { valor_mm: Number(valor_mm), etiqueta } })
 
-export const updateEspesor = (id_espesor, campos) =>
-  http.put(`/api/espesores/${id_espesor}`, campos)
+export const updateEspesor = async (id_espesor, campos) =>
+  apiFetch(`/espesores/${id_espesor}`, { method: 'PUT', body: campos })
 
-// ── Tipos de vidrio ───────────────────────────────────────────────────────
+// ── Tipos de vidrio ───────────────────────────────────────────────────────────
 
-export const getTiposVidrio = () => http.get('/api/tipos-vidrio')
+export const getTiposVidrio = async () => apiFetch('/tipos-vidrio')
 
-export const createTipoVidrio = ({ id_tono, id_espesor, clave, descripcion }) =>
-  http.post('/api/tipos-vidrio', { id_tono, id_espesor, clave, descripcion })
+export const createTipoVidrio = async ({ id_tono, id_espesor, clave, descripcion }) =>
+  apiFetch('/tipos-vidrio', { method: 'POST', body: { id_tono, id_espesor, clave, descripcion } })
 
-export const updateTipoVidrio = (id_tipo_vidrio, campos) =>
-  http.put(`/api/tipos-vidrio/${id_tipo_vidrio}`, campos)
+export const updateTipoVidrio = async (id_tipo_vidrio, campos) =>
+  apiFetch(`/tipos-vidrio/${id_tipo_vidrio}`, { method: 'PUT', body: campos })
 
-// ── Niveles de precio ─────────────────────────────────────────────────────
+// ── Niveles de precio ─────────────────────────────────────────────────────────
 
-export const getNivelesPrecio = () => http.get('/api/niveles-precio')
+export const getNivelesPrecio = async () => apiFetch('/niveles-precio')
 
-// ── Precios de vidrio ─────────────────────────────────────────────────────
+// ── Precios de vidrio ─────────────────────────────────────────────────────────
 
-export const getPreciosVidrio = () => http.get('/api/precios-vidrio')
+export const getPreciosVidrio = async () => apiFetch('/precios-vidrio')
 
-export const guardarPrecio = ({ id_tipo_vidrio, id_nivel_precio, precio_m2 }) =>
-  http.post('/api/precios-vidrio', { id_tipo_vidrio, id_nivel_precio, precio_m2: Number(precio_m2) })
+export const guardarPrecio = async ({ id_tipo_vidrio, id_nivel_precio, precio_m2 }) =>
+  apiFetch('/precios-vidrio', { method: 'POST', body: { id_tipo_vidrio, id_nivel_precio, precio_m2: Number(precio_m2) } })
 
-// ── Clientes ──────────────────────────────────────────────────────────────
+// ── Clientes ──────────────────────────────────────────────────────────────────
 
-export const getClientes = () => http.get('/api/clientes')
+export const getClientes = async () => apiFetch('/clientes')
 
-export const createCliente = ({ nombre, telefono, correo, id_nivel_precio }) =>
-  http.post('/api/clientes', { nombre, telefono: telefono || null, correo: correo || null, id_nivel_precio: id_nivel_precio || null })
+export const createCliente = async ({ nombre, telefono, correo, id_nivel_precio }) =>
+  apiFetch('/clientes', { method: 'POST', body: { nombre, telefono: telefono || null, correo: correo || null, id_nivel_precio: id_nivel_precio || null } })
 
-export const updateCliente = (id_cliente, campos) =>
-  http.put(`/api/clientes/${id_cliente}`, campos)
+export const updateCliente = async (id_cliente, campos) =>
+  apiFetch(`/clientes/${id_cliente}`, { method: 'PUT', body: campos })
 
-// ── Procesos ──────────────────────────────────────────────────────────────
+// ── Procesos ──────────────────────────────────────────────────────────────────
 
-export const getProcesos = () => http.get('/api/procesos')
+export const getProcesos = async () => apiFetch('/procesos')
 
-export const createProceso = ({ nombre, id_unidad_cobro, precio_unitario = 0 }) =>
-  http.post('/api/procesos', { nombre, id_unidad_cobro, precio_unitario: Number(precio_unitario) })
+export const createProceso = async ({ nombre, id_unidad_cobro, precio_unitario = 0, tipo = 'PROCESO', diametro_mm = null }) =>
+  apiFetch('/procesos', { method: 'POST', body: { nombre, id_unidad_cobro, precio_unitario: Number(precio_unitario), tipo, diametro_mm: diametro_mm ?? null } })
 
-export const updateProceso = (id_proceso, campos) =>
-  http.put(`/api/procesos/${id_proceso}`, campos)
+export const updateProceso = async (id_proceso, campos) =>
+  apiFetch(`/procesos/${id_proceso}`, { method: 'PUT', body: campos })
 
-// ── Precios de proceso ────────────────────────────────────────────────────
+// ── Precios de proceso por nivel ──────────────────────────────────────────────
 
-export const getPreciosProceso = () => http.get('/api/precios-proceso')
+export const getPreciosProceso = async () => apiFetch('/precios-proceso')
 
 export const guardarPreciosProceso = async (id_proceso, precios) => {
   if (!precios.length) return []
-  return http.post('/api/precios-proceso', { id_proceso, precios })
+  return apiFetch('/precios-proceso', { method: 'POST', body: { id_proceso, precios } })
 }
 
-// ── Precios de proceso especial (sin espesor) ─────────────────────────────
+// ── Precios especiales (Barrenos / Saque) ─────────────────────────────────────
 
-export const getPreciosProcesoEspecial = () => http.get('/api/precios-proceso-especial')
+export const getPreciosProcesoEspecial = async () => apiFetch('/precios-proceso-especial')
 
 export const guardarPreciosProcesoEspecial = async (id_proceso, precios) => {
   if (!precios.length) return []
-  return http.post('/api/precios-proceso-especial', { id_proceso, precios })
+  return apiFetch('/precios-proceso-especial', { method: 'POST', body: { id_proceso, precios } })
 }
 
-// ── Unidades de cobro ─────────────────────────────────────────────────────
+// ── Unidades de cobro ─────────────────────────────────────────────────────────
 
-export const getUnidadesCobro = () => http.get('/api/unidades-cobro')
+export const getUnidadesCobro = async () => apiFetch('/unidades-cobro')
 
-// ── Cotizaciones ──────────────────────────────────────────────────────────
+export const getTiposPago = async () => apiFetch('/tipos-pago')
 
-export const iniciarCotizacion = ({ id_nivel_precio, id_cliente = null, observaciones = null }) =>
-  safe(() => http.post('/api/cotizaciones', { id_nivel_precio, id_cliente, observaciones }))
+// ── Cotizaciones ──────────────────────────────────────────────────────────────
 
-export const agregarPartida = (id_cotizacion, partida) =>
-  safe(() => http.post(`/api/cotizaciones/${id_cotizacion}/partidas`, partida))
+export const iniciarCotizacion = async ({ id_nivel_precio, id_cliente = null, observaciones = null }) =>
+  apiFetch('/cotizaciones', { method: 'POST', body: { id_nivel_precio, id_cliente: id_cliente || null, observaciones: observaciones || null } })
 
-export const actualizarCotizacion = (id_cotizacion, datos) =>
-  safe(() => http.put(`/api/cotizaciones/${id_cotizacion}/actualizar`, datos))
+export const agregarPartida = async (id_cotizacion, partida) =>
+  apiFetch(`/cotizaciones/${id_cotizacion}/partidas`, { method: 'POST', body: partida })
 
-export const finalizarCotizacion = (id_cotizacion, total) =>
-  safe(() => http.put(`/api/cotizaciones/${id_cotizacion}`, { total: Number(total), estatus: 'FINALIZADA' }))
+export const actualizarCotizacion = async (id_cotizacion, { id_nivel_precio, id_cliente, partidas, total }) =>
+  apiFetch(`/cotizaciones/${id_cotizacion}/actualizar`, { method: 'PUT', body: { id_nivel_precio, id_cliente, partidas, total } })
 
-export const cancelarCotizacion = (id_cotizacion) =>
-  safe(() => http.put(`/api/cotizaciones/${id_cotizacion}`, { estatus: 'CANCELADA' }))
+export const finalizarCotizacion = async (id_cotizacion, total) =>
+  apiFetch(`/cotizaciones/${id_cotizacion}`, { method: 'PUT', body: { total: Number(total), estatus: 'FINALIZADA' } })
+
+export const cancelarCotizacion = async (id_cotizacion) =>
+  apiFetch(`/cotizaciones/${id_cotizacion}`, { method: 'PUT', body: { estatus: 'CANCELADA' } })
 
 export const getCotizaciones = async () => {
-  const rows = await http.get('/api/cotizaciones')
+  const rows = await apiFetch('/cotizaciones')
   return rows.map(row => {
     const { fecha, hora } = formatearFechaHora(row.fecha)
     return {
@@ -135,34 +146,32 @@ export const getCotizaciones = async () => {
   })
 }
 
-// ── Partidas extra (maquila / productos generales) ────────────────────────
+// ── Partidas extra (maquila / productos generales) ────────────────────────────
 
-export const agregarPartidaExtra = (id_cotizacion, partida) =>
-  safe(() => http.post(`/api/cotizaciones/${id_cotizacion}/extras`, partida))
+export const agregarPartidaExtra = async (id_cotizacion, partida) =>
+  apiFetch(`/cotizaciones/${id_cotizacion}/extras`, { method: 'POST', body: partida })
 
-export const getPartidasExtra = (id_cotizacion) =>
-  http.get(`/api/cotizaciones/${id_cotizacion}/extras`)
+export const getPartidasExtra = async (id_cotizacion) =>
+  apiFetch(`/cotizaciones/${id_cotizacion}/extras`)
 
-export const deletePartidasExtra = (id_cotizacion) =>
-  safe(() => http.del(`/api/cotizaciones/${id_cotizacion}/extras`))
-
-// ── Detalle completo de cotización ────────────────────────────────────────
+export const deletePartidasExtra = async (id_cotizacion) =>
+  apiFetch(`/cotizaciones/${id_cotizacion}/extras`, { method: 'DELETE' })
 
 export const getDetalleCotizacion = async (id) => {
-  const data = await http.get(`/api/cotizaciones/${id}`)
-  const { fecha, hora } = formatearFechaHora(data.fecha)
+  const row = await apiFetch(`/cotizaciones/${id}`)
+  const { fecha, hora } = formatearFechaHora(row.fecha)
   return {
     id:            data.id_cotizacion,
     folio:         data.folio,
     fecha,
     hora,
-    fechaISO:      data.fecha,
-    cliente:       data.cliente,
-    nivel:         data.nivel,
-    total:         Number(data.total),
-    estatus:       data.estatus,
-    observaciones: data.observaciones,
-    partidas: (data.partidas ?? []).map(p => ({
+    fechaISO:      row.fecha,
+    cliente:       row.cliente,
+    nivel:         row.nivel,
+    total:         Number(row.total),
+    estatus:       row.estatus,
+    observaciones: row.observaciones,
+    partidas: (row.partidas ?? []).map(p => ({
       id:                 p.id_partida,
       tipoVidrio:         p.tipo_vidrio,
       piezas:             Number(p.piezas ?? 1),
@@ -185,7 +194,7 @@ export const getDetalleCotizacion = async (id) => {
         subtotal:        Number(pp.subtotal),
       })),
     })),
-    extras: (data.extras ?? []).map(e => ({
+    extras: (row.extras ?? []).map(e => ({
       id:                  e.id_partida_extra,
       tipo:                e.tipo,
       descripcion:         e.descripcion ?? '',

@@ -1,6 +1,18 @@
-import { http } from './http'
+const API = import.meta.env.VITE_API_URL || ''
 
-// ── Horario base (constantes) ─────────────────────────────────
+async function apiFetch(path, options = {}) {
+  const { method = 'GET', body } = options
+  const res = await fetch(`${API}/api${path}`, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data.message ?? `HTTP ${res.status}`)
+  return data
+}
+
+// ── Horario base (constantes) ─────────────────────────────────────────────────
 export const HORARIO_BASE = {
   SEMANA: { entrada: '09:30', salida: '19:30', minutosEsperados: 600 },
   SABADO: { entrada: '09:30', salida: '16:30', minutosEsperados: 420 },
@@ -11,7 +23,7 @@ export function getTipoDia(nombreDia) {
   return nombreDia === 'Sábado' ? 'SABADO' : 'SEMANA'
 }
 
-// ── Helpers de tiempo ─────────────────────────────────────────
+// ── Helpers de tiempo ─────────────────────────────────────────────────────────
 export function timeToMin(t) {
   if (!t) return null
   const [h, m] = t.split(':').map(Number)
@@ -28,7 +40,7 @@ function normTime(t) {
   return t ? t.slice(0, 5) : null
 }
 
-// ── Cálculo por día ───────────────────────────────────────────
+// ── Cálculo por día ───────────────────────────────────────────────────────────
 export function calcularDia(horaEntrada, horaSalida, nombreDia) {
   const tipo    = getTipoDia(nombreDia)
   const horario = HORARIO_BASE[tipo]
@@ -64,7 +76,7 @@ export function calcularDia(horaEntrada, horaSalida, nombreDia) {
   }
 }
 
-// ── Cálculo resumen semanal ───────────────────────────────────
+// ── Cálculo resumen semanal ───────────────────────────────────────────────────
 export function calcularResumenSemanal(registros) {
   let minutosTrabajados = 0
   let minutosExtra      = 0
@@ -81,10 +93,10 @@ export function calcularResumenSemanal(registros) {
     }
   }
 
-  const DIAS_LABORALES = 6 // Lun–Sáb
-
+  const DIAS_LABORALES = 6
   let bonoPuntualidad = false
   let motivoBono      = null
+
   if (diasCompletos === 0) {
     motivoBono = 'Sin registros completos en la semana.'
   } else if (diasCompletos < DIAS_LABORALES) {
@@ -105,8 +117,7 @@ export function calcularResumenSemanal(registros) {
   }
 }
 
-// ── Helpers de semana ─────────────────────────────────────────
-// Convierte un objeto Date a "YYYY-MM-DD" usando hora LOCAL (no UTC)
+// ── Helpers de semana ─────────────────────────────────────────────────────────
 function localStr(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
@@ -151,42 +162,41 @@ export function getDiasDeSemana(fechaLunes) {
   })
 }
 
-// ── Semanas ───────────────────────────────────────────────────
+// ── Semanas ───────────────────────────────────────────────────────────────────
 export async function getOrCreateSemana(fechaRef) {
   const lunes  = getLunesDeSemana(fechaRef)
-  const sabado = (() => {
-    const d = new Date(lunes + 'T12:00:00')
-    d.setDate(d.getDate() + 5)
-    return localStr(d)
-  })()
-  const descripcion = `Semana del ${fmtCorto(lunes)} al ${fmtCorto(sabado)}`
-  return http.post('/api/personal/semanas', { fecha_inicio: lunes, fecha_fin: sabado, descripcion })
+  const sabado = (() => { const d = new Date(lunes + 'T12:00:00'); d.setDate(d.getDate() + 5); return localStr(d) })()
+  const desc   = `Semana del ${fmtCorto(lunes)} al ${fmtCorto(sabado)}`
+  return apiFetch('/personal/semanas', {
+    method: 'POST',
+    body: { fecha_inicio: lunes, fecha_fin: sabado, descripcion: desc },
+  })
 }
 
 export async function getSemanas() {
-  return http.get('/api/personal/semanas')
+  return apiFetch('/personal/semanas')
 }
 
-// ── Empleados ─────────────────────────────────────────────────
+// ── Empleados ─────────────────────────────────────────────────────────────────
 export async function getEmpleados() {
-  return http.get('/api/personal/empleados')
+  return apiFetch('/personal/empleados')
 }
 
 export async function createEmpleado(nombre, telefono) {
-  return http.post('/api/personal/empleados', { nombre, telefono })
+  return apiFetch('/personal/empleados', { method: 'POST', body: { nombre, telefono } })
 }
 
 export async function updateEmpleado(id, nombre, telefono) {
-  return http.put(`/api/personal/empleados/${id}`, { nombre, telefono })
+  return apiFetch(`/personal/empleados/${id}`, { method: 'PUT', body: { nombre, telefono } })
 }
 
 export async function deleteEmpleado(id) {
-  return http.del(`/api/personal/empleados/${id}`)
+  return apiFetch(`/personal/empleados/${id}`, { method: 'DELETE' })
 }
 
-// ── Registros diarios ─────────────────────────────────────────
+// ── Registros diarios ─────────────────────────────────────────────────────────
 export async function getRegistrosSemana(semanaId) {
-  const rows = await http.get(`/api/personal/registros/${semanaId}`)
+  const rows = await apiFetch(`/personal/registros/${semanaId}`)
   return rows.map(r => ({
     ...r,
     hora_entrada: normTime(r.hora_entrada),
@@ -195,20 +205,28 @@ export async function getRegistrosSemana(semanaId) {
 }
 
 export async function upsertRegistro(empleadoId, semanaId, fecha, horaEntrada, horaSalida) {
-  const data = await http.post('/api/personal/registros', {
-    empleadoId, semanaId, fecha,
-    nombreDia: getNombreDia(fecha),
-    horaEntrada: horaEntrada || null,
-    horaSalida:  horaSalida  || null,
+  const data = await apiFetch('/personal/registros', {
+    method: 'POST',
+    body: {
+      empleadoId,
+      semanaId,
+      fecha,
+      nombreDia:    getNombreDia(fecha),
+      horaEntrada:  horaEntrada || null,
+      horaSalida:   horaSalida  || null,
+    },
   })
   return { ...data, hora_entrada: normTime(data.hora_entrada), hora_salida: normTime(data.hora_salida) }
 }
 
-// ── Resumen semanal ───────────────────────────────────────────
+// ── Resumen semanal ───────────────────────────────────────────────────────────
 export async function getResumenesSemana(semanaId) {
-  return http.get(`/api/personal/resumenes/${semanaId}`)
+  return apiFetch(`/personal/resumenes/${semanaId}`)
 }
 
 export async function upsertResumen(empleadoId, semanaId, resumen) {
-  return http.post('/api/personal/resumenes', { empleadoId, semanaId, resumen })
+  return apiFetch('/personal/resumenes', {
+    method: 'POST',
+    body: { empleadoId, semanaId, resumen },
+  })
 }

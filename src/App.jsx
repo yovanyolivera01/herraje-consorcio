@@ -28,6 +28,8 @@ import InventarioVidrio         from './pages/Cotizacion/InventarioVidrio'
 import HistorialMaquila         from './pages/Cotizacion/HistorialMaquila'
 import HistorialHerraje         from './pages/Herraje/HistorialHerraje'
 import ReporteVidrio            from './pages/Cotizacion/ReporteVidrio'
+import RegistrarEgreso          from './pages/Egresos/RegistrarEgreso'
+
 
 export default function App() {
   return (
@@ -66,10 +68,11 @@ export default function App() {
                   <Route path="herraje/historial"        element={<HistorialHerraje />} />
                   <Route path="cot/reporte-vidrio"       element={<ReporteVidrio />} />
 
-                    {/* ── Personal ── */}
-                    <Route path="personal/empleados" element={<Empleados />} />
-                    <Route path="personal/registro"  element={<RegistroSemanal />} />
-                    <Route path="personal/resumen"   element={<ResumenSemanal />} />
+                  {/* ── Módulo de Gestión de Personal ── */}
+                  <Route path="personal/empleados" element={<Empleados />} />
+                  <Route path="personal/registro"  element={<RegistroSemanal />} />
+                  <Route path="personal/resumen"   element={<ResumenSemanal />} />
+                  <Route path="admin/usuarios"     element={<RegistrarEgreso/>}/>
 
                     <Route path="*" element={<Navigate to="/proveedores" replace />} />
                   </Route>

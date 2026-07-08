@@ -50,7 +50,7 @@ export function exportCotizacionExcel(detalle) {
 
   // ── Fila 0: TEMPLADOS ──────────────────────────────────────────────────────
   merge(row, row, 0, COLS - 1)
-  set(row, 0, 'TEMPLADOS CONSORCIO', {
+  set(row, 0, 'VIDRIO TEMPLADO Y ALUMINIO ROSALES', {
     font: { name: 'Calibri', sz: 28, bold: true, color: { rgb: blanco } },
     fill: { patternType: 'solid', fgColor: { rgb: azulOsc } },
     alignment: { horizontal: 'center', vertical: 'center' },

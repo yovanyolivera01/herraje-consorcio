@@ -1,4 +1,9 @@
-// Supabase reemplazado por backend Express + PostgreSQL.
-// supabaseConfigured se mantiene en true para compatibilidad con AppContext y CotizacionContext.
+// Supabase ya no se usa — el frontend llama al backend local.
+// Se exportan los símbolos para no romper imports existentes.
+
 export const supabaseConfigured = true
-export const supabase = null
+
+export const supabase = {
+  from: () => { throw new Error('Supabase no disponible — usa el backend local') },
+  rpc:  () => { throw new Error('Supabase no disponible — usa el backend local') },
+}
