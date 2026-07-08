@@ -10,6 +10,7 @@ function ClienteModal({ cliente, onClose, onSave }) {
     telefono:        cliente?.telefono        ?? '',
     correo:          cliente?.correo          ?? '',
     id_nivel_precio: cliente?.id_nivel_precio ?? vidrieroId,
+    credito_activo:  cliente?.credito_activo  ?? false,
   })
   const [errors, setErrors] = useState({})
   const [saving, setSaving] = useState(false)
@@ -34,6 +35,7 @@ function ClienteModal({ cliente, onClose, onSave }) {
       telefono:        form.telefono.trim() || null,
       correo:          form.correo.trim()   || null,
       id_nivel_precio: form.id_nivel_precio ? Number(form.id_nivel_precio) : null,
+      credito_activo:  form.credito_activo,
     })
     setSaving(false)
   }
@@ -99,7 +101,17 @@ function ClienteModal({ cliente, onClose, onSave }) {
               </select>
               <div className="form-hint">Se aplicara automaticamente al crear una cotizacion para este cliente</div>
             </div>
-
+            <div className="form-group">
+              <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={form.credito_activo}
+                  onChange={e => setForm(f => ({ ...f, credito_activo: e.target.checked }))}
+                />
+                <span className="form-label" style={{ margin: 0 }}>Crédito activo</span>
+              </label>
+              <div className="form-hint">Permite crear pedidos con forma de pago Crédito para este cliente</div>
+            </div>
 
           </div>
           <div className="modal-footer">

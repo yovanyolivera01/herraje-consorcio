@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { fmt5 } from '../../lib/utils'
 import { getPedidosPendientes, getDetallePedido, marcarComoEntregado, getPedidosCredito } from '../../lib/pedidosApi'
 import { getPedidosPendientesMaquila, getDetallePedidoMaquila, entregarPartidaMaquila, marcarAnticipoLiquidado as marcarAnticipoMaquila } from '../../lib/maquilaApi'
-import { printPedidoPendiente, printTicketVidrio } from '../../utils/ticket'
+import { printPedidoPendiente, printTicketVidrio, printPedidoA4 } from '../../utils/ticket'
 
 // ── Ticket de pedido ──────────────────────────────────────────────────────
 function TicketPedido({ detalle, extras = [] }) {
@@ -76,7 +76,7 @@ function TicketPedido({ detalle, extras = [] }) {
       </div>
       <hr className="ticket-divider" />
       <div style={{ textAlign:'center', fontSize:11, color:'var(--text-muted)', marginTop:8 }}>
-        Pedido pendiente de entrega.
+        {detalle.tipo_pago === 'CREDITO' ? 'Entregado.' : 'Pedido pendiente de entrega.'}
       </div>
     </div>
   )
@@ -395,9 +395,40 @@ function DetallePedidoModal({ resumen, onClose, onEntregado }) {
             <button className="btn btn-outline" onClick={onClose}>Cerrar</button>
             {detalle && (
               <>
-                <button className="btn btn-outline" onClick={() => printPedidoPendiente(detalle)}>🖨️ Imprimir</button>
+                <button className="btn btn-outline" onClick={() => printPedidoPendiente(detalle)}>🖨️ Ticket</button>
+                <button className="btn btn-outline" onClick={() => printPedidoA4({
+                  tipo: 'pedido',
+                  folio: detalle.folio,
+                  fecha: detalle.fecha,
+                  hora: detalle.hora,
+                  clienteNombre: detalle.cliente?.nombre ?? 'Mostrador',
+                  nivelNombre: detalle.nivel?.nombre ?? '',
+                  formaPago: detalle.tipo_pago,
+                  anticipo: detalle.anticipo,
+                  saldo: detalle.saldo,
+                  esEntregado: false,
+                  partidas: [
+                    ...detalle.partidas.map(p => ({
+                      piezas: p.cantidad ?? 1,
+                      clave: p.clave_vidrio,
+                      largo_cm: p.largo_cm,
+                      ancho_cm: p.ancho_cm,
+                      subtotal_vidrio: p.subtotal_vidrio,
+                      procesos: p.procesos ?? [],
+                      subtotal_partida: p.subtotal_partida,
+                    })),
+                    ...(detalle.extras ?? []).map(e => ({
+                      tipo: e.tipo === 'HERRAJE' || e.tipo === 'PRODUCTO' ? e.tipo : 'MAQUILA',
+                      descripcion: e.descripcion,
+                      cantidad: e.cantidad,
+                      precio_unitario: e.precio_unitario != null ? Number(e.precio_unitario) : null,
+                      subtotal_partida: Number(e.subtotal),
+                      procesos: [],
+                    })),
+                  ],
+                })}>🖨️ Hoja</button>
                 <button className="btn btn-primary" onClick={() => setShowEntregar(true)}>
-                  📦 Marcar como entregado
+                  {resumen.tipo_pago === 'CREDITO' ? '💰 Cobrar el saldo' : '📦 Marcar como entregado'}
                 </button>
               </>
             )}
@@ -554,8 +585,8 @@ function DetalleMaquilaModal({ resumen, onClose, onActualizado }) {
 
         <div className="modal-footer">
           <button className="btn btn-outline" onClick={onClose}>Cerrar</button>
-          {detalle && (
-            <button className="btn btn-outline" onClick={() => printTicketVidrio({
+          {detalle && (() => {
+            const detalleMaq = {
               tipo:         'pedido',
               folio:        detalle.folio,
               fecha:        detalle.fecha,
@@ -578,8 +609,12 @@ function DetalleMaquilaModal({ resumen, onClose, onActualizado }) {
                 subtotal_vidrio:  null,
                 procesos:         (p.procesos ?? []).map(pr => ({ nombre: pr.nombre, subtotal: pr.subtotal })),
               })),
-            })}>🖨️ Imprimir</button>
-          )}
+            }
+            return (<>
+              <button className="btn btn-outline" onClick={() => printTicketVidrio(detalleMaq)}>🖨️ Ticket</button>
+              <button className="btn btn-outline" onClick={() => printPedidoA4(detalleMaq)}>🖨️ Hoja</button>
+            </>)
+          })()}
           {puedeLiquidar && (
             <button className="btn btn-outline" onClick={handleLiquidar} disabled={liquidando}>
               {liquidando ? '...' : '💳 Marcar anticipo liquidado'}
@@ -593,19 +628,28 @@ function DetalleMaquilaModal({ resumen, onClose, onActualizado }) {
 
 // ── Página Pedidos Pendientes ─────────────────────────────────────────────
 export default function PedidosPendientes() {
-  const [pedidos,      setPedidos]      = useState([])
-  const [loading,      setLoading]      = useState(true)
-  const [error,        setError]        = useState(null)
-  const [seleccionado, setSeleccionado] = useState(null)
-  const [toast,        setToast]        = useState(null)
-  const [tab,           setTab]           = useState('pendientes')
+  const [pedidos,        setPedidos]        = useState([])
+  const [loading,        setLoading]        = useState(true)
+  const [error,          setError]          = useState(null)
+  const [seleccionado,   setSeleccionado]   = useState(null)
+  const [toast,          setToast]          = useState(null)
+  const [tab,            setTab]            = useState('pendientes')
   const [pedidosCredito, setPedidosCredito] = useState([])
+  const [busqueda,       setBusqueda]       = useState('')
 
   useEffect(() => {
     if (tab === 'credito') getPedidosCredito().then(setPedidosCredito)
   }, [tab])
 
-  const pedidosFiltrados = tab === 'credito' ? pedidosCredito : pedidos.filter(p => p.tipo_pago !== 'CREDITO')
+  const q = busqueda.trim().toLowerCase()
+  const pedidosBase = tab === 'credito' ? pedidosCredito : pedidos.filter(p => p.tipo_pago !== 'CREDITO')
+  const pedidosFiltrados = q
+    ? pedidosBase.filter(p =>
+        p.folio?.toLowerCase().includes(q) ||
+        p.clienteNombre?.toLowerCase().includes(q) ||
+        p.nivelNombre?.toLowerCase().includes(q)
+      )
+    : pedidosBase
 
   useEffect(() => {
     if (!toast) return
@@ -662,7 +706,19 @@ export default function PedidosPendientes() {
             {pedidos.length} pedido{pedidos.length !== 1 ? 's' : ''} en espera de entrega
           </div>
         </div>
-        <button className="btn btn-outline" onClick={cargar}>↻ Actualizar</button>
+        <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+          <div className="search-input-wrap" style={{ maxWidth:220 }}>
+            <span className="search-icon">🔍</span>
+            <input
+              className="search-input"
+              type="text"
+              placeholder="Buscar..."
+              value={busqueda}
+              onChange={e => setBusqueda(e.target.value)}
+            />
+          </div>
+          <button className="btn btn-outline" onClick={cargar}>↻ Actualizar</button>
+        </div>
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>

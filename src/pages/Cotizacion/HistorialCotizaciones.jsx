@@ -7,7 +7,7 @@ import { convertirCotizacionAPedido, getDetallePedido } from '../../lib/pedidosA
 import {
   connectPrinter, disconnectPrinter, isPrinterConnected, printThermalVidrio, isWebSerialSupported,
 } from '../../utils/thermalPrinter'
-import { printTicketVidrio } from '../../utils/ticket'
+import { printTicketVidrio, printPedidoA4 } from '../../utils/ticket'
 
 // ── Hook impresora térmica ────────────────────────────────────────────────
 function useThermal() {
@@ -247,15 +247,25 @@ function PedidoCreadoModal({ detalle, onClose }) {
     saldo_cobrado: detalle.saldo_cobrado,
     esEntregado:   detalle.estado === 'ENTREGADO',
     total:         detalle.total,
-    partidas: detalle.partidas.map(p => ({
-      piezas:          p.cantidad,
-      clave:           p.clave_vidrio,
-      largo_cm:        p.largo_cm,
-      ancho_cm:        p.ancho_cm,
-      subtotal_vidrio: p.subtotal_vidrio,
-      procesos:        p.procesos,
-      subtotal_partida: p.subtotal_partida,
-    })),
+    partidas: [
+      ...detalle.partidas.map(p => ({
+        piezas:           p.cantidad,
+        clave:            p.clave_vidrio,
+        largo_cm:         p.largo_cm,
+        ancho_cm:         p.ancho_cm,
+        subtotal_vidrio:  p.subtotal_vidrio,
+        procesos:         p.procesos,
+        subtotal_partida: p.subtotal_partida,
+      })),
+      ...(detalle.extras ?? []).map(e => ({
+        tipo:             e.tipo === 'HERRAJE' || e.tipo === 'PRODUCTO' ? e.tipo : 'MAQUILA',
+        descripcion:      e.descripcion,
+        cantidad:         e.cantidad,
+        precio_unitario:  e.precio_unitario != null ? Number(e.precio_unitario) : null,
+        subtotal_partida: Number(e.subtotal),
+        procesos:         [],
+      })),
+    ],
   }
 
   return (
@@ -279,7 +289,8 @@ function PedidoCreadoModal({ detalle, onClose }) {
         </div>
         <div className="modal-footer">
           <button className="btn btn-outline" onClick={onClose}>Cerrar</button>
-          <button className="btn btn-outline" onClick={() => printTicketVidrio(normalizado)}>🖨️ Imprimir</button>
+          <button className="btn btn-outline" onClick={() => printTicketVidrio(normalizado)}>🖨️ Ticket</button>
+          <button className="btn btn-outline" onClick={() => printPedidoA4(normalizado)}>🖨️ Hoja</button>
           <button
             className="btn btn-outline"
             onClick={handleConnect}
@@ -460,7 +471,8 @@ function DetalleModal({ resumen, onClose, onConvertir, onEditar }) {
           <button className="btn btn-outline" onClick={onClose}>Cerrar</button>
           {detalle && (
             <>
-              <button className="btn btn-outline" onClick={() => printTicketVidrio(normalizado)}>🖨️ Imprimir</button>
+              <button className="btn btn-outline" onClick={() => printTicketVidrio(normalizado)}>🖨️ Ticket</button>
+              <button className="btn btn-outline" onClick={() => printPedidoA4(normalizado)}>🖨️ Hoja</button>
               {isWebSerialSupported() && (
                 <>
                   <button
@@ -688,6 +700,9 @@ export default function HistorialCotizaciones() {
   const [editandoId,     setEditandoId]     = useState(null)
 
   // ── Estado pestaña maquila ───────────────────────────────────────────────
+  const [busqueda,      setBusqueda]      = useState('')
+
+  // ── Estado pestaña maquila ───────────────────────────────────────────────
   const [cotsMaq,       setCotsMaq]       = useState([])
   const [loadingMaq,    setLoadingMaq]    = useState(false)
   const [errorMaq,      setErrorMaq]      = useState(null)
@@ -729,6 +744,8 @@ export default function HistorialCotizaciones() {
 
   useEffect(() => { cargar() }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  const q = busqueda.trim().toLowerCase()
+
   const filtered = cotizaciones.filter(c => {
     if (filtroEstatus !== 'todos' && c.estatus !== filtroEstatus) return false
     if (fechaDesde || fechaHasta) {
@@ -736,8 +753,23 @@ export default function HistorialCotizaciones() {
       if (fechaDesde && f < new Date(fechaDesde))              return false
       if (fechaHasta && f > new Date(fechaHasta + 'T23:59:59')) return false
     }
+    if (q) {
+      const hayMatch =
+        c.folio?.toLowerCase().includes(q) ||
+        c.clienteNombre?.toLowerCase().includes(q) ||
+        c.nivelNombre?.toLowerCase().includes(q)
+      if (!hayMatch) return false
+    }
     return true
   })
+
+  const filteredMaq = q
+    ? cotsMaq.filter(c =>
+        c.folio?.toLowerCase().includes(q) ||
+        c.clienteNombre?.toLowerCase().includes(q) ||
+        c.nivelNombre?.toLowerCase().includes(q)
+      )
+    : cotsMaq
 
   const totalPeriodo = filtered.reduce((s, c) => s + c.total, 0)
 
@@ -796,14 +828,14 @@ export default function HistorialCotizaciones() {
           <>
             {loadingMaq && <div style={{ textAlign:'center', padding:'40px 0', color:'var(--text-muted)' }}>Cargando...</div>}
             {errorMaq && <div className="alert alert-error">❌ {errorMaq}</div>}
-            {!loadingMaq && !errorMaq && cotsMaq.length === 0 && (
+            {!loadingMaq && !errorMaq && filteredMaq.length === 0 && (
               <div className="empty-state">
                 <div className="empty-state-icon">🔨</div>
-                <h3>Sin cotizaciones de maquila</h3>
-                <p>Las cotizaciones convertidas a pedido no aparecen aqui</p>
+                <h3>{q ? 'Sin resultados' : 'Sin cotizaciones de maquila'}</h3>
+                <p>{q ? 'Intenta con otro término de búsqueda' : 'Las cotizaciones convertidas a pedido no aparecen aqui'}</p>
               </div>
             )}
-            {!loadingMaq && cotsMaq.length > 0 && (
+            {!loadingMaq && filteredMaq.length > 0 && (
               <>
                 {/* ── Tabla (desktop) ── */}
                 <div className="hist-desktop">
@@ -816,7 +848,7 @@ export default function HistorialCotizaciones() {
                         </tr>
                       </thead>
                       <tbody>
-                        {cotsMaq.map(c => {
+                        {filteredMaq.map(c => {
                           const badge = BADGE_MAQUILA[c.estatus] ?? { label: c.estatus, bg:'#e5e7eb', color:'#374151' }
                           return (
                             <tr key={c.id} style={{ cursor:'pointer' }} onClick={() => setSelIdMaq(c.id)}>
@@ -841,7 +873,7 @@ export default function HistorialCotizaciones() {
 
                 {/* ── Tarjetas (tablet / móvil) ── */}
                 <div className="hist-mobile">
-                  {cotsMaq.map(c => {
+                  {filteredMaq.map(c => {
                     const badge = BADGE_MAQUILA[c.estatus] ?? { label: c.estatus, bg:'#e5e7eb', color:'#374151' }
                     return (
                       <div key={c.id} className="hist-card" onClick={() => setSelIdMaq(c.id)}>
@@ -900,6 +932,23 @@ export default function HistorialCotizaciones() {
             <div className="stat-label">Monto en periodo</div>
             <div className="stat-value" style={{ fontSize:18 }}>${fmt5(totalPeriodo)}</div>
           </div>
+        </div>
+
+        {/* Buscador */}
+        <div className="search-bar" style={{ marginBottom:12 }}>
+          <div className="search-input-wrap">
+            <span className="search-icon">🔍</span>
+            <input
+              className="search-input"
+              type="text"
+              placeholder="Buscar por folio, cliente o nivel..."
+              value={busqueda}
+              onChange={e => setBusqueda(e.target.value)}
+            />
+          </div>
+          {busqueda && (
+            <button className="btn btn-outline btn-sm" onClick={() => setBusqueda('')}>✕ Limpiar</button>
+          )}
         </div>
 
         {/* Filtros */}

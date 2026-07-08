@@ -1,12 +1,13 @@
 import { useState, useMemo, useEffect } from 'react'
 import { fmt5, r5 } from '../../lib/utils'
+import { parseNotacion, calcTotal } from '../../lib/cotizacionUtils'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useCotizacion } from '../../context/CotizacionContext'
 import { useApp } from '../../context/AppContext'
 import { crearPedidoDirecto, getDetallePedido, convertirCotizacionAPedido, decrementarInventarioDesdePartidas } from '../../lib/pedidosApi'
 import { getPartidasExtra } from '../../lib/cotizacionApi'
 import { venderProductoGeneral } from '../../lib/productosGeneralesApi'
-import { printTicketVidrio } from '../../utils/ticket'
+import { printTicketVidrio, printPedidoA4 } from '../../utils/ticket'
 
 const TIPO_META = {
   VIDRIO:   { label: 'Vidrio',   bg: '#dbeafe', color: '#1d4ed8' },
@@ -57,52 +58,6 @@ function convertirExtraDesdeDB(e) {
   }
 }
 
-// ── Parser de notacion: "{piezas}-{largo}x{ancho}"  o  "{largo}x{ancho}" ──
-function parseNotacion(texto) {
-  if (!texto || !texto.trim()) return { error: 'Ingresa una medida (ej. 3-22x45)' }
-  // Normalizar: quitar espacios, convertir × y , al separador estándar
-  const limpio = texto.trim()
-    .replace(/\s/g, '')
-    .replace(/[×\*]/g, 'x')
-    .replace(/,/g, '.')
-
-  // Formato completo: piezas-largo x ancho
-  let m = limpio.match(/^(\d+)-(\d+(?:\.\d+)?)[xX](\d+(?:\.\d+)?)$/)
-  if (m) {
-    const piezas = Number(m[1])
-    const largo  = Number(m[2])
-    const ancho  = Number(m[3])
-    if (piezas <= 0) return { error: 'La cantidad de piezas debe ser mayor a 0' }
-    if (largo  <= 0) return { error: 'El largo debe ser mayor a 0' }
-    if (ancho  <= 0) return { error: 'El ancho debe ser mayor a 0' }
-    return { piezas, largo, ancho }
-  }
-
-  // Formato corto: largo x ancho  (piezas = 1)
-  m = limpio.match(/^(\d+(?:\.\d+)?)[xX](\d+(?:\.\d+)?)$/)
-  if (m) {
-    const largo = Number(m[1])
-    const ancho = Number(m[2])
-    if (largo <= 0) return { error: 'El largo debe ser mayor a 0' }
-    if (ancho <= 0) return { error: 'El ancho debe ser mayor a 0' }
-    return { piezas: 1, largo, ancho }
-  }
-
-  return { error: 'Formato invalido. Ej: 98x45  o  3-98x45' }
-}
-
-// ── Rounding helper: r5 per partida, per-piece for VIDRIO ────────────────
-function calcTotal(partidas) {
-  return partidas.reduce((s, p) => {
-    if (!p.tipo || p.tipo === 'VIDRIO') {
-      const pzas = Number(p.piezas ?? 1)
-      const cuVid = r5(Number(p.subtotal_vidrio || p.subtotal_partida || 0) / pzas)
-      const totProc = (p.procesos ?? []).reduce((ps, pr) => ps + r5(Number(pr.subtotal) / pzas) * pzas, 0)
-      return s + cuVid * pzas + totProc
-    }
-    return s + r5(Number(p.subtotal_partida ?? 0))
-  }, 0)
-}
 
 // ── Ticket de cotizacion ──────────────────────────────────────────────────
 function TicketCotizacion({ cotizacion }) {
@@ -615,6 +570,7 @@ export default function NuevaCotizacion() {
     if (cid) { setDatosCotOpen(false)
       const cl = clientes.find(c => c.id_cliente === Number(cid))
       setNivelId(cl?.id_nivel_precio ? String(cl.id_nivel_precio) : '')
+      if (modalFormaPago === 'CREDITO' && !cl?.credito_activo) setModalFormaPago('LIQUIDADO')
       setCargandoCli(true)
       getPreciosClienteRegistrado(Number(cid))
         .then(data => setPreciosCli(data ?? []))
@@ -622,6 +578,7 @@ export default function NuevaCotizacion() {
         .finally(() => setCargandoCli(false))
     } else {
       setNivelId('')
+      if (modalFormaPago === 'CREDITO') setModalFormaPago('LIQUIDADO')
     }
   }
 
@@ -643,7 +600,10 @@ export default function NuevaCotizacion() {
     const esPequena   = preview.metros2_total / parsed.piezas <= 0.12 ||
                         (preview.metros2_total / parsed.piezas < 0.45 && preview.procesosCalc.length > 0)
     const manualNum   = esPequena && precioManual !== '' ? parseFloat(precioManual) : NaN
-    const subtotalFin = (!isNaN(manualNum) && manualNum > 0) ? manualNum : preview.subtotal_total
+    const pzas        = parsed.piezas
+    const roundedVid  = r5(preview.subtotal_vidrio / pzas) * pzas
+    const roundedProc = preview.procesosCalc.reduce((s, pr) => s + r5(Number(pr.subtotal) / pzas) * pzas, 0)
+    const subtotalFin = (!isNaN(manualNum) && manualNum > 0) ? manualNum : (roundedVid + roundedProc)
 
     const nuevaPartida = {
       _key:              Date.now() + Math.random(),
@@ -1139,38 +1099,44 @@ export default function NuevaCotizacion() {
               </div>
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
-              <button className="btn btn-outline" onClick={() => printTicketVidrio({
-                tipo: 'pedido',
-                folio: pedidoCreado.folio,
-                foliosCot: pedidoCreado.id_cotizacion ? `COT-${String(pedidoCreado.id_cotizacion).padStart(5,'0')}` : null,
-                fecha: pedidoCreado.fecha,
-                hora: pedidoCreado.hora ?? '',
-                clienteNombre: pedidoCreado.cliente?.nombre ?? 'Mostrador',
-                nivelNombre: pedidoCreado.nivel?.es_hoja_completa ? 'POR HOJA' : (pedidoCreado.nivel?.nombre ?? ''),
-                formaPago: pedidoCreado.forma_pago,
-                anticipo: pedidoCreado.anticipo,
-                saldo: pedidoCreado.saldo,
-                saldo_cobrado: pedidoCreado.saldo_cobrado,
-                esEntregado: pedidoCreado.estado === 'ENTREGADO',
-                total: pedidoCreado.total,
-                partidas: [
-                  ...pedidoCreado.partidas.map(p => ({
-                    piezas: p.cantidad, clave: p.clave_vidrio,
-                    largo_cm: p.largo_cm, ancho_cm: p.ancho_cm,
-                    subtotal_vidrio: p.subtotal_vidrio, procesos: p.procesos,
-                    subtotal_partida: p.subtotal_partida,
-                  })),
-                  ...pedidoExtras.map(e => ({
-                    tipo: e.tipo === 'HERRAJE' || e.tipo === 'PRODUCTO' ? e.tipo : 'MAQUILA',
-                    descripcion: e.descripcion,
-                    cantidad: e.cantidad,
-                    unidad: e.unidad,
-                    precio_unitario: e.precio_unitario != null ? Number(e.precio_unitario) : null,
-                    subtotal_partida: Number(e.subtotal),
-                    procesos: [],
-                  })),
-                ],
-              })}>🖨️ Imprimir</button>
+              {(() => {
+                const detallePedido = {
+                  tipo: 'pedido',
+                  folio: pedidoCreado.folio,
+                  foliosCot: pedidoCreado.id_cotizacion ? `COT-${String(pedidoCreado.id_cotizacion).padStart(5,'0')}` : null,
+                  fecha: pedidoCreado.fecha,
+                  hora: pedidoCreado.hora ?? '',
+                  clienteNombre: pedidoCreado.cliente?.nombre ?? 'Mostrador',
+                  nivelNombre: pedidoCreado.nivel?.es_hoja_completa ? 'POR HOJA' : (pedidoCreado.nivel?.nombre ?? ''),
+                  formaPago: pedidoCreado.forma_pago,
+                  anticipo: pedidoCreado.anticipo,
+                  saldo: pedidoCreado.saldo,
+                  saldo_cobrado: pedidoCreado.saldo_cobrado,
+                  esEntregado: pedidoCreado.estado === 'ENTREGADO',
+                  total: pedidoCreado.total,
+                  partidas: [
+                    ...pedidoCreado.partidas.map(p => ({
+                      piezas: p.cantidad, clave: p.clave_vidrio,
+                      largo_cm: p.largo_cm, ancho_cm: p.ancho_cm,
+                      subtotal_vidrio: p.subtotal_vidrio, procesos: p.procesos,
+                      subtotal_partida: p.subtotal_partida,
+                    })),
+                    ...pedidoExtras.map(e => ({
+                      tipo: e.tipo === 'HERRAJE' || e.tipo === 'PRODUCTO' ? e.tipo : 'MAQUILA',
+                      descripcion: e.descripcion,
+                      cantidad: e.cantidad,
+                      unidad: e.unidad,
+                      precio_unitario: e.precio_unitario != null ? Number(e.precio_unitario) : null,
+                      subtotal_partida: Number(e.subtotal),
+                      procesos: [],
+                    })),
+                  ],
+                }
+                return (<>
+                  <button className="btn btn-outline" onClick={() => printTicketVidrio(detallePedido)}>🖨️ Ticket</button>
+                  <button className="btn btn-outline" onClick={() => printPedidoA4(detallePedido)}>🖨️ Hoja</button>
+                </>)
+              })()}
               <button className="btn btn-primary" onClick={nuevaCotizacion}>+ Nueva cotizacion</button>
             </div>
           </div>
@@ -1334,7 +1300,8 @@ export default function NuevaCotizacion() {
                     <label className="form-label required">Nivel de precio</label>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
                       {nivelesPrecio.map(n => {
-                        const activo  = nivelId === String(n.id_nivel_precio)
+                        const activo   = nivelId === String(n.id_nivel_precio)
+                        const bloqueado = !!clienteId
                         const precioM2 = tipoVidrioId
                           ? getPrecioVidrio(Number(tipoVidrioId), n.id_nivel_precio)
                           : null
@@ -1342,13 +1309,17 @@ export default function NuevaCotizacion() {
                           <button
                             key={n.id_nivel_precio}
                             type="button"
-                            onClick={() => { setNivelId(String(n.id_nivel_precio)); setDatosCotOpen(false) }}
+                            disabled={bloqueado && !activo}
+                            onClick={() => { if (!bloqueado) { setNivelId(String(n.id_nivel_precio)); setDatosCotOpen(false) } }}
+                            title={bloqueado && !activo ? 'Nivel bloqueado al cliente seleccionado' : undefined}
                             style={{
-                              padding: '7px 14px', borderRadius: 8, fontSize: 14, cursor: 'pointer',
+                              padding: '7px 14px', borderRadius: 8, fontSize: 14,
+                              cursor: bloqueado && !activo ? 'not-allowed' : 'pointer',
                               border: `2px solid ${activo ? 'var(--accent)' : 'var(--border)'}`,
-                              background: activo ? 'var(--accent)' : 'white',
-                              color: activo ? 'white' : 'var(--text)',
+                              background: activo ? 'var(--accent)' : bloqueado ? 'var(--bg)' : 'white',
+                              color: activo ? 'white' : bloqueado ? 'var(--text-muted)' : 'var(--text)',
                               fontWeight: activo ? 700 : 400,
+                              opacity: bloqueado && !activo ? 0.4 : 1,
                               transition: 'all 0.15s',
                               display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1,
                             }}
@@ -1363,6 +1334,11 @@ export default function NuevaCotizacion() {
                         )
                       })}
                     </div>
+                    {clienteId && (
+                      <div className="form-hint" style={{ marginTop: 6 }}>
+                        🔒 Nivel bloqueado al cliente seleccionado
+                      </div>
+                    )}
                   </div>
                 )}
                 {usarPreciosCli && (
@@ -2124,7 +2100,7 @@ export default function NuevaCotizacion() {
                   <label className="form-label required">Forma de pago</label>
                   <div style={{ display: 'flex', gap: 10, marginTop: 6, flexWrap: 'wrap' }}>
                     {tiposPago
-  //falta acabar               //    .filter(tp => tp.descripcion !== 'CREDITO' || clienteSeleccionado?.credito_activo)
+                      .filter(tp => tp.descripcion !== 'CREDITO' || clienteSeleccionado?.credito_activo)
                       .map(tp => (
                       <label
                         key={tp.id_tipo_pago}

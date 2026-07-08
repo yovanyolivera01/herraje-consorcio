@@ -143,8 +143,51 @@ router.post('/maquila/pedidos/convertir', async (req, res) => {
     const row = rows[0]
     if (!row || row.p_id_pedido === 0)
       return res.status(400).json({ message: row?.p_mensaje ?? 'Error al convertir a pedido' })
+    // Garantizar tipo_pedido correcto independiente de la versión del SP en DB
+    await query("UPDATE pedido SET tipo_pedido = 'MAQUILA' WHERE id_pedido = $1", [row.p_id_pedido])
     ok(res, { id_pedido: row.p_id_pedido, folio: row.p_folio_pedido })
   } catch (e) { err(res, e) }
+})
+
+// Igual que /convertir pero desvincula la cotizacion intermedia del pedido
+// para que quede como un pedido directo (id_cotizacion = NULL).
+router.post('/maquila/pedidos/convertir-directo', async (req, res) => {
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    const { id_cotizacion, tipo_pago, monto_anticipo } = req.body
+    const { rows } = await client.query(
+      'SELECT * FROM sp_convertir_maquila_a_pedido($1, $2, $3)',
+      [id_cotizacion, tipo_pago, Number(monto_anticipo)]
+    )
+    const row = rows[0]
+    if (!row || row.p_id_pedido === 0) {
+      await client.query('ROLLBACK')
+      return res.status(400).json({ message: row?.p_mensaje ?? 'Error al crear pedido directo' })
+    }
+    // Desvincular cotizacion intermedia y garantizar tipo_pedido correcto
+    await client.query(
+      "UPDATE pedido SET id_cotizacion = NULL, tipo_pedido = 'MAQUILA' WHERE id_pedido = $1",
+      [row.p_id_pedido]
+    )
+    // Para LIQUIDADO: marcar entregado inmediatamente
+    if (tipo_pago === 'LIQUIDADO') {
+      await client.query(
+        "UPDATE pedido SET estatus = 'ENTREGADO', fecha_entrega = NOW() WHERE id_pedido = $1",
+        [row.p_id_pedido]
+      )
+      await client.query(
+        "UPDATE partida_pedido_maquila SET estatus_entrega = 'ENTREGADO', fecha_entrega_real = NOW() WHERE id_pedido = $1",
+        [row.p_id_pedido]
+      )
+    }
+    await client.query('COMMIT')
+    try { await query('SELECT sp_insertar_pedidod($1)', [row.p_id_pedido]) } catch {}
+    ok(res, { id_pedido: row.p_id_pedido, folio: row.p_folio_pedido })
+  } catch (e) {
+    await client.query('ROLLBACK')
+    err(res, e)
+  } finally { client.release() }
 })
 
 router.get('/maquila/pedidos/pendientes', async (req, res) => {

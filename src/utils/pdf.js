@@ -124,7 +124,7 @@ export async function exportCotizacionPDF(detalle) {
       logging: false,
     })
 
-    const pdf    = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' })
+    const pdf    = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
     const pageW  = pdf.internal.pageSize.getWidth()
     const pageH  = pdf.internal.pageSize.getHeight()
     const margin = 10

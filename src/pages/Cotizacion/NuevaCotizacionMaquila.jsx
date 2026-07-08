@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { fmt5, r5 } from '../../lib/utils'
 import { useCotizacion } from '../../context/CotizacionContext'
-import { printTicketVidrio } from '../../utils/ticket'
+import { printTicketVidrio, printPedidoA4 } from '../../utils/ticket'
 
 // ── Ticket preview ────────────────────────────────────────────────────────
 function TicketMaquila({ detalle, onConvertir, convirtiendo }) {
@@ -352,8 +352,8 @@ export default function NuevaCotizacionMaquila() {
             ✅ Pedido <strong>{pedidoCreado.folio}</strong> creado exitosamente.
           </div>
           <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
-            {detalle && (
-              <button className="btn btn-outline" onClick={() => printTicketVidrio({
+            {detalle && (() => {
+              const detallePed = {
                 tipo:          'pedido',
                 folio:         pedidoCreado.folio,
                 fecha:         new Date().toLocaleDateString('es-MX'),
@@ -376,8 +376,12 @@ export default function NuevaCotizacionMaquila() {
                   subtotal_vidrio:  null,
                   procesos:         (p.procesos ?? []).map(pr => ({ nombre: pr.nombre, subtotal: pr.subtotal })),
                 })),
-              })}>🖨️ Imprimir pedido</button>
-            )}
+              }
+              return (<>
+                <button className="btn btn-outline" onClick={() => printTicketVidrio(detallePed)}>🖨️ Ticket</button>
+                <button className="btn btn-outline" onClick={() => printPedidoA4(detallePed)}>🖨️ Hoja</button>
+              </>)
+            })()}
             <button className="btn btn-primary" onClick={handleReset}>+ Nueva cotización</button>
           </div>
         </div>

@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { fmt5, r5 } from '../../lib/utils'
 import { useCotizacion } from '../../context/CotizacionContext'
-import { printTicketVidrio } from '../../utils/ticket'
+import { printTicketVidrio, printPedidoA4 } from '../../utils/ticket'
 
 // ── Parser (mismo que vidrio) ─────────────────────────────────────────────
 function parseNotacion(texto) {
@@ -100,7 +100,7 @@ export default function MaquilaSection() {
     nivelesPrecio, clientes, procesos, tiposPago,
     getPrecioProceso, getPrecioProcesoEspecial,
     iniciarCotizacionMaquila, agregarPartidaMaquila, eliminarPartidaMaquila,
-    finalizarCotizacionMaquila, convertirMaquilaAPedido,
+    finalizarCotizacionMaquila, convertirMaquilaAPedidoDirecto,
   } = useCotizacion()
 
   // ── Header ────────────────────────────────────────────────────────────
@@ -275,7 +275,7 @@ export default function MaquilaSection() {
     if (resF.error) { setConverting(false); setModalError(resF.error); return }
 
     const monto = modalTipoPago === 'LIQUIDADO' ? totalGeneral : antN
-    const resC  = await convertirMaquilaAPedido({
+    const resC  = await convertirMaquilaAPedidoDirecto({
       id_cotizacion:  cotizacion.id_cotizacion,
       tipo_pago:      modalTipoPago,
       monto_anticipo: monto,
@@ -308,30 +308,36 @@ export default function MaquilaSection() {
             </div>
           </div>
           <div style={{ display:'flex', gap:8 }}>
-            <button className="btn btn-outline" onClick={() => printTicketVidrio({
-              tipo:          'pedido',
-              folio:         pedidoCreado.folio,
-              fecha:         new Date().toLocaleDateString('es-MX'),
-              hora:          new Date().toLocaleTimeString('es-MX', { hour:'2-digit', minute:'2-digit' }),
-              clienteNombre: cotCreada.clienteNombre ?? 'Mostrador',
-              nivelNombre:   cotCreada.nivelNombre   ?? '',
-              formaPago:     pedidoCreado.tipo_pago,
-              anticipo:      pedidoCreado.anticipo,
-              saldo:         pedidoCreado.saldo,
-              esEntregado:   false,
-              partidas:      cotCreada.partidas.map(p => ({
-                tipo:             'MAQUILA',
-                piezas:           p.cantidad ?? 1,
-                cantidad:         p.cantidad ?? 1,
-                largo_cm:         p.largo_cm,
-                ancho_cm:         p.ancho_cm,
-                clave:            p.descripcion || null,
-                descripcion:      p.descripcion,
-                subtotal_partida: p.subtotal,
-                subtotal_vidrio:  null,
-                procesos:         (p.procesos ?? []).map(pr => ({ nombre: pr.nombre, subtotal: pr.subtotal ?? 0 })),
-              })),
-            })}>🖨️ Imprimir</button>
+            {(() => {
+              const detallePed = {
+                tipo:          'pedido',
+                folio:         pedidoCreado.folio,
+                fecha:         new Date().toLocaleDateString('es-MX'),
+                hora:          new Date().toLocaleTimeString('es-MX', { hour:'2-digit', minute:'2-digit' }),
+                clienteNombre: cotCreada.clienteNombre ?? 'Mostrador',
+                nivelNombre:   cotCreada.nivelNombre   ?? '',
+                formaPago:     pedidoCreado.tipo_pago,
+                anticipo:      pedidoCreado.anticipo,
+                saldo:         pedidoCreado.saldo,
+                esEntregado:   pedidoCreado.tipo_pago === 'LIQUIDADO',
+                partidas:      cotCreada.partidas.map(p => ({
+                  tipo:             'MAQUILA',
+                  piezas:           p.cantidad ?? 1,
+                  cantidad:         p.cantidad ?? 1,
+                  largo_cm:         p.largo_cm,
+                  ancho_cm:         p.ancho_cm,
+                  clave:            p.descripcion || null,
+                  descripcion:      p.descripcion,
+                  subtotal_partida: p.subtotal,
+                  subtotal_vidrio:  null,
+                  procesos:         (p.procesos ?? []).map(pr => ({ nombre: pr.nombre, subtotal: pr.subtotal ?? 0 })),
+                })),
+              }
+              return (<>
+                <button className="btn btn-outline" onClick={() => printTicketVidrio(detallePed)}>🖨️ Ticket</button>
+                <button className="btn btn-outline" onClick={() => printPedidoA4(detallePed)}>🖨️ Hoja</button>
+              </>)
+            })()}
             <button className="btn btn-primary" onClick={nuevaCotizacion}>+ Nueva cotizacion</button>
           </div>
         </div>
@@ -715,7 +721,7 @@ export default function MaquilaSection() {
                 <div className="form-group">
                   <label className="form-label required">Forma de pago</label>
                   <div style={{ display:'flex', gap:10, marginTop:6, flexWrap:'wrap' }}>
-                    {tiposPago.map(tp => (
+                    {tiposPago.filter(tp => tp.descripcion !== 'CREDITO' || clienteSel?.credito_activo).map(tp => (
                       <label key={tp.id_tipo_pago} style={{
                         flex:1, minWidth:140, display:'flex', flexDirection:'column', gap:3,
                         padding:'10px 12px', borderRadius:8, cursor:'pointer',

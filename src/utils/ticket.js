@@ -59,14 +59,13 @@ export function printTicketVidrio(detalle) {
           ${p.descripcion ? `<div style="font-size:11px;padding-left:10px;margin-bottom:2px">${p.descripcion}</div>` : ''}
           </div>`
     }
-    const cant = p.cantidad != null ? (Number.isInteger(Number(p.cantidad)) ? Number(p.cantidad) : parseFloat(Number(p.cantidad).toFixed(2))) : '—'
     const label = p.descripcion || p.clave || '—'
     const cu    = p.precio_unitario != null ? `$${r5(Number(p.precio_unitario)).toFixed(2)}` : ''
     const tot   = `$${r5(Number(p.subtotal_partida)).toFixed(2)}`
     return `
       <div class="partida">
         <div style="display:flex;align-items:baseline;font-size:11px;margin-bottom:2px;gap:2px">
-          <span style="width:18px;flex-shrink:0">${cant}</span>
+          <span style="width:18px;flex-shrink:0"></span>
           <span style="flex:1">${label}</span>
           <span style="width:50px;flex-shrink:0;text-align:right">${cu}</span>
           <span style="width:50px;flex-shrink:0;text-align:right;font-weight:700">${tot}</span>
@@ -93,8 +92,8 @@ export function printTicketVidrio(detalle) {
   </div>`
 
   const maqColHeader = `<div style="display:flex;align-items:baseline;font-size:9px;color:#555;border-bottom:1px dashed #aaa;margin-bottom:3px;gap:2px">
-    <span style="width:18px;flex-shrink:0">Cant</span>
-    <span style="flex:1">Descripción</span>
+    <span style="width:18px;flex-shrink:0"></span>
+    <span style="flex:1;padding-left:4px">Descripción</span>
     <span style="width:50px;flex-shrink:0;text-align:right">C.U.</span>
     <span style="width:50px;flex-shrink:0;text-align:right">Total</span>
   </div>`
@@ -255,20 +254,17 @@ export function printPedidoPendiente(detalle) {
       Maquila / Extras
     </div>
     <div style="display:flex;align-items:baseline;font-size:9px;color:#555;border-bottom:1px dashed #aaa;margin-bottom:3px;gap:2px">
-      <span style="width:18px;flex-shrink:0">Cant</span>
-      <span style="flex:1">Descripción</span>
+      <span style="flex:1;padding-left:4px">Descripción</span>
       <span style="width:50px;flex-shrink:0;text-align:right">C.U.</span>
       <span style="width:50px;flex-shrink:0;text-align:right">Total</span>
     </div>
     ${extras.map(e => {
-      const cant = e.cantidad != null ? (Number.isInteger(Number(e.cantidad)) ? Number(e.cantidad) : parseFloat(Number(e.cantidad).toFixed(2))) : '—'
-      const cu   = e.precio_unitario != null ? `$${r5(Number(e.precio_unitario)).toFixed(2)}` : ''
-      const tot  = `$${r5(Number(e.subtotal)).toFixed(2)}`
+      const cu  = e.precio_unitario != null ? `$${r5(Number(e.precio_unitario)).toFixed(2)}` : ''
+      const tot = `$${r5(Number(e.subtotal)).toFixed(2)}`
       return `
       <div class="partida">
         <div style="display:flex;align-items:baseline;font-size:11px;margin-bottom:2px;gap:2px">
-          <span style="width:18px;flex-shrink:0">${cant}</span>
-          <span style="flex:1">${e.descripcion ?? ''}</span>
+          <span style="flex:1;padding-left:4px">${e.descripcion ?? ''}</span>
           <span style="width:50px;flex-shrink:0;text-align:right">${cu}</span>
           <span style="width:50px;flex-shrink:0;text-align:right;font-weight:700">${tot}</span>
         </div>
@@ -324,7 +320,7 @@ export function printPedidoPendiente(detalle) {
     <div class="row" style="font-size:14px"><span class="bold">Saldo pendiente:</span><span class="bold">$${(totalCalculado - r5(Number(detalle.anticipo))).toFixed(2)}</span></div>
   </div>
   <hr class="divider-thin">
-  <div class="center" style="font-size:11px;margin-top:6px">Pendiente de entrega.</div>
+  <div class="center" style="font-size:11px;margin-top:6px">${detalle.tipo_pago === 'CREDITO' ? 'Entregado.' : 'Pendiente de entrega.'}</div>
 </body>
 </html>`
 
@@ -378,9 +374,9 @@ export function printCotizacionCarta(detalle) {
   <meta charset="UTF-8">
   <title>${titulo} ${detalle.folio}</title>
   <style>
-    @page { margin: 12mm 14mm; size: letter portrait; }
+    @page { margin: 0; size: A4 portrait; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 13px; color: #111; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 13px; color: #111; -webkit-print-color-adjust: exact; print-color-adjust: exact; padding: 12mm 14mm; }
 
     /* ── Encabezado principal ── */
     .brand-header {
@@ -603,42 +599,319 @@ export function printCotizacionCarta(detalle) {
 }
 
 /**
+ * Imprime un pedido en hoja A4 con encabezado de marca completo.
+ * Acepta el mismo objeto detalle que printTicketVidrio (tipo: 'pedido').
+ */
+export function printPedidoA4(detalle) {
+  const vidrios  = detalle.partidas.filter(p => !p.tipo || p.tipo === 'VIDRIO')
+  const maquilas = detalle.partidas.filter(p => p.tipo === 'MAQUILA')
+  const herrajes = detalle.partidas.filter(p => p.tipo === 'HERRAJE' || p.tipo === 'PRODUCTO')
+
+  const totalCalculado = detalle.partidas.reduce((sum, p) => {
+    if (p.tipo === 'MAQUILA' || p.tipo === 'HERRAJE' || p.tipo === 'PRODUCTO') {
+      return sum + r5(Number(p.subtotal_partida))
+    }
+    const pzas  = p.piezas ?? 1
+    const cuVid = r5(Number(p.subtotal_vidrio || p.subtotal_partida) / pzas)
+    const totProc = (p.procesos ?? []).reduce((s, pr) => s + r5(Number(pr.subtotal) / pzas) * pzas, 0)
+    return sum + cuVid * pzas + totProc
+  }, 0)
+
+  const vidrioRows = vidrios.map((p, idx) => {
+    const pzas    = p.piezas ?? 1
+    const cuVid   = r5(Number(p.subtotal_vidrio || p.subtotal_partida) / pzas)
+    const totVid  = cuVid * pzas
+    const procNombres = (p.procesos ?? []).map(pr => pr.nombre).join(', ') || '—'
+    const m2      = ((pzas * Number(p.largo_cm) * Number(p.ancho_cm)) / 10000).toFixed(4)
+    return `
+      <tr style="background:${idx % 2 === 0 ? '#fff' : '#fafafa'}">
+        <td style="text-align:center;font-weight:700">${pzas}</td>
+        <td style="font-size:11px">${p.largo_cm}×${p.ancho_cm} cm</td>
+        <td style="font-weight:700;color:#1a3a6b">${p.clave ?? ''}</td>
+        <td style="font-size:11px;color:#555">${procNombres}</td>
+        <td style="text-align:center;font-size:11px;color:#555">${m2} m²</td>
+        <td style="text-align:right;font-size:11px">$${cuVid.toFixed(2)}</td>
+        <td style="text-align:right;font-weight:600">$${totVid.toFixed(2)}</td>
+      </tr>`
+  }).join('')
+
+  const vidrioSection = vidrios.length === 0 ? '' : `
+    <div class="section-title">Vidrio</div>
+    <table>
+      <thead><tr>
+        <th style="text-align:center">Pzas</th>
+        <th>Medida</th>
+        <th>Tipo</th>
+        <th>Procesos</th>
+        <th style="text-align:center">m²</th>
+        <th style="text-align:right">C/u</th>
+        <th style="text-align:right">Total</th>
+      </tr></thead>
+      <tbody>${vidrioRows}</tbody>
+    </table>`
+
+  const maquilaRows = maquilas.map((p, idx) => {
+    const cu  = p.precio_unitario != null ? `$${r5(Number(p.precio_unitario)).toFixed(2)}` : '—'
+    const tot = `$${r5(Number(p.subtotal_partida)).toFixed(2)}`
+    return `
+      <tr style="background:${idx % 2 === 0 ? '#fff' : '#fafafa'}">
+        <td>${p.descripcion ?? p.clave ?? '—'}</td>
+        <td style="text-align:right">${cu}</td>
+        <td style="text-align:right;font-weight:600">${tot}</td>
+      </tr>`
+  }).join('')
+
+  const maquilaSection = maquilas.length === 0 ? '' : `
+    <div class="section-title" style="margin-top:16px">Maquila</div>
+    <table>
+      <thead><tr>
+        <th>Descripción</th>
+        <th style="text-align:right">C.U.</th>
+        <th style="text-align:right">Total</th>
+      </tr></thead>
+      <tbody>${maquilaRows}</tbody>
+    </table>`
+
+  const herrajeRows = herrajes.map((p, idx) => `
+    <tr style="background:${idx % 2 === 0 ? '#fff' : '#fafafa'}">
+      <td>${p.descripcion ?? '—'}</td>
+      <td style="text-align:center">${p.cantidad ?? 1}</td>
+      <td style="text-align:right;font-weight:600">$${r5(Number(p.subtotal_partida)).toFixed(2)}</td>
+    </tr>`).join('')
+
+  const herrajeSection = herrajes.length === 0 ? '' : `
+    <div class="section-title" style="margin-top:16px">Herraje / Producto</div>
+    <table>
+      <thead><tr>
+        <th>Descripción</th>
+        <th style="text-align:center">Cant</th>
+        <th style="text-align:right">Total</th>
+      </tr></thead>
+      <tbody>${herrajeRows}</tbody>
+    </table>`
+
+  const pagoInfo = (() => {
+    const fp = detalle.formaPago
+    if (!fp || fp === 'LIQUIDADO') return `<div class="pago-row"><span>Forma de pago:</span><span class="bold">Liquidado</span></div>`
+    if (fp === 'CREDITO') return `
+      <div class="pago-row"><span>Forma de pago:</span><span class="bold">Crédito</span></div>
+      <div class="pago-row"><span>Saldo a crédito:</span><span class="bold">$${totalCalculado.toFixed(2)}</span></div>
+      <div style="border-top:1px solid #000;width:60%;margin:24px auto 4px"></div>
+      <div style="text-align:center;font-size:11px">Firma del cliente</div>`
+    if (fp === 'ANTICIPO') return `
+      <div class="pago-row"><span>Forma de pago:</span><span class="bold">Anticipo</span></div>
+      <div class="pago-row"><span>Anticipo pagado:</span><span class="bold">$${r5(Number(detalle.anticipo)).toFixed(2)}</span></div>
+      <div class="pago-row"><span>Saldo pendiente:</span><span class="bold">$${r5(Number(detalle.saldo)).toFixed(2)}</span></div>`
+    return `<div class="pago-row"><span>Forma de pago:</span><span class="bold">${fp}</span></div>`
+  })()
+
+  const esMaquila = maquilas.length > 0 && vidrios.length === 0
+  const titulo = esMaquila ? 'PEDIDO DE MAQUILA' : herrajes.length > 0 && vidrios.length === 0 ? 'PEDIDO DE HERRAJE' : 'PEDIDO DE VIDRIO'
+  const pie = detalle.esEntregado ? '¡Gracias por su compra!' : detalle.formaPago === 'CREDITO' ? 'Entregado.' : 'Pendiente de entrega.'
+
+  const html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>${titulo} ${detalle.folio}</title>
+  <style>
+    @page { margin: 0; size: A4 portrait; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 13px; color: #111; -webkit-print-color-adjust: exact; print-color-adjust: exact; padding: 12mm 14mm; }
+    .brand-header { background: #1a3a6b; border-radius: 12px; padding: 22px 40px 18px; color: #fff; text-align: center; position: relative; margin-bottom: 18px; }
+    .brand-header .oval-l, .brand-header .oval-r { position: absolute; top: 50%; transform: translateY(-50%); width: 52px; height: 80px; border: 2px solid rgba(100,160,230,.45); border-radius: 50%; }
+    .brand-header .oval-l { left: 26px; } .brand-header .oval-r { right: 26px; }
+    .brand-header .oval-l::before, .brand-header .oval-r::before { content: ''; position: absolute; inset: 8px; border: 1.5px solid rgba(100,160,230,.25); border-radius: 50%; }
+    .brand-header .diamond { width: 12px; height: 12px; border: 2px solid rgba(120,180,255,.6); transform: rotate(45deg); margin: 0 auto 8px; }
+    .brand-header h1 { font-size: 24px; font-weight: 900; letter-spacing: 2px; }
+    .brand-header .slogan { font-style: italic; font-size: 12px; color: rgba(210,230,255,.85); margin-top: 3px; }
+    .doc-info { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; }
+    .doc-titulo { font-size: 18px; font-weight: 700; color: #1a3a6b; }
+    .doc-meta { font-size: 12px; color: #555; line-height: 1.8; text-align: right; }
+    .doc-meta strong { color: #111; }
+    .cliente-box { background: #f4f7fb; border-left: 4px solid #1a3a6b; padding: 10px 14px; border-radius: 0 6px 6px 0; margin-bottom: 16px; }
+    .cliente-box .c-nombre { font-size: 15px; font-weight: 700; color: #1a3a6b; }
+    .cliente-box .c-detail { color: #555; font-size: 12px; margin-top: 3px; }
+    .section-title { font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #1a3a6b; border-bottom: 2px solid #1a3a6b; padding-bottom: 4px; margin-bottom: 8px; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 6px; }
+    th { background: #1a3a6b; color: #fff; padding: 7px 9px; font-size: 11px; text-align: left; }
+    td { padding: 6px 9px; border-bottom: 1px solid #eee; font-size: 12px; vertical-align: top; }
+    .total-box { display: flex; justify-content: flex-end; margin: 16px 0; }
+    .total-inner { background: #1a3a6b; color: #fff; padding: 10px 22px; border-radius: 7px; font-size: 20px; font-weight: 700; }
+    .pago-box { background: #f4f7fb; border: 1px solid #d0daea; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; }
+    .pago-row { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 13px; }
+    .bold { font-weight: 700; }
+    .footer-doc { border-top: 1px solid #ddd; padding-top: 10px; font-size: 11px; color: #777; text-align: center; line-height: 1.6; }
+  </style>
+</head>
+<body>
+  <div class="brand-header">
+    <div class="oval-l"></div><div class="oval-r"></div>
+    <div class="diamond"></div>
+    <h1>VIDRIO TEMPLADO Y ALUMINIO ROSALES</h1>
+    <div class="slogan">Rosales #35 C.P. 55270, Granjas Valle de Guadalupe · Ecatepec de Morelos, Estado de Mexico</div>
+    <div class="slogan">Tel: 5523134256, 5522161432, 5547912671 · rosalesvidriotempladofernando@gmail.com</div>
+  </div>
+
+  <div class="doc-info">
+    <div class="doc-titulo">${titulo}</div>
+    <div class="doc-meta">
+      <div>Pedido N°: <strong>${detalle.folio}</strong></div>
+      ${detalle.foliosCot ? `<div>Cotización: <strong>${detalle.foliosCot}</strong></div>` : ''}
+      <div>Fecha: <strong>${detalle.fecha}</strong></div>
+      ${detalle.hora ? `<div>Hora: <strong>${detalle.hora}</strong></div>` : ''}
+    </div>
+  </div>
+
+  <div class="cliente-box">
+    <div class="c-nombre">${detalle.clienteNombre ?? 'Mostrador'}</div>
+    <div class="c-detail">${detalle.nivelNombre ? `Nivel: ${detalle.nivelNombre}` : ''}</div>
+  </div>
+
+  ${vidrioSection}
+  ${maquilaSection}
+  ${herrajeSection}
+
+  <div class="total-box">
+    <div class="total-inner">TOTAL: $${totalCalculado.toFixed(2)}</div>
+  </div>
+
+  <div class="pago-box">${pagoInfo}</div>
+
+  <div class="footer-doc">${pie}<br>Vidrio Templado y Aluminio Rosales · Tel: 5523134256, 5522161432, 5547912671</div>
+</body>
+</html>`
+
+  let iframe = document.getElementById('__pedido_a4_frame__')
+  if (!iframe) {
+    iframe = document.createElement('iframe')
+    iframe.id = '__pedido_a4_frame__'
+    iframe.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;border:none;visibility:hidden'
+    document.body.appendChild(iframe)
+  }
+  iframe.contentDocument.open()
+  iframe.contentDocument.write(html)
+  iframe.contentDocument.close()
+  setTimeout(() => {
+    try { iframe.contentWindow.focus(); iframe.contentWindow.print() }
+    catch {
+      const win = window.open('', '_blank', 'width=820,height=1060')
+      if (win) { win.document.write(html); win.document.close(); win.focus(); setTimeout(() => win.print(), 400) }
+    }
+  }, 350)
+}
+
+/**
  * Imprime un ticket usando un iframe oculto para evitar bloqueadores de ventanas emergentes.
  * El diálogo de impresión del sistema sigue apareciendo normalmente.
  */
 export function printTicket(venta, modo = '80mm') {
   const isCarta = modo === 'carta'
-  const html = `<!DOCTYPE html>
+
+  const html = isCarta ? `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Venta herraje ${venta.folio}</title>
+  <style>
+    @page { margin: 0; size: A4 portrait; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 13px; color: #111; -webkit-print-color-adjust: exact; print-color-adjust: exact; padding: 12mm 14mm; }
+    .brand-header { background: #1a3a6b; border-radius: 12px; padding: 22px 40px 18px; color: #fff; text-align: center; position: relative; margin-bottom: 18px; }
+    .brand-header .oval-l, .brand-header .oval-r { position: absolute; top: 50%; transform: translateY(-50%); width: 52px; height: 80px; border: 2px solid rgba(100,160,230,.45); border-radius: 50%; }
+    .brand-header .oval-l { left: 26px; } .brand-header .oval-r { right: 26px; }
+    .brand-header .oval-l::before, .brand-header .oval-r::before { content: ''; position: absolute; inset: 8px; border: 1.5px solid rgba(100,160,230,.25); border-radius: 50%; }
+    .brand-header .diamond { width: 12px; height: 12px; border: 2px solid rgba(120,180,255,.6); transform: rotate(45deg); margin: 0 auto 8px; }
+    .brand-header h1 { font-size: 24px; font-weight: 900; letter-spacing: 2px; }
+    .brand-header .slogan { font-style: italic; font-size: 12px; color: rgba(210,230,255,.85); margin-top: 3px; }
+    .doc-info { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
+    .doc-titulo { font-size: 18px; font-weight: 700; color: #1a3a6b; }
+    .doc-meta { font-size: 12px; color: #555; line-height: 1.8; text-align: right; }
+    .doc-meta strong { color: #111; }
+    .section-title { font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #1a3a6b; border-bottom: 2px solid #1a3a6b; padding-bottom: 4px; margin-bottom: 8px; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 6px; }
+    th { background: #1a3a6b; color: #fff; padding: 7px 9px; font-size: 11px; text-align: left; }
+    td { padding: 6px 9px; border-bottom: 1px solid #eee; font-size: 12px; vertical-align: top; }
+    .total-box { display: flex; justify-content: flex-end; margin: 16px 0; }
+    .total-inner { background: #1a3a6b; color: #fff; padding: 10px 22px; border-radius: 7px; font-size: 20px; font-weight: 700; }
+    .footer-doc { border-top: 1px solid #ddd; padding-top: 10px; font-size: 11px; color: #777; text-align: center; line-height: 1.6; }
+    .politicas { margin-top: 8px; font-size: 10.5px; color: #888; text-align: center; line-height: 1.6; }
+  </style>
+</head>
+<body>
+  <div class="brand-header">
+    <div class="oval-l"></div><div class="oval-r"></div>
+    <div class="diamond"></div>
+    <h1>VIDRIO TEMPLADO Y ALUMINIO ROSALES</h1>
+    <div class="slogan">Rosales #35 C.P. 55270, Granjas Valle de Guadalupe · Ecatepec de Morelos, Estado de Mexico</div>
+    <div class="slogan">Tel: 5523134256, 5522161432, 5547912671 · rosalesvidriotempladofernando@gmail.com</div>
+  </div>
+
+  <div class="doc-info">
+    <div class="doc-titulo">VENTA DE HERRAJE</div>
+    <div class="doc-meta">
+      <div>Folio: <strong>${venta.folio}</strong></div>
+      <div>Fecha: <strong>${venta.fecha}</strong></div>
+      <div>Hora: <strong>${venta.hora}</strong></div>
+    </div>
+  </div>
+
+  <div class="section-title">Productos</div>
+  <table>
+    <thead>
+      <tr>
+        <th>Descripción</th>
+        <th style="text-align:center">Cant</th>
+        <th style="text-align:right">Precio u.</th>
+        <th style="text-align:right">Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${venta.partidas.map((p, idx) => {
+        const tono   = p.tono ? ` · ${p.tono}` : ''
+        const precio = r5(Number(p.precioUnitario))
+        const total  = precio * p.cantidad
+        return `<tr style="background:${idx % 2 === 0 ? '#fff' : '#fafafa'}">
+          <td>${p.descripcion}${tono}</td>
+          <td style="text-align:center">${p.cantidad}</td>
+          <td style="text-align:right">$${precio.toFixed(2)}</td>
+          <td style="text-align:right;font-weight:600">$${total.toFixed(2)}</td>
+        </tr>`
+      }).join('')}
+    </tbody>
+  </table>
+
+  <div class="total-box">
+    <div class="total-inner">TOTAL: $${r5(Number(venta.total)).toFixed(2)}</div>
+  </div>
+
+  <div class="footer-doc">
+    ¡Gracias por su compra!<br>
+    Vidrio Templado y Aluminio Rosales · Tel: 5523134256, 5522161432, 5547912671
+  </div>
+  <div class="politicas">
+    <strong>POLÍTICAS DE DEVOLUCIÓN</strong><br>
+    No se devuelve el dinero. Sí se realiza cambio de producto.
+  </div>
+</body>
+</html>` : `<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
   <title>Ticket ${venta.folio}</title>
   <style>
-    @page { margin: ${isCarta ? '15mm' : '4mm'}; size: ${isCarta ? 'letter' : '80mm auto'}; }
+    @page { margin: 4mm; size: 80mm auto; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: ${isCarta ? "'Segoe UI', Arial, sans-serif" : "Arial, 'Helvetica Neue', sans-serif"};
-      font-size: ${isCarta ? '13px' : '13px'};
-      width: ${isCarta ? '100%' : '72mm'};
-      max-width: ${isCarta ? '700px' : '72mm'};
-      margin: 0 auto;
-      color: #000;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
-    }
+    body { font-family: Arial, 'Helvetica Neue', sans-serif; font-size: 13px; width: 72mm; color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .center { text-align: center; }
     .bold { font-weight: 700; }
-    .right { text-align: right; }
     .divider { border: none; border-top: 1.5px solid #000; margin: 7px 0; }
     .row { display: flex; justify-content: space-between; margin-bottom: 4px; }
     .header { margin-bottom: 10px; }
-    .header h1 { font-size: ${isCarta ? '22px' : '16px'}; font-weight: 700; letter-spacing: 0.5px; }
-    .header p { font-size: ${isCarta ? '13px' : '12px'}; font-weight: 600; color: #000; }
-    table { width: 100%; border-collapse: collapse; margin: 8px 0; }
-    th { border-bottom: 1.5px solid #000; padding: 4px 5px; font-size: ${isCarta ? '12px' : '11px'}; text-align: left; font-weight: 700; }
-    td { padding: 4px 5px; vertical-align: top; font-size: ${isCarta ? '12px' : '12px'}; }
+    .header h1 { font-size: 16px; font-weight: 700; letter-spacing: 0.5px; }
+    .header p { font-size: 12px; font-weight: 600; color: #000; }
     .partida { margin-bottom: 6px; }
-    .total-row { font-size: ${isCarta ? '17px' : '15px'}; font-weight: 700; }
+    .total-row { font-size: 15px; font-weight: 700; }
     .footer { margin-top: 10px; font-size: 12px; color: #000; }
   </style>
 </head>

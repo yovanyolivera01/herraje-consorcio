@@ -186,6 +186,7 @@ export function CotizacionProvider({ children }) {
   const getDetalleCotizacionMaquila    = wrap(maqApi.getDetalleCotizacionMaquila)
   const reabrirCotizacion              = wrap(maqApi.reabrirCotizacion)
   const convertirMaquilaAPedido        = wrap(maqApi.convertirMaquilaAPedido)
+  const convertirMaquilaAPedidoDirecto = wrap(maqApi.convertirMaquilaAPedidoDirecto)
   const getPedidosPendientesMaquila    = wrap(maqApi.getPedidosPendientesMaquila)
   const getDetallePedidoMaquila        = wrap(maqApi.getDetallePedidoMaquila)
   const entregarPartidaMaquila         = wrap(maqApi.entregarPartidaMaquila)
@@ -298,7 +299,7 @@ export function CotizacionProvider({ children }) {
       getPrecioVidrio, getPrecioProceso, getPrecioProcesoEspecial,
       iniciarCotizacionMaquila, agregarPartidaMaquila, eliminarPartidaMaquila,
       finalizarCotizacionMaquila, getTicketMaquila, getCotizacionesMaquila,
-      getDetalleCotizacionMaquila, reabrirCotizacion, convertirMaquilaAPedido,
+      getDetalleCotizacionMaquila, reabrirCotizacion, convertirMaquilaAPedido, convertirMaquilaAPedidoDirecto,
       getPedidosPendientesMaquila, getDetallePedidoMaquila,
       entregarPartidaMaquila, marcarAnticipoLiquidadoMaquila,
       getInventarioVidrio, registrarInventarioVidrio, ajustarInventario, getMovimientosInventario, setLotePreferido,

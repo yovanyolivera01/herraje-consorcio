@@ -112,6 +112,9 @@ export const reabrirCotizacion = async (id_cotizacion) =>
 export const convertirMaquilaAPedido = async ({ id_cotizacion, tipo_pago, monto_anticipo }) =>
   apiFetch('/maquila/pedidos/convertir', { method: 'POST', body: { id_cotizacion, tipo_pago, monto_anticipo: Number(monto_anticipo) } })
 
+export const convertirMaquilaAPedidoDirecto = async ({ id_cotizacion, tipo_pago, monto_anticipo }) =>
+  apiFetch('/maquila/pedidos/convertir-directo', { method: 'POST', body: { id_cotizacion, tipo_pago, monto_anticipo: Number(monto_anticipo) } })
+
 // ============================================================================
 //  PEDIDOS DE MAQUILA
 // ============================================================================

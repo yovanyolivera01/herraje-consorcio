@@ -246,7 +246,7 @@ export default function Layout() {
           </span>
           <div className="sidebar-logo-text">
             <h1>{{ herraje: 'Herraje', vidrio: 'Catalogos', ventas: 'Ventas', reportes: 'Reportes', inventarios: 'Almacén', personal: 'Personal', egresos: 'Egresos' }[sistemaActivo] ?? 'Herraje'}</h1>
-            <p>Consorcio</p>
+            <p>Vidreria Rosales</p>
           </div>
         </div>
 

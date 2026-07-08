@@ -338,7 +338,10 @@ export default function NuevaVenta() {
             )}
 
             <button className="btn btn-outline" onClick={() => printTicket(ventaCreada, '80mm')}>
-              🖨️ Imprimir
+              🖨️ Ticket
+            </button>
+            <button className="btn btn-outline" onClick={() => printTicket(ventaCreada, 'carta')}>
+              🖨️ Hoja
             </button>
             <button className="btn btn-primary" onClick={nuevaVenta}>
               + Nueva venta

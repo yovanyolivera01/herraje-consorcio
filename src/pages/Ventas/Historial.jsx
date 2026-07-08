@@ -95,7 +95,7 @@ function DetalleModal({ ventaResumen, onClose }) {
                 className="btn btn-primary"
                 onClick={() => printTicket(venta, 'carta')}
               >
-                🖨️ Hoja carta
+                🖨️ Hoja
               </button>
             </>
           )}
