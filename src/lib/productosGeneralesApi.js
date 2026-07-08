@@ -12,8 +12,6 @@ async function apiFetch(path, options = {}) {
   return data
 }
 
-export const getProductosGenerales = () => http.get('/api/productos-generales')
-
 export const getProductosGenerales = async () => {
   const rows = await apiFetch('/productos-generales')
   return rows.map(row => ({
