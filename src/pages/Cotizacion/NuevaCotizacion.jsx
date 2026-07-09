@@ -546,15 +546,20 @@ export default function NuevaCotizacion() {
       })
     })
 
+    const pzas = parsed.piezas
+    const roundedVid  = r5(subtotal_vidrio / pzas) * pzas
+    const roundedProc = procesosCalc.reduce((s, pr) => s + r5(pr.subtotal / pzas) * pzas, 0)
+
     return {
-      piezas: parsed.piezas,
+      piezas: pzas,
       largo,
       ancho,
       metros2_total,
       precio_m2,
       subtotal_vidrio,
       subtotal_procesos,
-      subtotal_total: subtotal_vidrio + subtotal_procesos,
+      subtotal_total:   subtotal_vidrio + subtotal_procesos,
+      subtotal_rounded: roundedVid + roundedProc,
       esHojaCompleta,
       procesosCalc,
     }
@@ -1548,7 +1553,7 @@ export default function NuevaCotizacion() {
                     </div>
                     <div style={{ textAlign: 'center' }}>
                       <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 2 }}>Subtotal</div>
-                      <div style={{ fontWeight: 700, fontSize: 20, color: 'var(--accent)' }}>${fmt5(preview.subtotal_total)}</div>
+                      <div style={{ fontWeight: 700, fontSize: 20, color: 'var(--accent)' }}>${fmt5(preview.subtotal_rounded)}</div>
                     </div>
                   </div>
 
@@ -1576,7 +1581,7 @@ export default function NuevaCotizacion() {
                       background: '#fffbeb', border: '1.5px solid #f59e0b',
                     }}>
                       <div style={{ fontSize: 12, color: '#92400e', fontWeight: 600, marginBottom: 6 }}>
-                        ⚠️ Pieza pequeña — precio calculado: <strong>${fmt5(preview.subtotal_total)}</strong>
+                        ⚠️ Pieza pequeña — precio calculado: <strong>${fmt5(preview.subtotal_rounded)}</strong>
                       </div>
                       <div style={{ fontSize: 12, color: '#78350f', marginBottom: 8 }}>
                         Puedes ajustar el precio final a cobrar:
@@ -1589,7 +1594,7 @@ export default function NuevaCotizacion() {
                           step="0.01"
                           className="form-input"
                           style={{ maxWidth: 140, margin: 0 }}
-                          placeholder={preview.subtotal_total.toFixed(2)}
+                          placeholder={preview.subtotal_rounded.toFixed(2)}
                           value={precioManual}
                           onChange={e => setPrecioManual(e.target.value)}
                         />
