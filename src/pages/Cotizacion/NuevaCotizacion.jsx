@@ -546,12 +546,8 @@ export default function NuevaCotizacion() {
       })
     })
 
-    const pzas = parsed.piezas
-    const roundedVid  = r5(subtotal_vidrio / pzas) * pzas
-    const roundedProc = procesosCalc.reduce((s, pr) => s + r5(pr.subtotal / pzas) * pzas, 0)
-
     return {
-      piezas: pzas,
+      piezas: parsed.piezas,
       largo,
       ancho,
       metros2_total,
@@ -559,7 +555,7 @@ export default function NuevaCotizacion() {
       subtotal_vidrio,
       subtotal_procesos,
       subtotal_total:   subtotal_vidrio + subtotal_procesos,
-      subtotal_rounded: roundedVid + roundedProc,
+      subtotal_rounded: r5(subtotal_vidrio + subtotal_procesos),
       esHojaCompleta,
       procesosCalc,
     }
@@ -605,10 +601,9 @@ export default function NuevaCotizacion() {
     const esPequena   = preview.metros2_total / parsed.piezas <= 0.12 ||
                         (preview.metros2_total / parsed.piezas < 0.45 && preview.procesosCalc.length > 0)
     const manualNum   = esPequena && precioManual !== '' ? parseFloat(precioManual) : NaN
-    const pzas        = parsed.piezas
-    const roundedVid  = r5(preview.subtotal_vidrio / pzas) * pzas
-    const roundedProc = preview.procesosCalc.reduce((s, pr) => s + r5(Number(pr.subtotal) / pzas) * pzas, 0)
-    const subtotalFin = (!isNaN(manualNum) && manualNum > 0) ? manualNum : (roundedVid + roundedProc)
+    const subtotalFin = (!isNaN(manualNum) && manualNum > 0)
+      ? manualNum
+      : r5(preview.subtotal_vidrio + preview.subtotal_procesos)
 
     const nuevaPartida = {
       _key:              Date.now() + Math.random(),

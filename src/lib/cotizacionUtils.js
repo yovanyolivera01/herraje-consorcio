@@ -31,15 +31,13 @@ export function parseNotacion(texto) {
   return { error: 'Formato invalido. Ej: 98x45  o  3-98x45' }
 }
 
-// Calculates the total for a list of partidas, applying r5 rounding per piece
+// Calculates the total for a list of partidas.
+// For VIDRIO: subtotal_partida already has r5 applied (on the total, not per piece).
 export function calcTotal(partidas) {
   return partidas.reduce((s, p) => {
     if (!p.tipo || p.tipo === 'VIDRIO') {
       if (p.precio_manual) return s + Number(p.precio_manual)
-      const pzas = Number(p.piezas ?? 1)
-      const cuVid = r5(Number(p.subtotal_vidrio || p.subtotal_partida || 0) / pzas)
-      const totProc = (p.procesos ?? []).reduce((ps, pr) => ps + r5(Number(pr.subtotal) / pzas) * pzas, 0)
-      return s + cuVid * pzas + totProc
+      return s + Number(p.subtotal_partida ?? 0)
     }
     return s + r5(Number(p.subtotal_partida ?? 0))
   }, 0)
