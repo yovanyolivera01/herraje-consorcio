@@ -4,7 +4,7 @@ import { parseNotacion, calcTotal } from '../../lib/cotizacionUtils'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useCotizacion } from '../../context/CotizacionContext'
 import { useApp } from '../../context/AppContext'
-import { crearPedidoDirecto, getDetallePedido, convertirCotizacionAPedido, decrementarInventarioDesdePartidas } from '../../lib/pedidosApi'
+import { crearPedidoDirecto, crearPedidoDirectoConExtras, getDetallePedido, convertirCotizacionAPedido, decrementarInventarioDesdePartidas } from '../../lib/pedidosApi'
 import { getPartidasExtra } from '../../lib/cotizacionApi'
 import { venderProductoGeneral } from '../../lib/productosGeneralesApi'
 import { printTicketVidrio, printPedidoA4 } from '../../utils/ticket'
@@ -411,6 +411,34 @@ export default function NuevaCotizacion() {
     ? (clienteSeleccionado?.id_nivel_precio ?? null)
     : (nivelId ? Number(nivelId) : null)
 
+  const cliPrecioFallback = clienteSeleccionado?.id_nivel_precio ?? null
+
+  // Helpers de precio según modo (cliente registrado vs. nivel general)
+  const getPrecioVid = (id_tv) => {
+    if (usarPreciosCli) {
+      const c = preciosCli.find(p => p.id_tipo_vidrio === id_tv && (p.id_proceso ?? null) === null)
+      if (c) return Number(c.precio_m2)
+      return cliPrecioFallback ? getPrecioVidrio(id_tv, cliPrecioFallback) : null
+    }
+    return getPrecioVidrio(id_tv, Number(nivelId))
+  }
+  const getPrecioProc = (id_p, id_esp) => {
+    if (usarPreciosCli) {
+      const c = preciosCli.find(p => (p.id_tipo_vidrio ?? null) === null && p.id_proceso === id_p)
+      if (c) return Number(c.precio_m2)
+      return cliPrecioFallback ? getPrecioProceso(id_p, cliPrecioFallback, id_esp) : null
+    }
+    return getPrecioProceso(id_p, Number(nivelId), id_esp)
+  }
+  const getPrecioEsp = (id_p) => {
+    if (usarPreciosCli) {
+      const c = preciosCli.find(p => (p.id_tipo_vidrio ?? null) === null && p.id_proceso === id_p)
+      if (c) return Number(c.precio_m2)
+      return cliPrecioFallback ? getPrecioProcesoEspecial(id_p, cliPrecioFallback) : null
+    }
+    return getPrecioProcesoEspecial(id_p, Number(nivelId))
+  }
+
   // ── Preview en vivo ──────────────────────────────────────────────────────
   const preview = useMemo(() => {
     if (!notacion.trim() || !tipoVidrioId) return null
@@ -422,34 +450,6 @@ export default function NuevaCotizacion() {
 
     const tipo = tiposVidrio.find(t => t.id_tipo_vidrio === Number(tipoVidrioId))
     if (!tipo) return null
-
-    const fallbackNivel = clienteSeleccionado?.id_nivel_precio ?? null
-
-    // Helpers de precio según modo (cliente registrado vs. nivel general)
-    const getPrecioVid = (id_tv) => {
-      if (usarPreciosCli) {
-        const c = preciosCli.find(p => p.id_tipo_vidrio === id_tv && (p.id_proceso ?? null) === null)
-        if (c) return Number(c.precio_m2)
-        return fallbackNivel ? getPrecioVidrio(id_tv, fallbackNivel) : null
-      }
-      return getPrecioVidrio(id_tv, Number(nivelId))
-    }
-    const getPrecioProc = (id_p, id_esp) => {
-      if (usarPreciosCli) {
-        const c = preciosCli.find(p => (p.id_tipo_vidrio ?? null) === null && p.id_proceso === id_p)
-        if (c) return Number(c.precio_m2)
-        return fallbackNivel ? getPrecioProceso(id_p, fallbackNivel, id_esp) : null
-      }
-      return getPrecioProceso(id_p, Number(nivelId), id_esp)
-    }
-    const getPrecioEsp = (id_p) => {
-      if (usarPreciosCli) {
-        const c = preciosCli.find(p => (p.id_tipo_vidrio ?? null) === null && p.id_proceso === id_p)
-        if (c) return Number(c.precio_m2)
-        return fallbackNivel ? getPrecioProcesoEspecial(id_p, fallbackNivel) : null
-      }
-      return getPrecioProcesoEspecial(id_p, Number(nivelId))
-    }
 
     const precio_m2 = getPrecioVid(tipo.id_tipo_vidrio)
     if (precio_m2 === null) return { sinPrecio: true, tipo }
@@ -651,19 +651,19 @@ export default function NuevaCotizacion() {
       let cantidad, precio_unitario
       if (esEspecial || esPorPza) {
         cantidad        = sel.cantidad !== '' ? Number(sel.cantidad) : 1
-        precio_unitario = getPrecioProcesoEspecial(proc.id_proceso, efectivoNivelId) ?? 0
+        precio_unitario = getPrecioEsp(proc.id_proceso) ?? 0
       } else if (esPorML) {
         cantidad        = perimetroML
         precio_unitario = (
-          getPrecioProceso(proc.id_proceso, efectivoNivelId, espesorNum) ??
-          getPrecioProceso(proc.id_proceso, efectivoNivelId, null) ??
+          getPrecioProc(proc.id_proceso, espesorNum) ??
+          getPrecioProc(proc.id_proceso, null) ??
           0
         )
       } else {
         cantidad        = maqMetros2
         precio_unitario = (
-          getPrecioProceso(proc.id_proceso, efectivoNivelId, espesorNum) ??
-          getPrecioProceso(proc.id_proceso, efectivoNivelId, null) ??
+          getPrecioProc(proc.id_proceso, espesorNum) ??
+          getPrecioProc(proc.id_proceso, null) ??
           0
         )
       }
@@ -674,7 +674,7 @@ export default function NuevaCotizacion() {
       }
     }).filter(Boolean)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [efectivoNivelId, maqMetros2, maqParsed, maqEspesorId, maqProcesosSelec, procesosActivos, saques, barrenos, extras])
+  }, [efectivoNivelId, usarPreciosCli, preciosCli, cliPrecioFallback, nivelId, maqMetros2, maqParsed, maqEspesorId, maqProcesosSelec, procesosActivos, saques, barrenos, extras])
 
   const maqSubtotal = maqPreviewProcesos.reduce((s, p) => s + p.subtotal, 0)
 
@@ -853,7 +853,7 @@ export default function NuevaCotizacion() {
       if (p.tipo === 'MAQUILA' && p.piezas_maq != null) {
         const dims  = `${p.piezas_maq} ${p.largo_cm}×${p.ancho_cm}cm${p.espesor_label ? ` ${p.espesor_label}` : ''}`
         const procs = (p.procesos_maq ?? []).map(pr => pr.nombre).join(', ')
-        descripcion = p.descripcion ? `${p.descripcion} — ${dims} · ${procs}` : `${dims} · ${procs}`
+        descripcion = `${dims}${p.descripcion ? ` - ${p.descripcion}` : ''} · ${procs}`
       }
       const { error } = await agregarPartidaExtra(id_cotizacion, {
         tipo:                p.tipo,
@@ -1004,29 +1004,41 @@ export default function NuevaCotizacion() {
         setPedidoCreado(detalle)
         setCotCreada({ folio: cotEdit.folio, clienteNombre: clienteSeleccionado?.nombre ?? null, partidas, total: totalGeneral })
       } else if (tieneExtras) {
-        // Con extras: crear cotizacion completa y convertir
-        const { data: cot, error: cotErr } = await iniciarCotizacion({
-          id_nivel_precio: nivelParaGuardar,
+        // Con extras: pedido directo sin cotización, extras en partida_pedido_extra
+        const extrasPayload = partidas
+          .filter(p => p.tipo && p.tipo !== 'VIDRIO')
+          .map(p => {
+            let descripcion = p.descripcion
+            if (p.tipo === 'MAQUILA' && p.piezas_maq != null) {
+              const dims  = `${p.piezas_maq} ${p.largo_cm}×${p.ancho_cm}cm${p.espesor_label ? ` ${p.espesor_label}` : ''}`
+              const procs = (p.procesos_maq ?? []).map(pr => pr.nombre).join(', ')
+              descripcion = `${dims}${p.descripcion ? ` - ${p.descripcion}` : ''} · ${procs}`
+            }
+            return {
+              tipo:                p.tipo,
+              descripcion:         descripcion ?? '',
+              unidad:              p.unidad,
+              cantidad:            p.cantidad,
+              precio_unitario:     p.precio_unitario,
+              subtotal:            p.subtotal_partida,
+              id_producto_general: p.id_producto_general ?? null,
+            }
+          })
+        const idPedido = await crearPedidoDirectoConExtras({
           id_cliente:      clienteId ? Number(clienteId) : null,
-          observaciones:   null,
+          id_nivel_precio: nivelParaGuardar,
+          partidas:        vidrioPartidas,
+          tipo_pago:       modalFormaPago,
+          monto_anticipo:  monto,
+          extras:          extrasPayload,
+          total:           totalGeneral,
         })
-        if (cotErr) throw new Error(cotErr)
-        for (const p of vidrioPartidas) {
-          const { error: pErr } = await agregarPartida(cot.id_cotizacion, p)
-          if (pErr) throw new Error(pErr)
-        }
-        await guardarExtras(cot.id_cotizacion)
-        await finalizarCotizacion(cot.id_cotizacion, totalGeneral)
-        const idPedido = await convertirCotizacionAPedido(cot.id_cotizacion, modalFormaPago, monto)
         decrementarStockProductos(partidas)
-        const detalle  = await getDetallePedido(idPedido)
-        if (detalle.id_cotizacion) {
-          const extras = await getPartidasExtra(detalle.id_cotizacion)
-          setPedidoExtras(extras)
-        }
+        const detalle = await getDetallePedido(idPedido)
+        setPedidoExtras(detalle.extras ?? [])
         setShowPedidoModal(false)
         setPedidoCreado(detalle)
-        setCotCreada({ folio: cot.folio, clienteNombre: clienteSeleccionado?.nombre ?? null, partidas, total: totalGeneral })
+        setCotCreada({ folio: null, clienteNombre: clienteSeleccionado?.nombre ?? null, partidas, total: totalGeneral })
       } else {
         // Solo vidrio, sin extras: flujo directo rápido
         const idPedido = await crearPedidoDirecto({

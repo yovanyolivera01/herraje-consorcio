@@ -119,22 +119,22 @@ router.post('/clientes/:id/precios', async (req, res) => {
     let sql, params
 
     if (vid && proc) {
-      sql = `INSERT INTO precio_cliente_registrado (id_cliente, id_tipo_vidrio, id_proceso, precio_m2)
-             VALUES ($1,$2,$3,$4)
+      sql = `INSERT INTO precio_cliente_registrado (id_cliente, id_tipo_vidrio, id_proceso, precio_m2, activo)
+             VALUES ($1,$2,$3,$4,true)
              ON CONFLICT (id_cliente, id_tipo_vidrio, id_proceso) WHERE id_tipo_vidrio IS NOT NULL AND id_proceso IS NOT NULL
              DO UPDATE SET precio_m2=EXCLUDED.precio_m2, activo=true, actualizado_en=NOW()
              RETURNING *`
       params = [req.params.id, vid, proc, Number(precio_m2)]
     } else if (vid) {
-      sql = `INSERT INTO precio_cliente_registrado (id_cliente, id_tipo_vidrio, precio_m2)
-             VALUES ($1,$2,$3)
+      sql = `INSERT INTO precio_cliente_registrado (id_cliente, id_tipo_vidrio, precio_m2, activo)
+             VALUES ($1,$2,$3,true)
              ON CONFLICT (id_cliente, id_tipo_vidrio) WHERE id_proceso IS NULL
              DO UPDATE SET precio_m2=EXCLUDED.precio_m2, activo=true, actualizado_en=NOW()
              RETURNING *`
       params = [req.params.id, vid, Number(precio_m2)]
     } else {
-      sql = `INSERT INTO precio_cliente_registrado (id_cliente, id_proceso, precio_m2)
-             VALUES ($1,$2,$3)
+      sql = `INSERT INTO precio_cliente_registrado (id_cliente, id_proceso, precio_m2, activo)
+             VALUES ($1,$2,$3,true)
              ON CONFLICT (id_cliente, id_proceso) WHERE id_tipo_vidrio IS NULL
              DO UPDATE SET precio_m2=EXCLUDED.precio_m2, activo=true, actualizado_en=NOW()
              RETURNING *`

@@ -482,7 +482,7 @@ export default function Clientes() {
                           {c.activo ? 'Activo' : 'Inactivo'}
                         </span>
                         {c.credito_activo && (
-                          <span className="badge badge-blue">💳 Crédito</span>
+                          <span className="badge badge-blue">Crédito</span>
                         )}
                       </div>
                     </td>

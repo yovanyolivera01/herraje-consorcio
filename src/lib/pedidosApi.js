@@ -61,6 +61,14 @@ export const crearPedidoDirecto = async ({ id_cliente, id_nivel_precio, partidas
   return data.id_pedido
 }
 
+export const crearPedidoDirectoConExtras = async ({ id_cliente, id_nivel_precio, partidas, tipo_pago, monto_anticipo, extras, total }) => {
+  const data = await apiFetch('/pedidos/directo-con-extras', {
+    method: 'POST',
+    body: { id_cliente: id_cliente ?? null, id_nivel_precio, partidas, tipo_pago, monto_anticipo: Number(monto_anticipo), extras, total: Number(total) },
+  })
+  return data.id_pedido
+}
+
 // ── Pedidos pendientes ────────────────────────────────────────────────────────
 
 export const getPedidosPendientes = async () => {
