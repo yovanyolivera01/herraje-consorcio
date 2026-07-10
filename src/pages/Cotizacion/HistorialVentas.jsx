@@ -204,6 +204,17 @@ export default function HistorialVentas() {
   const [fechaHasta, setFechaHasta] = useState(hoyMX)
   const [seleccionado, setSeleccionado] = useState(null)
   const [exporting, setExporting] = useState(false)
+  const [busqueda,setBusqueda] = useState('')
+
+  const q = busqueda.trim().toLowerCase()
+  const filteredFinal = q
+  ? pedidos.filter(v => 
+    v.folio?.toLowerCase().includes(q) ||
+    v.fecha.toLowerCase().includes(q) ||
+    v.clienteNombre?.toLowerCase().includes(q)
+  )
+  :pedidos
+
 
   const cargar = useCallback(async () => {
     setLoading(true)
@@ -221,7 +232,8 @@ export default function HistorialVentas() {
 
   useEffect(() => { cargar() }, [cargar])
 
-  const totalAcumulado = pedidos.reduce((s, p) => s + p.total, 0)
+
+  const totalAcumulado = filteredFinal.reduce((s, p) => s + p.total, 0)
 
   const handleExportar = async () => {
     setExporting(true)
@@ -247,6 +259,14 @@ export default function HistorialVentas() {
           <div className="page-subtitle">Pedidos entregados</div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
+          <input
+            type="text"
+            className="filter-select"
+            placeholder="Buscar folio, cliente..."
+            value={busqueda}
+            onChange={e => setBusqueda(e.target.value)}
+            style={{ minWidth: 200 }}
+          />
           <button className="btn btn-outline" onClick={cargar} disabled={loading}>↻ Actualizar</button>
           <button className="btn btn-primary" onClick={handleExportar} disabled={exporting || pedidos.length === 0}>
             {exporting ? 'Exportando...' : '⬇ Excel'}
@@ -281,7 +301,7 @@ export default function HistorialVentas() {
         <div className="stats-row">
           <div className="stat-card">
             <div className="stat-label">Ventas en periodo</div>
-            <div className="stat-value">{pedidos.length}</div>
+            <div className="stat-value">{filteredFinal.length}</div>
           </div>
           <div className="stat-card">
             <div className="stat-label">Total acumulado</div>
@@ -298,7 +318,7 @@ export default function HistorialVentas() {
           </div>
         ) : error ? (
           <div className="alert alert-error">❌ {error}</div>
-        ) : pedidos.length === 0 ? (
+        ) : filteredFinal.length === 0 ? (
           <div className="empty-state">
             <div className="empty-state-icon">📊</div>
             <h3>Sin ventas en el periodo</h3>
@@ -321,7 +341,7 @@ export default function HistorialVentas() {
                     </tr>
                   </thead>
                   <tbody>
-                    {pedidos.map(p => (
+                    {filteredFinal.map(p => (
                       <tr key={p.id} style={{ cursor: 'pointer' }} onClick={() => setSeleccionado(p)}>
                         <td><span className="badge badge-blue">{p.folio}</span></td>
                         <td style={{ fontSize: 14, color: 'var(--text-muted)' }}>{p.fechaEntrega}</td>
@@ -345,7 +365,7 @@ export default function HistorialVentas() {
 
             {/* ── Tarjetas (tablet / móvil) ── */}
             <div className="hist-mobile">
-              {pedidos.map(p => (
+              {filteredFinal.map(p => (
                 <div key={p.id} className="hist-card" onClick={() => setSeleccionado(p)}>
                   <div className="hist-card-header">
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

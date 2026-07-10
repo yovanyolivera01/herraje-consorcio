@@ -49,6 +49,57 @@ router.post('/pedidos/directo', async (req, res) => {
   } catch (e) { err(res, e) }
 })
 
+// ── Crear pedido directo con extras (sin cotización) ─────────────────────────
+
+router.post('/pedidos/directo-con-extras', async (req, res) => {
+  try {
+    const { id_cliente, id_nivel_precio, partidas, tipo_pago, monto_anticipo, extras, total } = req.body
+    let id_pedido, folio
+
+    if ((partidas ?? []).length > 0) {
+      // Has vidrio partidas — use stored proc
+      const { rows } = await query(
+        'SELECT * FROM sp_crear_pedido_directo($1, $2, $3, $4, $5)',
+        [id_cliente ?? null, id_nivel_precio, tipo_pago, Number(monto_anticipo), JSON.stringify(partidas)]
+      )
+      const row = rows[0]
+      if (!row || row.out_mensaje?.startsWith('ERROR')) {
+        return res.status(400).json({ message: row?.out_mensaje ?? 'Error al crear el pedido' })
+      }
+      id_pedido = row.out_id_pedido
+      folio     = row.out_folio
+      // Update total to include extras
+      if (total != null) {
+        await query('UPDATE pedido SET total=$1 WHERE id_pedido=$2', [Number(total), id_pedido])
+      }
+    } else {
+      // Maquila/herraje only — direct INSERT (no vidrio partidas)
+      const realTotal = total ?? (extras ?? []).reduce((s, e) => s + Number(e.subtotal), 0)
+      const saldo = Number(realTotal) - Number(monto_anticipo)
+      const { rows: pRows } = await query(
+        `INSERT INTO pedido (id_cliente, id_nivel_precio, total, tipo_pago, monto_anticipo, saldo_pendiente, estatus, tipo_pedido, folio)
+         VALUES ($1, $2, $3, $4, $5, $6, 'PENDIENTE', 'VIDRIO', 'TMP') RETURNING id_pedido`,
+        [id_cliente ?? null, id_nivel_precio ?? null, Number(realTotal), tipo_pago, Number(monto_anticipo), saldo]
+      )
+      id_pedido = pRows[0].id_pedido
+      folio     = `PED-${String(id_pedido).padStart(5, '0')}`
+      await query('UPDATE pedido SET folio=$1 WHERE id_pedido=$2', [folio, id_pedido])
+    }
+
+    for (const extra of (extras ?? [])) {
+      await query(
+        `INSERT INTO partida_pedido_extra (id_pedido, tipo, descripcion, unidad, cantidad, precio_unitario, subtotal, id_producto_general, notas)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+        [id_pedido, extra.tipo, extra.descripcion ?? '', extra.unidad ?? 'pza',
+         Number(extra.cantidad), Number(extra.precio_unitario), Number(extra.subtotal),
+         extra.id_producto_general ?? null, extra.notas ?? null]
+      )
+    }
+    try { await query('SELECT sp_insertar_pedidod($1)', [id_pedido]) } catch {}
+    ok(res, { id_pedido, folio })
+  } catch (e) { err(res, e) }
+})
+
 // ── Decrementar inventario desde partidas (pedido directo sin cotización) ─────
 
 router.post('/pedidos/decrementar-inventario', async (req, res) => {
@@ -146,6 +197,14 @@ router.get('/pedidos/:id', async (req, res) => {
         const extRes = await query(
           'SELECT tipo, descripcion, unidad, cantidad, precio_unitario, subtotal, notas FROM partida_cotizacion_extra WHERE id_cotizacion=$1 ORDER BY id_partida_extra',
           [id_cotizacion]
+        )
+        extras = extRes.rows
+      } catch {}
+    } else {
+      try {
+        const extRes = await query(
+          'SELECT tipo, descripcion, unidad, cantidad, precio_unitario, subtotal, notas FROM partida_pedido_extra WHERE id_pedido=$1 ORDER BY id_partida_extra',
+          [id]
         )
         extras = extRes.rows
       } catch {}
