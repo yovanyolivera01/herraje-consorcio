@@ -136,6 +136,7 @@ function DetalleVentaModal({ resumen, onClose }) {
               saldo:         detalle.saldo,
               saldo_cobrado: detalle.saldo_cobrado,
               esEntregado:   true,
+              esReimpresion: true,
               total:         detalle.total,
               partidas: [
                 ...(detalle.partidas ?? []).map(p => ({

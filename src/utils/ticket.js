@@ -142,6 +142,7 @@ export function printTicketVidrio(detalle) {
   const folioLabel = detalle.tipo === 'pedido' ? 'Pedido:' : 'Folio:'
   const cotLabel = detalle.tipo === 'pedido' ? `<div class="row"><span>Cotizacion:</span><span>${detalle.foliosCot ?? ''}</span></div>` : ''
   const pie = detalle.esEntregado ? '¡Gracias por su compra!' : detalle.tipo === 'pedido' ? 'Pendiente de entrega.' : 'Cotizacion con vigencia de 15 dias.'
+  const reimpresionHtml = detalle.esReimpresion ? `<div class="center" style="font-size:11px;font-weight:700;border:1px dashed #000;padding:3px 0;margin-top:6px;letter-spacing:1px">*** REIMPRESION — PEDIDO ENTREGADO ***</div>` : ''
 
   const html = `<!DOCTYPE html>
 <html lang="es">
@@ -196,6 +197,7 @@ export function printTicketVidrio(detalle) {
   ${pagoRows}
   <hr class="divider">
   <div class="footer center">${pie}</div>
+  ${reimpresionHtml}
 </body>
 </html>`
 
@@ -789,6 +791,7 @@ export function printPedidoA4(detalle) {
   <div class="pago-box">${pagoInfo}</div>
 
   <div class="footer-doc">${pie}<br>Vidrio Templado y Aluminio Rosales · Tel: 5523134256, 5522161432, 5547912671</div>
+  ${detalle.esReimpresion ? `<div style="margin-top:14px;text-align:center;font-size:11px;font-weight:700;letter-spacing:2px;border:1.5px dashed #999;padding:6px;color:#555">*** REIMPRESIÓN — PEDIDO ENTREGADO ***</div>` : ''}
 </body>
 </html>`
 
