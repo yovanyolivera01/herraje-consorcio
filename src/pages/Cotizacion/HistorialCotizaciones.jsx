@@ -9,6 +9,44 @@ import {
 } from '../../utils/thermalPrinter'
 import { printTicketVidrio, printPedidoA4 } from '../../utils/ticket'
 
+// ── Modal confirmar borrar cotización ────────────────────────────────────
+function ConfirmBorrarModal({ cotizacion, onConfirm, onClose, loading }) {
+  return (
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal" style={{ maxWidth: 420 }} onClick={e => e.stopPropagation()}>
+        <div className="modal-header">
+          <div className="modal-title" style={{ color: '#dc2626' }}>Borrar cotización</div>
+          <button className="btn-icon" onClick={onClose}>✕</button>
+        </div>
+        <div className="modal-body">
+          <div style={{ textAlign: 'center', padding: '8px 0 16px' }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>🗑️</div>
+            <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 8 }}>
+              ¿Borrar <span style={{ color: '#dc2626' }}>{cotizacion.folio}</span>?
+            </div>
+            <div style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.6 }}>
+              Cliente: <strong>{cotizacion.clienteNombre}</strong><br />
+              Total: <strong>${fmt5(cotizacion.total)}</strong><br />
+              Esta acción es permanente y no se puede deshacer.
+            </div>
+          </div>
+        </div>
+        <div className="modal-footer">
+          <button className="btn btn-outline" onClick={onClose} disabled={loading}>Cancelar</button>
+          <button
+            className="btn"
+            style={{ background: '#dc2626', color: '#fff' }}
+            onClick={onConfirm}
+            disabled={loading}
+          >
+            {loading ? 'Borrando...' : 'Sí, borrar'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Hook impresora térmica ────────────────────────────────────────────────
 function useThermal() {
   const [connected, setConnected] = useState(() => isPrinterConnected())
@@ -744,13 +782,14 @@ export default function HistorialCotizaciones() {
     navigate('/cot/nueva', { state: { cotEdit: data } })
   }
 
-  const handleBorrar = async (id) => {
-    setBorrandoId(id)
-    const { error: err } = await borrarCotizacion(id)
+  const handleBorrar = async () => {
+    if (!confirmBorrar) return
+    setBorrandoId(confirmBorrar.id)
+    const { error: err } = await borrarCotizacion(confirmBorrar.id)
     setBorrandoId(null)
+    if (err) { alert('Error al borrar: ' + err); setConfirmBorrar(null); return }
+    setCotizaciones(prev => prev.filter(c => c.id !== confirmBorrar.id))
     setConfirmBorrar(null)
-    if (err) { alert('Error al borrar: ' + err); return }
-    setCotizaciones(prev => prev.filter(c => c.id !== id))
   }
 
   useEffect(() => { cargar() }, []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -1031,16 +1070,9 @@ export default function HistorialCotizaciones() {
                             </button>
                           )}
                           {c.estatus !== 'CONVERTIDA' && (
-                            confirmBorrar === c.id
-                              ? <>
-                                  <button className="btn btn-sm" style={{ background:'#dc2626', color:'#fff', padding:'4px 8px' }} onClick={() => handleBorrar(c.id)} disabled={borrandoId === c.id}>
-                                    {borrandoId === c.id ? '…' : '✓'}
-                                  </button>
-                                  <button className="btn btn-outline btn-sm" style={{ padding:'4px 8px' }} onClick={() => setConfirmBorrar(null)}>✕</button>
-                                </>
-                              : <button className="btn btn-outline btn-sm" title="Borrar" onClick={() => setConfirmBorrar(c.id)} style={{ display:'flex', alignItems:'center', padding:'4px 8px', color:'#dc2626', borderColor:'#dc2626' }}>
-                                  <Trash2 size={14} />
-                                </button>
+                            <button className="btn btn-outline btn-sm" title="Borrar" onClick={() => setConfirmBorrar(c)} style={{ display:'flex', alignItems:'center', padding:'4px 8px', color:'#dc2626', borderColor:'#dc2626' }}>
+                              <Trash2 size={14} />
+                            </button>
                           )}
                         </td>
                       </tr>
@@ -1083,16 +1115,9 @@ export default function HistorialCotizaciones() {
                       )}
                       <button className="btn btn-outline btn-sm" onClick={() => setSeleccionada(c)} style={{ padding:'5px 10px' }}>Ver</button>
                       {c.estatus !== 'CONVERTIDA' && (
-                        confirmBorrar === c.id
-                          ? <>
-                              <button className="btn btn-sm" style={{ background:'#dc2626', color:'#fff', padding:'5px 10px' }} onClick={() => handleBorrar(c.id)} disabled={borrandoId === c.id}>
-                                {borrandoId === c.id ? '…' : '¿Borrar?'}
-                              </button>
-                              <button className="btn btn-outline btn-sm" style={{ padding:'5px 10px' }} onClick={() => setConfirmBorrar(null)}>No</button>
-                            </>
-                          : <button className="btn btn-outline btn-sm" onClick={() => setConfirmBorrar(c.id)} style={{ display:'flex', alignItems:'center', gap:4, padding:'5px 10px', color:'#dc2626', borderColor:'#dc2626' }}>
-                              <Trash2 size={13} /> Borrar
-                            </button>
+                        <button className="btn btn-outline btn-sm" onClick={() => setConfirmBorrar(c)} style={{ display:'flex', alignItems:'center', gap:4, padding:'5px 10px', color:'#dc2626', borderColor:'#dc2626' }}>
+                          <Trash2 size={13} /> Borrar
+                        </button>
                       )}
                     </div>
                   </div>
@@ -1133,6 +1158,14 @@ export default function HistorialCotizaciones() {
         <PedidoCreadoModal
           detalle={pedidoCreado}
           onClose={() => setPedidoCreado(null)}
+        />
+      )}
+      {confirmBorrar && (
+        <ConfirmBorrarModal
+          cotizacion={confirmBorrar}
+          onConfirm={handleBorrar}
+          onClose={() => setConfirmBorrar(null)}
+          loading={borrandoId === confirmBorrar.id}
         />
       )}
     </>
