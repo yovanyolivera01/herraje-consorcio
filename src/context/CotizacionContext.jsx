@@ -158,6 +158,7 @@ export function CotizacionProvider({ children }) {
     return res
   }
   const cancelarCotizacion   = wrap(api.cancelarCotizacion)
+  const borrarCotizacion     = wrap(api.borrarCotizacion)
   const getCotizaciones      = wrap(api.getCotizaciones)
   const getDetalleCotizacion = wrap(api.getDetalleCotizacion)
 
@@ -215,7 +216,7 @@ export function CotizacionProvider({ children }) {
       getEmpresaDeCliente:         empApi.getEmpresaDeCliente,
       getDocumentoEmpresa: empApi.getDocumentoEmpresa,
       iniciarCotizacion, agregarPartida, agregarPartidaExtra, getPartidasExtra, deletePartidasExtra,
-      actualizarCotizacion, finalizarCotizacion, cancelarCotizacion,
+      actualizarCotizacion, finalizarCotizacion, cancelarCotizacion, borrarCotizacion,
       getCotizaciones, getDetalleCotizacion,
       getPrecioVidrio, getPrecioProceso, getPrecioProcesoEspecial,
       iniciarCotizacionMaquila, agregarPartidaMaquila, eliminarPartidaMaquila,

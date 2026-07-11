@@ -127,6 +127,9 @@ export const finalizarCotizacion = async (id_cotizacion, total) =>
 export const cancelarCotizacion = async (id_cotizacion) =>
   apiFetch(`/cotizaciones/${id_cotizacion}`, { method: 'PUT', body: { estatus: 'CANCELADA' } })
 
+export const borrarCotizacion = async (id_cotizacion) =>
+  apiFetch(`/cotizaciones/${id_cotizacion}`, { method: 'DELETE' })
+
 export const getCotizaciones = async () => {
   const rows = await apiFetch('/cotizaciones')
   return rows.map(row => {
