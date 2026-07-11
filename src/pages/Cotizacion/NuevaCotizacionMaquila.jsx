@@ -101,7 +101,7 @@ function ConvertirModal({ cotizacion, onClose, onConvertido }) {
   const [error,     setError]     = useState(null)
 
   const handleConfirm = async () => {
-    const montAnt = tipoPago === 'CONTADO' ? cotizacion.total : Number(anticipo)
+    const montAnt = tipoPago === 'LIQUIDADO' ? cotizacion.total : Number(anticipo)
     if (tipoPago === 'ANTICIPO' && (isNaN(montAnt) || montAnt < 0)) {
       setError('Ingresa un monto de anticipo válido'); return
     }
@@ -132,7 +132,7 @@ function ConvertirModal({ cotizacion, onClose, onConvertido }) {
             <label className="form-label">Tipo de pago</label>
             <select className="form-input" value={tipoPago} onChange={e => setTipoPago(e.target.value)}>
               <option value="ANTICIPO">Anticipo</option>
-              <option value="CONTADO">Contado (pago total)</option>
+              <option value="LIQUIDADO">Liquidado (pago total)</option>
             </select>
           </div>
           {tipoPago === 'ANTICIPO' && (

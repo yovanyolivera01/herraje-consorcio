@@ -552,7 +552,7 @@ function DetalleMaquilaModal({ cotId, onClose, onReopenOk, onConvertidoOk }) {
   }
 
   const handleConvertir = async () => {
-    const montAnt = tipoPago === 'CONTADO' ? detalle.total : Number(anticipo)
+    const montAnt = tipoPago === 'LIQUIDADO' ? detalle.total : Number(anticipo)
     if (tipoPago === 'ANTICIPO' && (isNaN(montAnt) || montAnt < 0)) { setError('Ingresa un anticipo valido'); return }
     setSaving(true); setError(null)
     const res = await convertirMaquilaAPedido({ id_cotizacion: cotId, tipo_pago: tipoPago, monto_anticipo: montAnt })
@@ -643,7 +643,7 @@ function DetalleMaquilaModal({ cotId, onClose, onReopenOk, onConvertidoOk }) {
                 <label className="form-label">Tipo de pago</label>
                 <select className="form-input" value={tipoPago} onChange={e => setTipoPago(e.target.value)}>
                   <option value="ANTICIPO">Anticipo</option>
-                  <option value="CONTADO">Contado (pago total)</option>
+                  <option value="LIQUIDADO">Liquidado (pago total)</option>
                 </select>
               </div>
               {tipoPago === 'ANTICIPO' && (
