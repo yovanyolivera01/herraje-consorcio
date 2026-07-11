@@ -541,6 +541,31 @@ router.delete('/cotizaciones/:id/extras', async (req, res) => {
   } catch (e) { err(res, e) }
 })
 
+router.delete('/cotizaciones/:id', async (req, res) => {
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    const { rows } = await client.query(
+      'SELECT estatus FROM cotizacion WHERE id_cotizacion=$1', [req.params.id]
+    )
+    if (!rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ message: 'Cotización no encontrada' }) }
+    if (rows[0].estatus === 'CONVERTIDA') { await client.query('ROLLBACK'); return res.status(400).json({ message: 'No se puede borrar una cotización convertida en pedido' }) }
+    const { rows: partidas } = await client.query('SELECT id_partida FROM partida_cotizacion WHERE id_cotizacion=$1', [req.params.id])
+    if (partidas.length) {
+      const ids = partidas.map(p => p.id_partida)
+      await client.query('DELETE FROM partida_proceso WHERE id_partida = ANY($1::int[])', [ids])
+      await client.query('DELETE FROM partida_cotizacion WHERE id_cotizacion=$1', [req.params.id])
+    }
+    await client.query('DELETE FROM partida_cotizacion_extra WHERE id_cotizacion=$1', [req.params.id])
+    await client.query('DELETE FROM cotizacion WHERE id_cotizacion=$1', [req.params.id])
+    await client.query('COMMIT')
+    ok(res, { ok: true })
+  } catch (e) {
+    await client.query('ROLLBACK')
+    err(res, e)
+  } finally { client.release() }
+})
+
 // ── Precios de proceso especial (sin diferenciar espesor) ─────────────────
 
 router.get('/precios-proceso-especial', async (req, res) => {

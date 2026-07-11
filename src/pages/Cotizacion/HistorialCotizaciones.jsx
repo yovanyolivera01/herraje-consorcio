@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { fmt5 } from '../../lib/utils'
-import { Pencil, Eye, ArrowRightCircle } from 'lucide-react'
+import { Pencil, Eye, ArrowRightCircle, Trash2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useCotizacion } from '../../context/CotizacionContext'
 import { convertirCotizacionAPedido, getDetallePedido } from '../../lib/pedidosApi'
@@ -681,7 +681,7 @@ function DetalleMaquilaModal({ cotId, onClose, onReopenOk, onConvertidoOk }) {
 
 // ── Pagina Historial de Cotizaciones ──────────────────────────────────────
 export default function HistorialCotizaciones() {
-  const { getCotizaciones, getDetalleCotizacion, getCotizacionesMaquila } = useCotizacion()
+  const { getCotizaciones, getDetalleCotizacion, getCotizacionesMaquila, borrarCotizacion } = useCotizacion()
   const navigate = useNavigate()
 
   // ── Pestaña activa ────────────────────────────────────────────────────────
@@ -698,6 +698,8 @@ export default function HistorialCotizaciones() {
   const [convertirCot,   setConvertirCot]   = useState(null)
   const [pedidoCreado,   setPedidoCreado]   = useState(null)
   const [editandoId,     setEditandoId]     = useState(null)
+  const [borrandoId,     setBorrandoId]     = useState(null)
+  const [confirmBorrar,  setConfirmBorrar]  = useState(null)
 
   // ── Estado pestaña maquila ───────────────────────────────────────────────
   const [busqueda,      setBusqueda]      = useState('')
@@ -740,6 +742,15 @@ export default function HistorialCotizaciones() {
     setEditandoId(null)
     if (err) return
     navigate('/cot/nueva', { state: { cotEdit: data } })
+  }
+
+  const handleBorrar = async (id) => {
+    setBorrandoId(id)
+    const { error: err } = await borrarCotizacion(id)
+    setBorrandoId(null)
+    setConfirmBorrar(null)
+    if (err) { alert('Error al borrar: ' + err); return }
+    setCotizaciones(prev => prev.filter(c => c.id !== id))
   }
 
   useEffect(() => { cargar() }, []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -1019,6 +1030,18 @@ export default function HistorialCotizaciones() {
                               <ArrowRightCircle size={14} />
                             </button>
                           )}
+                          {c.estatus !== 'CONVERTIDA' && (
+                            confirmBorrar === c.id
+                              ? <>
+                                  <button className="btn btn-sm" style={{ background:'#dc2626', color:'#fff', padding:'4px 8px' }} onClick={() => handleBorrar(c.id)} disabled={borrandoId === c.id}>
+                                    {borrandoId === c.id ? '…' : '✓'}
+                                  </button>
+                                  <button className="btn btn-outline btn-sm" style={{ padding:'4px 8px' }} onClick={() => setConfirmBorrar(null)}>✕</button>
+                                </>
+                              : <button className="btn btn-outline btn-sm" title="Borrar" onClick={() => setConfirmBorrar(c.id)} style={{ display:'flex', alignItems:'center', padding:'4px 8px', color:'#dc2626', borderColor:'#dc2626' }}>
+                                  <Trash2 size={14} />
+                                </button>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -1059,6 +1082,18 @@ export default function HistorialCotizaciones() {
                         </button>
                       )}
                       <button className="btn btn-outline btn-sm" onClick={() => setSeleccionada(c)} style={{ padding:'5px 10px' }}>Ver</button>
+                      {c.estatus !== 'CONVERTIDA' && (
+                        confirmBorrar === c.id
+                          ? <>
+                              <button className="btn btn-sm" style={{ background:'#dc2626', color:'#fff', padding:'5px 10px' }} onClick={() => handleBorrar(c.id)} disabled={borrandoId === c.id}>
+                                {borrandoId === c.id ? '…' : '¿Borrar?'}
+                              </button>
+                              <button className="btn btn-outline btn-sm" style={{ padding:'5px 10px' }} onClick={() => setConfirmBorrar(null)}>No</button>
+                            </>
+                          : <button className="btn btn-outline btn-sm" onClick={() => setConfirmBorrar(c.id)} style={{ display:'flex', alignItems:'center', gap:4, padding:'5px 10px', color:'#dc2626', borderColor:'#dc2626' }}>
+                              <Trash2 size={13} /> Borrar
+                            </button>
+                      )}
                     </div>
                   </div>
                 </div>
