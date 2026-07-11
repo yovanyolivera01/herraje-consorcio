@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { fmt5, hoyMX, lunesMX } from '../../lib/utils'
 import * as XLSX from 'xlsx'
 import { getPedidosEntregados, getDetallePedido, getPedidosParaExport } from '../../lib/pedidosApi'
+import { printTicketVidrio, printPedidoA4 } from '../../utils/ticket'
 
 // ── Ticket de pedido entregado ────────────────────────────────────────────
 function TicketVenta({ detalle }) {
@@ -122,9 +123,48 @@ function DetalleVentaModal({ resumen, onClose }) {
         </div>
         <div className="modal-footer">
           <button className="btn btn-outline" onClick={onClose}>Cerrar</button>
-          {detalle && (
-            <button className="btn btn-primary" onClick={() => window.print()}>🖨️ Imprimir</button>
-          )}
+          {detalle && (() => {
+            const normalizado = {
+              tipo:          'pedido',
+              folio:         detalle.folio,
+              fecha:         detalle.fecha,
+              hora:          detalle.hora ?? '',
+              clienteNombre: detalle.cliente?.nombre ?? 'Mostrador',
+              nivelNombre:   detalle.nivel?.nombre ?? '',
+              formaPago:     detalle.forma_pago,
+              anticipo:      detalle.anticipo,
+              saldo:         detalle.saldo,
+              saldo_cobrado: detalle.saldo_cobrado,
+              esEntregado:   true,
+              total:         detalle.total,
+              partidas: [
+                ...(detalle.partidas ?? []).map(p => ({
+                  tipo:            'VIDRIO',
+                  piezas:          p.cantidad ?? 1,
+                  clave:           p.clave_vidrio,
+                  largo_cm:        p.largo_cm,
+                  ancho_cm:        p.ancho_cm,
+                  subtotal_vidrio: p.subtotal_vidrio,
+                  subtotal_partida: p.subtotal_partida,
+                  procesos:        p.procesos ?? [],
+                })),
+                ...(detalle.extras ?? []).map(e => ({
+                  tipo:             e.tipo === 'PRODUCTO' ? 'HERRAJE' : e.tipo,
+                  descripcion:      e.descripcion,
+                  cantidad:         e.cantidad,
+                  precio_unitario:  e.precio_unitario,
+                  subtotal_partida: Number(e.subtotal),
+                  procesos:         [],
+                })),
+              ],
+            }
+            return (
+              <>
+                <button className="btn btn-outline" onClick={() => printTicketVidrio(normalizado)}>🖨️ Ticket</button>
+                <button className="btn btn-primary" onClick={() => printPedidoA4(normalizado)}>🖨️ Hoja A4</button>
+              </>
+            )
+          })()}
         </div>
       </div>
     </div>
