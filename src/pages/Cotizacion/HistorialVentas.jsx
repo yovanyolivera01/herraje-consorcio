@@ -204,16 +204,17 @@ export default function HistorialVentas() {
   const [fechaHasta, setFechaHasta] = useState(hoyMX)
   const [seleccionado, setSeleccionado] = useState(null)
   const [exporting, setExporting] = useState(false)
-  const [busqueda,setBusqueda] = useState('')
+  const [busqueda, setBusqueda] = useState('')
+  const [filtroPago, setFiltroPago] = useState(null)
 
   const q = busqueda.trim().toLowerCase()
-  const filteredFinal = q
-  ? pedidos.filter(v => 
-    v.folio?.toLowerCase().includes(q) ||
-    v.fecha.toLowerCase().includes(q) ||
-    v.clienteNombre?.toLowerCase().includes(q)
-  )
-  :pedidos
+  const filteredFinal = pedidos
+    .filter(v => !filtroPago || v.forma_pago === filtroPago)
+    .filter(v => !q || (
+      v.folio?.toLowerCase().includes(q) ||
+      v.fecha.toLowerCase().includes(q) ||
+      v.clienteNombre?.toLowerCase().includes(q)
+    ))
 
 
   const cargar = useCallback(async () => {
@@ -275,7 +276,7 @@ export default function HistorialVentas() {
       </div>
 
       <div className="page-body">
-        {/* Filtros de fecha */}
+        {/* Filtros de fecha y tipo de pago */}
         <div className="filter-bar" style={{ marginBottom: 20 }}>
           <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Desde:</span>
           <input
@@ -295,6 +296,16 @@ export default function HistorialVentas() {
           >
             Esta semana
           </button>
+          <div style={{ width: 1, background: 'var(--border)', alignSelf: 'stretch', margin: '0 4px' }} />
+          {[{ val: null, label: 'Todos' }, { val: 'LIQUIDADO', label: 'Liquidado' }, { val: 'ANTICIPO', label: 'Anticipo' }].map(({ val, label }) => (
+            <button
+              key={label}
+              className={filtroPago === val ? 'btn btn-primary btn-sm' : 'btn btn-outline btn-sm'}
+              onClick={() => setFiltroPago(val)}
+            >
+              {label}
+            </button>
+          ))}
         </div>
 
         {/* Stats */}
