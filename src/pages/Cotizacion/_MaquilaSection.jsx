@@ -122,11 +122,12 @@ export default function MaquilaSection() {
   const [pedidoCreado, setPedidoCreado] = useState(null)
 
   // ── Modal convertir ───────────────────────────────────────────────────
-  const [showModal,     setShowModal]     = useState(false)
-  const [modalTipoPago, setModalTipoPago] = useState('LIQUIDADO')
-  const [modalAnticipo, setModalAnticipo] = useState('')
-  const [modalError,    setModalError]    = useState(null)
-  const [converting,    setConverting]    = useState(false)
+  const [showModal,       setShowModal]       = useState(false)
+  const [modalTipoPago,   setModalTipoPago]   = useState('LIQUIDADO')
+  const [modalAnticipo,   setModalAnticipo]   = useState('')
+  const [modalMetodoPago, setModalMetodoPago] = useState('EFECTIVO')
+  const [modalError,      setModalError]      = useState(null)
+  const [converting,      setConverting]      = useState(false)
 
   // ── UI ────────────────────────────────────────────────────────────────
   const [agregando,  setAgregando]  = useState(false)
@@ -279,6 +280,7 @@ export default function MaquilaSection() {
       id_cotizacion:  cotizacion.id_cotizacion,
       tipo_pago:      modalTipoPago,
       monto_anticipo: monto,
+      metodo_pago:    modalMetodoPago,
     })
     setConverting(false)
     if (resC.error) { setModalError(resC.error); return }
@@ -749,6 +751,14 @@ export default function MaquilaSection() {
                     )}
                   </div>
                 )}
+                <div className="form-group" style={{ marginTop: 12 }}>
+                  <label className="form-label required">Método de pago</label>
+                  <select className="form-input" value={modalMetodoPago} onChange={e => setModalMetodoPago(e.target.value)}>
+                    <option value="EFECTIVO">Efectivo</option>
+                    <option value="TRANSFERENCIA">Transferencia</option>
+                    <option value="TARJETA">Tarjeta</option>
+                  </select>
+                </div>
                 {modalError && <div className="alert alert-error">❌ {modalError}</div>}
               </div>
               <div className="modal-footer">

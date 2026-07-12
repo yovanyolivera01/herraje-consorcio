@@ -317,6 +317,7 @@ export default function NuevaCotizacion() {
   const [showPedidoModal,     setShowPedidoModal]     = useState(false)
   const [modalFormaPago,      setModalFormaPago]      = useState('LIQUIDADO')
   const [modalAnticipoStr,    setModalAnticipoStr]    = useState('')
+  const [modalMetodoPago,     setModalMetodoPago]     = useState('EFECTIVO')
   const [modalError,          setModalError]          = useState(null)
   const [modalConvertiendo,   setModalConvertiendo]   = useState(false)
 
@@ -1032,6 +1033,7 @@ export default function NuevaCotizacion() {
           monto_anticipo:  monto,
           extras:          extrasPayload,
           total:           totalGeneral,
+          metodo_pago:     modalMetodoPago,
         })
         decrementarStockProductos(partidas)
         const detalle = await getDetallePedido(idPedido)
@@ -1047,6 +1049,7 @@ export default function NuevaCotizacion() {
           partidas:        vidrioPartidas,
           tipo_pago:       modalFormaPago,
           monto_anticipo:  monto,
+          metodo_pago:     modalMetodoPago,
         })
         const folioRef = `PED-${String(idPedido).padStart(5, '0')}`
         decrementarInventarioDesdePartidas(vidrioPartidas, folioRef).catch(e => console.error('[inventario]', e))
@@ -2155,6 +2158,15 @@ export default function NuevaCotizacion() {
                     )}
                   </div>
                 )}
+
+                <div className="form-group" style={{ marginTop: 12 }}>
+                  <label className="form-label required">Método de pago</label>
+                  <select className="form-input" value={modalMetodoPago} onChange={e => setModalMetodoPago(e.target.value)}>
+                    <option value="EFECTIVO">Efectivo</option>
+                    <option value="TRANSFERENCIA">Transferencia</option>
+                    <option value="TARJETA">Tarjeta</option>
+                  </select>
+                </div>
 
                 {modalError && <div className="alert alert-error">❌ {modalError}</div>}
               </div>
