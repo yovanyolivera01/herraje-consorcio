@@ -135,7 +135,7 @@ router.delete('/maquila/partidas/:id', async (req, res) => {
 
 router.post('/maquila/pedidos/convertir', async (req, res) => {
   try {
-    const { id_cotizacion, tipo_pago, monto_anticipo } = req.body
+    const { id_cotizacion, tipo_pago, monto_anticipo, metodo_pago } = req.body
     const { rows } = await query(
       'SELECT * FROM sp_convertir_maquila_a_pedido($1, $2, $3)',
       [id_cotizacion, tipo_pago, Number(monto_anticipo)]
@@ -145,6 +145,7 @@ router.post('/maquila/pedidos/convertir', async (req, res) => {
       return res.status(400).json({ message: row?.p_mensaje ?? 'Error al convertir a pedido' })
     // Garantizar tipo_pedido correcto independiente de la versión del SP en DB
     await query("UPDATE pedido SET tipo_pedido = 'MAQUILA' WHERE id_pedido = $1", [row.p_id_pedido])
+    if (metodo_pago) await query('UPDATE pedido SET metodo_pago=$1 WHERE id_pedido=$2', [metodo_pago, row.p_id_pedido])
     ok(res, { id_pedido: row.p_id_pedido, folio: row.p_folio_pedido })
   } catch (e) { err(res, e) }
 })
@@ -155,7 +156,7 @@ router.post('/maquila/pedidos/convertir-directo', async (req, res) => {
   const client = await pool.connect()
   try {
     await client.query('BEGIN')
-    const { id_cotizacion, tipo_pago, monto_anticipo } = req.body
+    const { id_cotizacion, tipo_pago, monto_anticipo, metodo_pago } = req.body
     const { rows } = await client.query(
       'SELECT * FROM sp_convertir_maquila_a_pedido($1, $2, $3)',
       [id_cotizacion, tipo_pago, Number(monto_anticipo)]
@@ -170,6 +171,7 @@ router.post('/maquila/pedidos/convertir-directo', async (req, res) => {
       "UPDATE pedido SET id_cotizacion = NULL, tipo_pedido = 'MAQUILA' WHERE id_pedido = $1",
       [row.p_id_pedido]
     )
+    if (metodo_pago) await client.query('UPDATE pedido SET metodo_pago=$1 WHERE id_pedido=$2', [metodo_pago, row.p_id_pedido])
     // Para LIQUIDADO: marcar entregado inmediatamente
     if (tipo_pago === 'LIQUIDADO') {
       await client.query(

@@ -154,10 +154,11 @@ function TicketPedido({ detalle }) {
 
 // ── Modal: confirmar conversión a pedido ──────────────────────────────────
 function ConvertirPedidoModal({ cotizacion, onClose, onCreado }) {
-  const [formaPago,  setFormaPago]  = useState('LIQUIDADO')
-  const [anticipo,   setAnticipo]   = useState('')
-  const [saving,     setSaving]     = useState(false)
-  const [error,      setError]      = useState(null)
+  const [formaPago,   setFormaPago]   = useState('LIQUIDADO')
+  const [anticipo,    setAnticipo]    = useState('')
+  const [metodoPago,  setMetodoPago]  = useState('EFECTIVO')
+  const [saving,      setSaving]      = useState(false)
+  const [error,       setError]       = useState(null)
 
   const anticopoNum = parseFloat(anticipo) || 0
   const saldo = formaPago === 'ANTICIPO' ? cotizacion.total - anticopoNum : 0
@@ -172,7 +173,7 @@ function ConvertirPedidoModal({ cotizacion, onClose, onCreado }) {
     setError(null)
     try {
       const montoAnticipo = formaPago === 'LIQUIDADO' ? cotizacion.total : parseFloat(anticipo)
-      const idPedido = await convertirCotizacionAPedido(cotizacion.id, formaPago, montoAnticipo)
+      const idPedido = await convertirCotizacionAPedido(cotizacion.id, formaPago, montoAnticipo, metodoPago)
       const detalle  = await getDetallePedido(idPedido)
       onCreado(detalle)
     } catch (err) {
@@ -241,6 +242,15 @@ function ConvertirPedidoModal({ cotizacion, onClose, onCreado }) {
               )}
             </div>
           )}
+
+          <div className="form-group" style={{ marginTop: 12 }}>
+            <label className="form-label required">Método de pago</label>
+            <select className="form-input" value={metodoPago} onChange={e => setMetodoPago(e.target.value)}>
+              <option value="EFECTIVO">Efectivo</option>
+              <option value="TRANSFERENCIA">Transferencia</option>
+              <option value="TARJETA">Tarjeta</option>
+            </select>
+          </div>
 
           {formaPago === 'LIQUIDADO' && (
             <div className="alert alert-success" style={{ marginTop: 8 }}>
@@ -569,10 +579,11 @@ function DetalleMaquilaModal({ cotId, onClose, onReopenOk, onConvertidoOk }) {
   const [loading,  setLoading]  = useState(true)
   const [error,    setError]    = useState(null)
   const [paso,     setPaso]     = useState('detalle')
-  const [tipoPago, setTipoPago] = useState('ANTICIPO')
-  const [anticipo, setAnticipo] = useState('')
-  const [saving,   setSaving]   = useState(false)
-  const [pedido,   setPedido]   = useState(null)
+  const [tipoPago,   setTipoPago]   = useState('ANTICIPO')
+  const [anticipo,   setAnticipo]   = useState('')
+  const [metodoPago, setMetodoPago] = useState('EFECTIVO')
+  const [saving,     setSaving]     = useState(false)
+  const [pedido,     setPedido]     = useState(null)
 
   useEffect(() => {
     getDetalleCotizacionMaquila(cotId).then(res => {
@@ -593,7 +604,7 @@ function DetalleMaquilaModal({ cotId, onClose, onReopenOk, onConvertidoOk }) {
     const montAnt = tipoPago === 'LIQUIDADO' ? detalle.total : Number(anticipo)
     if (tipoPago === 'ANTICIPO' && (isNaN(montAnt) || montAnt < 0)) { setError('Ingresa un anticipo valido'); return }
     setSaving(true); setError(null)
-    const res = await convertirMaquilaAPedido({ id_cotizacion: cotId, tipo_pago: tipoPago, monto_anticipo: montAnt })
+    const res = await convertirMaquilaAPedido({ id_cotizacion: cotId, tipo_pago: tipoPago, monto_anticipo: montAnt, metodo_pago: metodoPago })
     setSaving(false)
     if (res.error) { setError(res.error); return }
     setPedido(res.data); setPaso('ok')
@@ -691,6 +702,14 @@ function DetalleMaquilaModal({ cotId, onClose, onReopenOk, onConvertidoOk }) {
                     onChange={e => setAnticipo(e.target.value)} placeholder="0.00" />
                 </div>
               )}
+              <div className="form-group">
+                <label className="form-label">Método de pago</label>
+                <select className="form-input" value={metodoPago} onChange={e => setMetodoPago(e.target.value)}>
+                  <option value="EFECTIVO">Efectivo</option>
+                  <option value="TRANSFERENCIA">Transferencia</option>
+                  <option value="TARJETA">Tarjeta</option>
+                </select>
+              </div>
             </>
           )}
         </div>

@@ -109,11 +109,11 @@ export const getDetalleCotizacionMaquila = async (id_cotizacion) => {
 export const reabrirCotizacion = async (id_cotizacion) =>
   apiFetch(`/maquila/cotizaciones/${id_cotizacion}/reabrir`, { method: 'POST', body: {} })
 
-export const convertirMaquilaAPedido = async ({ id_cotizacion, tipo_pago, monto_anticipo }) =>
-  apiFetch('/maquila/pedidos/convertir', { method: 'POST', body: { id_cotizacion, tipo_pago, monto_anticipo: Number(monto_anticipo) } })
+export const convertirMaquilaAPedido = async ({ id_cotizacion, tipo_pago, monto_anticipo, metodo_pago }) =>
+  apiFetch('/maquila/pedidos/convertir', { method: 'POST', body: { id_cotizacion, tipo_pago, monto_anticipo: Number(monto_anticipo), metodo_pago: metodo_pago || null } })
 
-export const convertirMaquilaAPedidoDirecto = async ({ id_cotizacion, tipo_pago, monto_anticipo }) =>
-  apiFetch('/maquila/pedidos/convertir-directo', { method: 'POST', body: { id_cotizacion, tipo_pago, monto_anticipo: Number(monto_anticipo) } })
+export const convertirMaquilaAPedidoDirecto = async ({ id_cotizacion, tipo_pago, monto_anticipo, metodo_pago }) =>
+  apiFetch('/maquila/pedidos/convertir-directo', { method: 'POST', body: { id_cotizacion, tipo_pago, monto_anticipo: Number(monto_anticipo), metodo_pago: metodo_pago || null } })
 
 // ============================================================================
 //  PEDIDOS DE MAQUILA

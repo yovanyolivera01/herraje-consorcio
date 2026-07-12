@@ -95,10 +95,11 @@ function TicketMaquila({ detalle, onConvertir, convirtiendo }) {
 // ── Modal: convertir a pedido ─────────────────────────────────────────────
 function ConvertirModal({ cotizacion, onClose, onConvertido }) {
   const { convertirMaquilaAPedido } = useCotizacion()
-  const [tipoPago,  setTipoPago]  = useState('ANTICIPO')
-  const [anticipo,  setAnticipo]  = useState('')
-  const [saving,    setSaving]    = useState(false)
-  const [error,     setError]     = useState(null)
+  const [tipoPago,   setTipoPago]   = useState('ANTICIPO')
+  const [anticipo,   setAnticipo]   = useState('')
+  const [metodoPago, setMetodoPago] = useState('EFECTIVO')
+  const [saving,     setSaving]     = useState(false)
+  const [error,      setError]      = useState(null)
 
   const handleConfirm = async () => {
     const montAnt = tipoPago === 'LIQUIDADO' ? cotizacion.total : Number(anticipo)
@@ -107,9 +108,10 @@ function ConvertirModal({ cotizacion, onClose, onConvertido }) {
     }
     setSaving(true); setError(null)
     const res = await convertirMaquilaAPedido({
-      id_cotizacion: cotizacion.id,
-      tipo_pago:     tipoPago,
+      id_cotizacion:  cotizacion.id,
+      tipo_pago:      tipoPago,
       monto_anticipo: montAnt,
+      metodo_pago:    metodoPago,
     })
     setSaving(false)
     if (res.error) { setError(res.error); return }
@@ -142,6 +144,14 @@ function ConvertirModal({ cotizacion, onClose, onConvertido }) {
                 onChange={e => setAnticipo(e.target.value)} placeholder="0.00" />
             </div>
           )}
+          <div className="form-group">
+            <label className="form-label">Método de pago</label>
+            <select className="form-input" value={metodoPago} onChange={e => setMetodoPago(e.target.value)}>
+              <option value="EFECTIVO">Efectivo</option>
+              <option value="TRANSFERENCIA">Transferencia</option>
+              <option value="TARJETA">Tarjeta</option>
+            </select>
+          </div>
           {error && <div className="alert alert-error">❌ {error}</div>}
         </div>
         <div className="modal-footer">

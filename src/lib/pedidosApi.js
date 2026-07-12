@@ -31,10 +31,10 @@ function formatearFechaHora(isoString) {
 
 // ── Conversión cotización → pedido ────────────────────────────────────────────
 
-export const convertirCotizacionAPedido = async (id_cotizacion, tipo_pago, monto_anticipo) => {
+export const convertirCotizacionAPedido = async (id_cotizacion, tipo_pago, monto_anticipo, metodo_pago) => {
   const data = await apiFetch('/pedidos/convertir', {
     method: 'POST',
-    body: { id_cotizacion, tipo_pago, monto_anticipo: Number(monto_anticipo) },
+    body: { id_cotizacion, tipo_pago, monto_anticipo: Number(monto_anticipo), metodo_pago: metodo_pago || null },
   })
   return data.id_pedido
 }
@@ -54,18 +54,18 @@ export const decrementarInventarioDesdePartidas = async (partidas, folioRef = ''
 
 // ── Crear pedido directo ──────────────────────────────────────────────────────
 
-export const crearPedidoDirecto = async ({ id_cliente, id_nivel_precio, partidas, tipo_pago, monto_anticipo }) => {
+export const crearPedidoDirecto = async ({ id_cliente, id_nivel_precio, partidas, tipo_pago, monto_anticipo, metodo_pago }) => {
   const data = await apiFetch('/pedidos/directo', {
     method: 'POST',
-    body: { id_cliente: id_cliente ?? null, id_nivel_precio, partidas, tipo_pago, monto_anticipo: Number(monto_anticipo) },
+    body: { id_cliente: id_cliente ?? null, id_nivel_precio, partidas, tipo_pago, monto_anticipo: Number(monto_anticipo), metodo_pago: metodo_pago || null },
   })
   return data.id_pedido
 }
 
-export const crearPedidoDirectoConExtras = async ({ id_cliente, id_nivel_precio, partidas, tipo_pago, monto_anticipo, extras, total }) => {
+export const crearPedidoDirectoConExtras = async ({ id_cliente, id_nivel_precio, partidas, tipo_pago, monto_anticipo, extras, total, metodo_pago }) => {
   const data = await apiFetch('/pedidos/directo-con-extras', {
     method: 'POST',
-    body: { id_cliente: id_cliente ?? null, id_nivel_precio, partidas, tipo_pago, monto_anticipo: Number(monto_anticipo), extras, total: Number(total) },
+    body: { id_cliente: id_cliente ?? null, id_nivel_precio, partidas, tipo_pago, monto_anticipo: Number(monto_anticipo), extras, total: Number(total), metodo_pago: metodo_pago || null },
   })
   return data.id_pedido
 }

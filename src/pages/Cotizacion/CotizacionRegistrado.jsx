@@ -95,10 +95,11 @@ function TicketCotizacion({ cot }) {
 function ConvertirModal({ cotizacion, onClose, onCreado }) {
   const { tiposPago, clientes } = useCotizacion()
   const clienteSeleccionado = clientes.find(c => c.id_cliente === cotizacion.id_cliente)
-  const [formaPago, setFormaPago] = useState('LIQUIDADO')
-  const [anticipo,  setAnticipo]  = useState('')
-  const [saving,    setSaving]    = useState(false)
-  const [error,     setError]     = useState(null)
+  const [formaPago,   setFormaPago]   = useState('LIQUIDADO')
+  const [anticipo,    setAnticipo]    = useState('')
+  const [metodoPago,  setMetodoPago]  = useState('EFECTIVO')
+  const [saving,      setSaving]      = useState(false)
+  const [error,       setError]       = useState(null)
   const { addVenta } = useApp()
 
   const anticipoNum = parseFloat(anticipo) || 0
@@ -114,7 +115,7 @@ function ConvertirModal({ cotizacion, onClose, onCreado }) {
     try {
       const monto = formaPago === 'LIQUIDADO' ? r5(cotizacion.total) : formaPago === 'CREDITO' ? 0 : parseFloat(anticipo)
 
-      const idPedido = await convertirCotizacionAPedido(cotizacion.id, formaPago, monto)
+      const idPedido = await convertirCotizacionAPedido(cotizacion.id, formaPago, monto, metodoPago)
 
       // Registrar productos herraje como venta en historial de ventas
       if (formaPago === 'LIQUIDADO' || formaPago === 'CREDITO') {
@@ -185,6 +186,14 @@ function ConvertirModal({ cotizacion, onClose, onCreado }) {
               )}
             </div>
           )}
+          <div className="form-group" style={{ marginTop: 12 }}>
+            <label className="form-label required">Método de pago</label>
+            <select className="form-input" value={metodoPago} onChange={e => setMetodoPago(e.target.value)}>
+              <option value="EFECTIVO">Efectivo</option>
+              <option value="TRANSFERENCIA">Transferencia</option>
+              <option value="TARJETA">Tarjeta</option>
+            </select>
+          </div>
           {formaPago === 'LIQUIDADO' && (
             <div className="alert alert-success" style={{ marginTop: 8 }}>
               El pedido quedara como <strong>Entregado</strong> y pasara al historial de ventas.
