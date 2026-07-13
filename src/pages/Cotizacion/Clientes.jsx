@@ -110,7 +110,7 @@ function ClienteModal({ cliente, onClose, onSave }) {
                 />
                 <span className="form-label" style={{ margin: 0 }}>Crédito activo</span>
               </label>
-              <div className="form-hint">Permite crear pedidos con forma de pago Crédito para este cliente</div>
+              <div className="form-hint">Marca al cliente como cliente de crédito frecuente</div>
             </div>
 
           </div>

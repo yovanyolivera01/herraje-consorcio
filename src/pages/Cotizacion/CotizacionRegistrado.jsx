@@ -93,7 +93,7 @@ function TicketCotizacion({ cot }) {
 
 // ── Modal convertir a pedido ──────────────────────────────────────────────
 function ConvertirModal({ cotizacion, onClose, onCreado }) {
-  const { tiposPago, clientes } = useCotizacion()
+  const { tiposPago, clientes, metodosPago } = useCotizacion()
   const clienteSeleccionado = clientes.find(c => c.id_cliente === cotizacion.id_cliente)
   const [formaPago,   setFormaPago]   = useState('LIQUIDADO')
   const [anticipo,    setAnticipo]    = useState('')
@@ -161,14 +161,22 @@ function ConvertirModal({ cotizacion, onClose, onCreado }) {
         </div>
         <div className="modal-body">
           <div className="form-group">
+            <label className="form-label required">Método de pago</label>
+            <select className="form-input" value={metodoPago} onChange={e => setMetodoPago(e.target.value)}>
+              {metodosPago.map(m => (
+                <option key={m.id_metodo_pago} value={m.descripcion}>
+                  {m.descripcion.charAt(0) + m.descripcion.slice(1).toLowerCase()}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="form-group">
             <label className="form-label required">Forma de pago</label>
             <div style={{ display: 'flex', gap: 16, marginTop: 6 }}>
-              {tiposPago
-                .filter(tp => tp.descripcion !== 'CREDITO' || clienteSeleccionado?.credito_activo)
-                .map(tp => (
+              {tiposPago.map(tp => (
                 <label key={tp.id_tipo_pago} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 14 }}>
                   <input type="radio" name="fp" value={tp.descripcion} checked={formaPago === tp.descripcion} onChange={() => { setFormaPago(tp.descripcion); setError(null) }} />
-                  {tp.descripcion.charAt(0) + tp.descripcion.slice(1).toLowerCase()}
+                  {tp.descripcion === 'CREDITO' ? 'Por cobrar' : tp.descripcion.charAt(0) + tp.descripcion.slice(1).toLowerCase()}
                 </label>
               ))}
             </div>
@@ -186,14 +194,6 @@ function ConvertirModal({ cotizacion, onClose, onCreado }) {
               )}
             </div>
           )}
-          <div className="form-group" style={{ marginTop: 12 }}>
-            <label className="form-label required">Método de pago</label>
-            <select className="form-input" value={metodoPago} onChange={e => setMetodoPago(e.target.value)}>
-              <option value="EFECTIVO">Efectivo</option>
-              <option value="TRANSFERENCIA">Transferencia</option>
-              <option value="TARJETA">Tarjeta</option>
-            </select>
-          </div>
           {formaPago === 'LIQUIDADO' && (
             <div className="alert alert-success" style={{ marginTop: 8 }}>
               El pedido quedara como <strong>Entregado</strong> y pasara al historial de ventas.

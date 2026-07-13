@@ -76,7 +76,7 @@ function TicketPedido({ detalle, extras = [] }) {
       </div>
       <hr className="ticket-divider" />
       <div style={{ textAlign:'center', fontSize:11, color:'var(--text-muted)', marginTop:8 }}>
-        {detalle.tipo_pago === 'CREDITO' ? 'Entregado.' : 'Pedido pendiente de entrega.'}
+        {detalle.tipo_pago === 'CREDITO' ? 'Por cobrar.' : 'Pedido pendiente de entrega.'}
       </div>
     </div>
   )
@@ -428,7 +428,7 @@ function DetallePedidoModal({ resumen, onClose, onEntregado }) {
                   ],
                 })}>🖨️ Hoja</button>
                 <button className="btn btn-primary" onClick={() => setShowEntregar(true)}>
-                  {resumen.tipo_pago === 'CREDITO' ? '💰 Cobrar el saldo' : '📦 Marcar como entregado'}
+                  {resumen.tipo_pago === 'CREDITO' ? '💰 Cobrar' : '📦 Marcar como entregado'}
                 </button>
               </>
             )}
@@ -726,7 +726,7 @@ export default function PedidosPendientes() {
           📦 Pendientes
         </button>
         <button className={`btn ${tab === 'credito' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setTab('credito')}>
-          💳 Crédito
+          💳 Por cobrar
         </button>
       </div>
 

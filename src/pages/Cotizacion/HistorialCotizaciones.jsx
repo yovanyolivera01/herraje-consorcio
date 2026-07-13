@@ -154,6 +154,7 @@ function TicketPedido({ detalle }) {
 
 // ── Modal: confirmar conversión a pedido ──────────────────────────────────
 function ConvertirPedidoModal({ cotizacion, onClose, onCreado }) {
+  const { metodosPago } = useCotizacion()
   const [formaPago,   setFormaPago]   = useState('LIQUIDADO')
   const [anticipo,    setAnticipo]    = useState('')
   const [metodoPago,  setMetodoPago]  = useState('EFECTIVO')
@@ -209,9 +210,20 @@ function ConvertirPedidoModal({ cotizacion, onClose, onCreado }) {
           </div>
 
           <div className="form-group">
+            <label className="form-label required">Método de pago</label>
+            <select className="form-input" value={metodoPago} onChange={e => setMetodoPago(e.target.value)}>
+              {metodosPago.map(m => (
+                <option key={m.id_metodo_pago} value={m.descripcion}>
+                  {m.descripcion.charAt(0) + m.descripcion.slice(1).toLowerCase()}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="form-group">
             <label className="form-label required">Forma de pago</label>
             <div style={{ display:'flex', gap:16, marginTop:6 }}>
-              {[['LIQUIDADO','Liquidado — pago total'],['ANTICIPO','Anticipo — pago parcial']].map(([val, label]) => (
+              {[['LIQUIDADO','Liquidado — pago total'],['ANTICIPO','Anticipo — pago parcial'],['CREDITO','Por cobrar']].map(([val, label]) => (
                 <label key={val} style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', fontSize:14 }}>
                   <input
                     type="radio" name="formaPago" value={val}
@@ -242,15 +254,6 @@ function ConvertirPedidoModal({ cotizacion, onClose, onCreado }) {
               )}
             </div>
           )}
-
-          <div className="form-group" style={{ marginTop: 12 }}>
-            <label className="form-label required">Método de pago</label>
-            <select className="form-input" value={metodoPago} onChange={e => setMetodoPago(e.target.value)}>
-              <option value="EFECTIVO">Efectivo</option>
-              <option value="TRANSFERENCIA">Transferencia</option>
-              <option value="TARJETA">Tarjeta</option>
-            </select>
-          </div>
 
           {formaPago === 'LIQUIDADO' && (
             <div className="alert alert-success" style={{ marginTop: 8 }}>
@@ -574,7 +577,7 @@ const BADGE_MAQUILA = {
 
 // ── Modal detalle de cotizacion maquila ───────────────────────────────────
 function DetalleMaquilaModal({ cotId, onClose, onReopenOk, onConvertidoOk }) {
-  const { getDetalleCotizacionMaquila, reabrirCotizacion, convertirMaquilaAPedido } = useCotizacion()
+  const { getDetalleCotizacionMaquila, reabrirCotizacion, convertirMaquilaAPedido, metodosPago } = useCotizacion()
   const [detalle,  setDetalle]  = useState(null)
   const [loading,  setLoading]  = useState(true)
   const [error,    setError]    = useState(null)
@@ -689,10 +692,21 @@ function DetalleMaquilaModal({ cotId, onClose, onReopenOk, onConvertidoOk }) {
                 <div style={{ fontWeight:700, fontSize:22 }}>${fmt5(detalle.total)}</div>
               </div>
               <div className="form-group">
+                <label className="form-label">Método de pago</label>
+                <select className="form-input" value={metodoPago} onChange={e => setMetodoPago(e.target.value)}>
+                  {metodosPago.map(m => (
+                    <option key={m.id_metodo_pago} value={m.descripcion}>
+                      {m.descripcion.charAt(0) + m.descripcion.slice(1).toLowerCase()}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group">
                 <label className="form-label">Tipo de pago</label>
                 <select className="form-input" value={tipoPago} onChange={e => setTipoPago(e.target.value)}>
                   <option value="ANTICIPO">Anticipo</option>
                   <option value="LIQUIDADO">Liquidado (pago total)</option>
+                  <option value="CREDITO">Por cobrar</option>
                 </select>
               </div>
               {tipoPago === 'ANTICIPO' && (
@@ -702,14 +716,6 @@ function DetalleMaquilaModal({ cotId, onClose, onReopenOk, onConvertidoOk }) {
                     onChange={e => setAnticipo(e.target.value)} placeholder="0.00" />
                 </div>
               )}
-              <div className="form-group">
-                <label className="form-label">Método de pago</label>
-                <select className="form-input" value={metodoPago} onChange={e => setMetodoPago(e.target.value)}>
-                  <option value="EFECTIVO">Efectivo</option>
-                  <option value="TRANSFERENCIA">Transferencia</option>
-                  <option value="TARJETA">Tarjeta</option>
-                </select>
-              </div>
             </>
           )}
         </div>
