@@ -276,6 +276,15 @@ router.get('/tipos-pago', async (req, res) => {
   } catch (e) { err(res, e) }
 })
 
+// ── Métodos de pago ───────────────────────────────────────────────────────
+
+router.get('/metodos-pago', async (req, res) => {
+  try {
+    const { rows } = await query('SELECT * FROM metodo_pago WHERE activo = TRUE ORDER BY id_metodo_pago ASC')
+    ok(res, rows)
+  } catch (e) { err(res, e) }
+})
+
 // ── Cotizaciones ──────────────────────────────────────────────────────────
 
 router.get('/cotizaciones', async (req, res) => {

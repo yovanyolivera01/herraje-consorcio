@@ -257,7 +257,7 @@ export default function NuevaCotizacion() {
   const cotEdit  = location.state?.cotEdit ?? null
 
   const {
-    tiposVidrio, espesores, nivelesPrecio, clientes, procesos, barrenos, saques, extras, tiposPago,
+    tiposVidrio, espesores, nivelesPrecio, clientes, procesos, barrenos, saques, extras, tiposPago, metodosPago,
     getPrecioVidrio, getPrecioProceso, getPrecioProcesoEspecial,
     getPreciosClienteRegistrado,
     iniciarCotizacion, agregarPartida, agregarPartidaExtra, deletePartidasExtra,
@@ -572,7 +572,6 @@ export default function NuevaCotizacion() {
     if (cid) { setDatosCotOpen(false)
       const cl = clientes.find(c => c.id_cliente === Number(cid))
       setNivelId(cl?.id_nivel_precio ? String(cl.id_nivel_precio) : '')
-      if (modalFormaPago === 'CREDITO' && !cl?.credito_activo) setModalFormaPago('LIQUIDADO')
       setCargandoCli(true)
       getPreciosClienteRegistrado(Number(cid))
         .then(data => setPreciosCli(data ?? []))
@@ -580,7 +579,6 @@ export default function NuevaCotizacion() {
         .finally(() => setCargandoCli(false))
     } else {
       setNivelId('')
-      if (modalFormaPago === 'CREDITO') setModalFormaPago('LIQUIDADO')
     }
   }
 
@@ -2112,11 +2110,20 @@ export default function NuevaCotizacion() {
                 </div>
 
                 <div className="form-group">
+                  <label className="form-label required">Método de pago</label>
+                  <select className="form-input" value={modalMetodoPago} onChange={e => setModalMetodoPago(e.target.value)}>
+                    {metodosPago.map(m => (
+                      <option key={m.id_metodo_pago} value={m.descripcion}>
+                        {m.descripcion.charAt(0) + m.descripcion.slice(1).toLowerCase()}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-group">
                   <label className="form-label required">Forma de pago</label>
                   <div style={{ display: 'flex', gap: 10, marginTop: 6, flexWrap: 'wrap' }}>
-                    {tiposPago
-                      .filter(tp => tp.descripcion !== 'CREDITO' || clienteSeleccionado?.credito_activo)
-                      .map(tp => (
+                    {tiposPago.map(tp => (
                       <label
                         key={tp.id_tipo_pago}
                         style={{
@@ -2129,7 +2136,7 @@ export default function NuevaCotizacion() {
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <input type="radio" name="modalFP" value={tp.descripcion} checked={modalFormaPago === tp.descripcion} onChange={() => {}} />
-                          <span style={{ fontWeight: 600, fontSize: 14 }}>{tp.descripcion.charAt(0) + tp.descripcion.slice(1).toLowerCase()}</span>
+                          <span style={{ fontWeight: 600, fontSize: 14 }}>{tp.descripcion === 'CREDITO' ? 'Por cobrar' : tp.descripcion.charAt(0) + tp.descripcion.slice(1).toLowerCase()}</span>
                         </div>
                       </label>
                     ))}
@@ -2158,15 +2165,6 @@ export default function NuevaCotizacion() {
                     )}
                   </div>
                 )}
-
-                <div className="form-group" style={{ marginTop: 12 }}>
-                  <label className="form-label required">Método de pago</label>
-                  <select className="form-input" value={modalMetodoPago} onChange={e => setModalMetodoPago(e.target.value)}>
-                    <option value="EFECTIVO">Efectivo</option>
-                    <option value="TRANSFERENCIA">Transferencia</option>
-                    <option value="TARJETA">Tarjeta</option>
-                  </select>
-                </div>
 
                 {modalError && <div className="alert alert-error">❌ {modalError}</div>}
               </div>

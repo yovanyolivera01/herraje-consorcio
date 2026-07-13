@@ -20,6 +20,7 @@ export function CotizacionProvider({ children }) {
   const [preciosProcesoEspecial,  setPreciosProcesoEspecial]  = useState([])
   const [unidades,                setUnidades]                = useState([])
   const [tiposPago,      setTiposPago]      = useState([])
+  const [metodosPago,    setMetodosPago]    = useState([])
   const [empresas,       setEmpresas]       = useState([])
   const [loading,        setLoading]        = useState(true)
   const [error,          setError]          = useState(null)
@@ -28,7 +29,7 @@ export function CotizacionProvider({ children }) {
     setLoading(true)
     setError(null)
     try {
-      const [t, e, tv, np, pv, cl, pr, un, pp, ppe, em, tp] = await Promise.all([
+      const [t, e, tv, np, pv, cl, pr, un, pp, ppe, em, tp, mp] = await Promise.all([
         api.getTonos(),
         api.getEspesores(),
         api.getTiposVidrio(),
@@ -41,6 +42,7 @@ export function CotizacionProvider({ children }) {
         api.getPreciosProcesoEspecial(),
         empApi.getEmpresas(),
         api.getTiposPago(),
+        api.getMetodosPago(),
       ])
       setTonos(t)
       setEspesores(e)
@@ -54,6 +56,7 @@ export function CotizacionProvider({ children }) {
       setPreciosProcesoEspecial(ppe)
       setEmpresas(em)
       setTiposPago(tp)
+      setMetodosPago(mp)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -202,7 +205,7 @@ export function CotizacionProvider({ children }) {
 
   return (
     <CotizacionContext.Provider value={{
-      tonos, espesores, tiposVidrio, nivelesPrecio, precios, clientes, procesos, preciosProceso, preciosProcesoEspecial, unidades, tiposPago, empresas, barrenos, saques, extras,
+      tonos, espesores, tiposVidrio, nivelesPrecio, precios, clientes, procesos, preciosProceso, preciosProcesoEspecial, unidades, tiposPago, metodosPago, empresas, barrenos, saques, extras,
       addTono,      editTono,
       addEspesor,   editEspesor,
       addTipoVidrio, editTipoVidrio,
