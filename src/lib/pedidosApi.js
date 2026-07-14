@@ -219,6 +219,26 @@ export const marcarAnticipoLiquidado = async (id_pedido) =>
 export const cancelarPedido = async (id_pedido) =>
   apiFetch(`/pedidos/${id_pedido}/cancelar`, { method: 'POST', body: {} })
 
+export const getPedidosCancelados = async (fechaDesde, fechaHasta) => {
+  const params = new URLSearchParams()
+  if (fechaDesde) params.set('fecha_inicio', mxDayBound(fechaDesde, false))
+  if (fechaHasta) params.set('fecha_fin',    mxDayBound(fechaHasta, true))
+  const rows = await apiFetch(`/pedidos/cancelados?${params}`)
+  return rows.map(row => {
+    const { fecha, hora } = formatearFechaHora(row.fecha_creacion)
+    return {
+      id:              row.id_pedido,
+      folio:           fmtFolio(row.folio),
+      fecha,
+      hora,
+      fechaCreacionISO: row.fecha_creacion,
+      clienteNombre:   row.cliente ?? 'Mostrador',
+      total:           Number(row.total),
+      tipo_pago:       row.tipo_pago,
+    }
+  })
+}
+
 // ── Export a Excel ────────────────────────────────────────────────────────────
 
 export const getPedidosParaExport = async (fechaDesde, fechaHasta) => {

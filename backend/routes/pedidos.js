@@ -180,6 +180,31 @@ router.get('/pedidos/credito', async (req, res) => {
   } catch (e) { err(res, e) }
 })
 
+// ── Pedidos cancelados ────────────────────────────────────────────────────────
+
+router.get('/pedidos/cancelados', async (req, res) => {
+  try {
+    const { fecha_inicio, fecha_fin } = req.query
+    const { rows } = await query(`
+      SELECT
+        p.id_pedido,
+        p.folio,
+        p.fecha_creacion,
+        COALESCE(c.nombre, 'Mostrador') AS cliente,
+        p.total,
+        p.tipo_pago
+      FROM pedido p
+      LEFT JOIN cliente c ON c.id_cliente = p.id_cliente
+      WHERE p.estatus    = 'CANCELADO'
+        AND p.tipo_pedido = 'VIDRIO'
+        AND ($1::timestamptz IS NULL OR p.fecha_creacion >= $1::timestamptz)
+        AND ($2::timestamptz IS NULL OR p.fecha_creacion <= $2::timestamptz)
+      ORDER BY p.fecha_creacion DESC
+    `, [fecha_inicio || null, fecha_fin || null])
+    ok(res, rows)
+  } catch (e) { err(res, e) }
+})
+
 // ── Detalle de pedido ─────────────────────────────────────────────────────────
 
 router.get('/pedidos/:id', async (req, res) => {
