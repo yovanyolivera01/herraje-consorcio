@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { fmt5, r5 } from '../../lib/utils'
+import { fmt5 } from '../../lib/utils'
 import { useCotizacion } from '../../context/CotizacionContext'
 import { printTicketVidrio, printPedidoA4 } from '../../utils/ticket'
 
@@ -48,7 +48,7 @@ function TicketMaquila({ cotizacion }) {
       <hr className="ticket-divider" />
       <div className="ticket-total">
         <span>TOTAL</span>
-        <span>${fmt5(cotizacion.partidas.reduce((s, p) => s + r5(Number(p.subtotal ?? 0)), 0))}</span>
+        <span>${fmt5(cotizacion.partidas.reduce((s, p) => s + Number(p.subtotal ?? 0), 0))}</span>
       </div>
       <hr className="ticket-divider" />
       <div style={{ textAlign: 'center', fontSize: 11, color: 'var(--text-muted)', marginTop: 8 }}>
@@ -139,7 +139,7 @@ export default function MaquilaSection() {
   const nivelSel    = nivelesPrecio.find(n => n.id_nivel_precio === Number(nivelId))
   const clienteSel  = clientes.find(c => c.id_cliente === Number(clienteId))
   const activos     = procesos.filter(p => p.activo)
-  const totalGeneral = partidas.reduce((s, p) => s + r5(Number(p.subtotal ?? 0)), 0)
+  const totalGeneral = partidas.reduce((s, p) => s + Number(p.subtotal ?? 0), 0)
 
   // Parse notation en vivo
   const parsed = useMemo(() => parseNotacion(notacion), [notacion])

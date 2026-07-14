@@ -1,4 +1,3 @@
-import { r5 } from '../lib/utils'
 
 /**
  * ESC/POS command builder para impresoras térmicas.
@@ -99,21 +98,21 @@ export function buildTicketVidrio(detalle, cols = 42) {
     const clave    = it.clave ?? '?'
     const medida   = `${it.largo_cm}x${it.ancho_cm}`
     const descLine = `${pzas}- ${medida} ${clave}`
-    const amt      = ('$' + r5(Number(it.subtotal_vidrio)).toFixed(2)).padStart(amtW)
+    const amt      = ('$' + Number(it.subtotal_vidrio).toFixed(2)).padStart(amtW)
     const pad      = Math.max(1, cols - descLine.length - amtW)
     p(Cmd.BOLD_ON)
     p(descLine + ' '.repeat(pad) + amt + '\n')
     p(Cmd.BOLD_OFF)
 
     for (const pr of (it.procesos ?? [])) {
-      const prAmt = ('$' + r5(Number(pr.subtotal)).toFixed(2)).padStart(amtW)
+      const prAmt = ('$' + Number(pr.subtotal).toFixed(2)).padStart(amtW)
       const prDesc = '+ ' + pr.nombre
       const prPad = Math.max(1, cols - prDesc.length - amtW)
       p(prDesc + ' '.repeat(prPad) + prAmt + '\n')
     }
 
     if (it.procesos?.length > 0) {
-      const subAmt = ('$' + r5(Number(it.subtotal_partida)).toFixed(2)).padStart(amtW)
+      const subAmt = ('$' + Number(it.subtotal_partida).toFixed(2)).padStart(amtW)
       p(rowLR('Subtotal', subAmt, cols) + '\n')
     }
     p('\n')
@@ -122,7 +121,7 @@ export function buildTicketVidrio(detalle, cols = 42) {
   // ── Total ─────────────────────────────────────────────────────────────────
   p('-'.repeat(cols) + '\n')
   p(Cmd.BOLD_ON)
-  p(rowLR('TOTAL:', '$' + r5(Number(detalle.total)).toFixed(2), cols) + '\n')
+  p(rowLR('TOTAL:', '$' + Number(detalle.total).toFixed(2), cols) + '\n')
   p(Cmd.BOLD_OFF)
 
   // ── Forma de pago (solo pedido) ───────────────────────────────────────────
@@ -130,11 +129,11 @@ export function buildTicketVidrio(detalle, cols = 42) {
     p('-'.repeat(cols) + '\n')
     p(rowLR('Forma de pago:', detalle.formaPago === 'LIQUIDADO' ? 'Liquidado' : 'Anticipo', cols) + '\n')
     if (detalle.formaPago === 'ANTICIPO') {
-      p(rowLR('Anticipo:', '$' + r5(Number(detalle.anticipo)).toFixed(2), cols) + '\n')
+      p(rowLR('Anticipo:', '$' + Number(detalle.anticipo).toFixed(2), cols) + '\n')
       if (!detalle.esEntregado) {
-        p(rowLR('Saldo pendiente:', '$' + r5(Number(detalle.saldo)).toFixed(2), cols) + '\n')
+        p(rowLR('Saldo pendiente:', '$' + Number(detalle.saldo).toFixed(2), cols) + '\n')
       } else if (detalle.saldo_cobrado != null) {
-        p(rowLR('Saldo cobrado:', '$' + r5(Number(detalle.saldo_cobrado)).toFixed(2), cols) + '\n')
+        p(rowLR('Saldo cobrado:', '$' + Number(detalle.saldo_cobrado).toFixed(2), cols) + '\n')
       }
     }
   }
@@ -181,7 +180,7 @@ export function buildTicketEscPos(venta, cols = 42) {
   // ── Partidas ──────────────────────────────────────────────────────────────
   for (const item of venta.partidas) {
     const tono  = item.tono ? ' · ' + item.tono : ''
-    const precio = '$' + r5(Number(item.precioUnitario)).toFixed(2)
+    const precio = '$' + Number(item.precioUnitario).toFixed(2)
     const line   = `${item.cantidad} - ${item.descripcion}${tono} x ${precio}`
     p(Cmd.BOLD_ON)
     p(line + '\n')
@@ -191,7 +190,7 @@ export function buildTicketEscPos(venta, cols = 42) {
   // ── Total ─────────────────────────────────────────────────────────────────
   p('-'.repeat(cols) + '\n')
   p(Cmd.BOLD_ON)
-  p(rowLR('TOTAL:', '$' + r5(Number(venta.total)).toFixed(2), cols) + '\n')
+  p(rowLR('TOTAL:', '$' + Number(venta.total).toFixed(2), cols) + '\n')
   p(Cmd.BOLD_OFF)
 
   // ── Pie ───────────────────────────────────────────────────────────────────

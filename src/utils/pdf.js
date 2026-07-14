@@ -1,6 +1,5 @@
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
-import { r5 } from '../lib/utils'
 
 function buildCotizacionHTML(detalle) {
   const titulo    = detalle.tipo === 'pedido' ? 'PEDIDO DE VIDRIO' : 'COTIZACIÓN DE VIDRIO'
@@ -19,7 +18,7 @@ function buildCotizacionHTML(detalle) {
         <td style="color:#555;font-size:11px">${procesos}</td>
         <td style="color:#555;font-size:11px;text-align:center">${m2} m²</td>
         <td style="text-align:right;font-size:11px">$${precioPza}</td>
-        <td style="text-align:right;font-weight:600">$${r5(Number(p.subtotal_partida)).toFixed(2)}</td>
+        <td style="text-align:right;font-weight:600">$${Number(p.subtotal_partida).toFixed(2)}</td>
       </tr>`
   }).join('')
 
@@ -104,7 +103,7 @@ function buildCotizacionHTML(detalle) {
     <tbody>${filas}</tbody>
   </table>
   <div class="total-box">
-    <div class="total-inner">TOTAL: $${r5(Number(detalle.total)).toFixed(2)}</div>
+    <div class="total-inner">TOTAL: $${Number(detalle.total).toFixed(2)}</div>
   </div>
   <div class="footer">${pie}<br>Vidrio Templado y Aluminio Rosales · Tel: 5523134256, 5522161432, 5547912671</div>
 </body></html>`

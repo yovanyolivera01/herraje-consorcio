@@ -1,5 +1,3 @@
-import { r5 } from './utils'
-
 // Parses measurement input: "largo x ancho" or "piezas-largo x ancho"
 export function parseNotacion(texto) {
   if (!texto || !texto.trim()) return { error: 'Ingresa una medida (ej. 3-22x45)' }
@@ -31,14 +29,9 @@ export function parseNotacion(texto) {
   return { error: 'Formato invalido. Ej: 98x45  o  3-98x45' }
 }
 
-// Calculates the total for a list of partidas.
-// For VIDRIO: subtotal_partida already has r5 applied (on the total, not per piece).
 export function calcTotal(partidas) {
   return partidas.reduce((s, p) => {
-    if (!p.tipo || p.tipo === 'VIDRIO') {
-      if (p.precio_manual) return s + Number(p.precio_manual)
-      return s + Number(p.subtotal_partida ?? 0)
-    }
-    return s + r5(Number(p.subtotal_partida ?? 0))
+    if (p.precio_manual) return s + Number(p.precio_manual)
+    return s + Number(p.subtotal_partida ?? 0)
   }, 0)
 }
