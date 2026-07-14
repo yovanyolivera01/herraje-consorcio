@@ -404,6 +404,7 @@ function DetallePedidoModal({ resumen, onClose, onEntregado }) {
                   clienteNombre: detalle.cliente?.nombre ?? 'Mostrador',
                   nivelNombre: detalle.nivel?.nombre ?? '',
                   formaPago: detalle.tipo_pago,
+                  metodoPago: detalle.metodo_pago,
                   anticipo: detalle.anticipo,
                   saldo: detalle.saldo,
                   esEntregado: false,

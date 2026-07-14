@@ -176,6 +176,7 @@ export const getDetallePedido = async (id_pedido) => {
     total:    r5(Number(cab.total)),
     tipo_pago:    cab.tipo_pago,
     forma_pago:   cab.tipo_pago,
+    metodo_pago:  cab.metodo_pago ?? null,
     anticipo:     Number(cab.monto_anticipo),
     saldo:        r5(Number(cab.total)) - Number(cab.monto_anticipo),
     saldo_cobrado: cab.monto_cobrado_entrega != null ? Number(cab.monto_cobrado_entrega) : null,
