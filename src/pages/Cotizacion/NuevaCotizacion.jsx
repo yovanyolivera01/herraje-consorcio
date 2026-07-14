@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
-import { fmt5, r5 } from '../../lib/utils'
+import { fmt5 } from '../../lib/utils'
 import { parseNotacion, calcTotal } from '../../lib/cotizacionUtils'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useCotizacion } from '../../context/CotizacionContext'
@@ -556,7 +556,7 @@ export default function NuevaCotizacion() {
       subtotal_vidrio,
       subtotal_procesos,
       subtotal_total:   subtotal_vidrio + subtotal_procesos,
-      subtotal_rounded: r5(subtotal_vidrio + subtotal_procesos),
+      subtotal_rounded: subtotal_vidrio + subtotal_procesos,
       esHojaCompleta,
       procesosCalc,
     }
@@ -602,7 +602,7 @@ export default function NuevaCotizacion() {
     const manualNum   = esPequena && precioManual !== '' ? parseFloat(precioManual) : NaN
     const subtotalFin = (!isNaN(manualNum) && manualNum > 0)
       ? manualNum
-      : r5(preview.subtotal_vidrio + preview.subtotal_procesos)
+      : preview.subtotal_vidrio + preview.subtotal_procesos
 
     const nuevaPartida = {
       _key:              Date.now() + Math.random(),

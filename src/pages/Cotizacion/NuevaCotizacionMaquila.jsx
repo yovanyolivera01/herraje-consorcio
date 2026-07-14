@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { fmt5, r5 } from '../../lib/utils'
+import { fmt5 } from '../../lib/utils'
 import { useCotizacion } from '../../context/CotizacionContext'
 import { printTicketVidrio, printPedidoA4 } from '../../utils/ticket'
 
@@ -51,7 +51,7 @@ function TicketMaquila({ detalle, onConvertir, convirtiendo }) {
         <hr className="ticket-divider" />
         <div className="ticket-total">
           <span>TOTAL</span>
-          <span>${fmt5(detalle.partidas.reduce((s, p) => s + r5(Number(p.subtotal_partida)), 0))}</span>
+          <span>${fmt5(detalle.partidas.reduce((s, p) => s + Number(p.subtotal_partida), 0))}</span>
         </div>
       </div>
       <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
@@ -305,7 +305,7 @@ export default function NuevaCotizacionMaquila() {
   const [error,       setError]       = useState(null)
   const [modalConv,   setModalConv]   = useState(false)
 
-  const totalParcial = partidas.reduce((s, p) => s + r5(Number(p.subtotal ?? 0)), 0)
+  const totalParcial = partidas.reduce((s, p) => s + Number(p.subtotal ?? 0), 0)
 
   const handleIniciar = async () => {
     if (!nivelId) { setError('Selecciona el nivel de precio'); return }

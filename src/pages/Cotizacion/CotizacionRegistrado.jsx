@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
-import { fmt5, r5 } from '../../lib/utils'
+import { fmt5 } from '../../lib/utils'
 import { useCotizacion } from '../../context/CotizacionContext'
 import { useApp } from '../../context/AppContext'
 import { convertirCotizacionAPedido, getDetallePedido } from '../../lib/pedidosApi'
@@ -113,7 +113,7 @@ function ConvertirModal({ cotizacion, onClose, onCreado }) {
     }
     setSaving(true); setError(null)
     try {
-      const monto = formaPago === 'LIQUIDADO' ? r5(cotizacion.total) : formaPago === 'CREDITO' ? 0 : parseFloat(anticipo)
+      const monto = formaPago === 'LIQUIDADO' ? cotizacion.total : formaPago === 'CREDITO' ? 0 : parseFloat(anticipo)
 
       const idPedido = await convertirCotizacionAPedido(cotizacion.id, formaPago, monto, metodoPago)
 
