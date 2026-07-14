@@ -216,6 +216,9 @@ export const entregarPartidaPedido = async (id_partida_pedido) =>
 export const marcarAnticipoLiquidado = async (id_pedido) =>
   apiFetch(`/pedidos/${id_pedido}/liquidar`, { method: 'POST', body: {} })
 
+export const cancelarPedido = async (id_pedido) =>
+  apiFetch(`/pedidos/${id_pedido}/cancelar`, { method: 'POST', body: {} })
+
 // ── Export a Excel ────────────────────────────────────────────────────────────
 
 export const getPedidosParaExport = async (fechaDesde, fechaHasta) => {
