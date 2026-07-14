@@ -12,9 +12,10 @@ export function printTicketVidrio(detalle) {
   const herrajes = detalle.partidas.filter(p => p.tipo === 'HERRAJE' || p.tipo === 'PRODUCTO')
   
   const renderVidrio = p => {
-    const pzas   = p.piezas ?? 1
-    const cuVid  = Number(p.subtotal_partida) / pzas
-    const totVid = cuVid * pzas
+    const pzas    = p.piezas ?? 1
+    const cuVid   = Number(p.subtotal_vidrio ?? p.subtotal_partida) / pzas
+    const totVid  = cuVid * pzas
+    const hasProc = (p.procesos ?? []).length > 0
     const procRows = (p.procesos ?? []).map(pr => {
       const cuPr  = Number(pr.subtotal) / pzas
       const totPr = cuPr * pzas
@@ -27,6 +28,14 @@ export function printTicketVidrio(detalle) {
         <span class="c-tot">$${totPr.toFixed(2)}</span>
       </div>`
     }).join('')
+    const subtotalRow = hasProc ? `
+      <div class="row5" style="font-size:11px;font-weight:600;border-top:1px dashed #ccc;margin-top:2px;padding-top:2px">
+        <span class="c-cant"></span>
+        <span class="c-med"></span>
+        <span class="c-desc">Subtotal</span>
+        <span class="c-cu">$${(Number(p.subtotal_partida) / pzas).toFixed(2)}</span>
+        <span class="c-tot">$${Number(p.subtotal_partida).toFixed(2)}</span>
+      </div>` : ''
     return `
       <div class="partida">
         <div class="row5 bold">
@@ -37,6 +46,7 @@ export function printTicketVidrio(detalle) {
           <span class="c-tot">$${totVid.toFixed(2)}</span>
         </div>
         ${procRows}
+        ${subtotalRow}
       </div>`
   }
 
