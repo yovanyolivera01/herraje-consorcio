@@ -270,4 +270,17 @@ router.post('/pedidos/:id/liquidar', async (req, res) => {
 
 
 
+// ── Cancelar pedido ───────────────────────────────────────────────────────────
+
+router.post('/pedidos/:id/cancelar', async (req, res) => {
+  try {
+    const { rows } = await query(
+      "UPDATE pedido SET estatus = 'CANCELADO' WHERE id_pedido = $1 RETURNING id_pedido",
+      [req.params.id]
+    )
+    if (rows.length === 0) return res.status(404).json({ message: 'Pedido no encontrado' })
+    ok(res, { ok: true })
+  } catch (e) { err(res, e) }
+})
+
 module.exports = router

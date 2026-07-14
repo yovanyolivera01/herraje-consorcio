@@ -4,7 +4,7 @@ import { parseNotacion, calcTotal } from '../../lib/cotizacionUtils'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useCotizacion } from '../../context/CotizacionContext'
 import { useApp } from '../../context/AppContext'
-import { crearPedidoDirecto, crearPedidoDirectoConExtras, getDetallePedido, convertirCotizacionAPedido, decrementarInventarioDesdePartidas } from '../../lib/pedidosApi'
+import { crearPedidoDirecto, crearPedidoDirectoConExtras, getDetallePedido, convertirCotizacionAPedido, decrementarInventarioDesdePartidas, cancelarPedido } from '../../lib/pedidosApi'
 import { getPartidasExtra } from '../../lib/cotizacionApi'
 import { venderProductoGeneral } from '../../lib/productosGeneralesApi'
 import { printTicketVidrio, printPedidoA4 } from '../../utils/ticket'
@@ -310,8 +310,11 @@ export default function NuevaCotizacion() {
   const [anticipoStr,     setAnticipoStr]     = useState('')
   const [convertiendo,    setConvertiendo]    = useState(false)
   const [errorConversion, setErrorConversion] = useState(null)
-  const [pedidoCreado,    setPedidoCreado]    = useState(null)
-  const [pedidoExtras,    setPedidoExtras]    = useState([])
+  const [pedidoCreado,      setPedidoCreado]      = useState(null)
+  const [pedidoExtras,      setPedidoExtras]      = useState([])
+  const [pedidoCancelado,   setPedidoCancelado]   = useState(false)
+  const [cancelando,        setCancelando]        = useState(false)
+  const [confirmCancel,     setConfirmCancel]     = useState(false)
 
   // ── Modal "cotizar + convertir" directo ───────────────────────────────────
   const [showPedidoModal,     setShowPedidoModal]     = useState(false)
@@ -1073,6 +1076,8 @@ export default function NuevaCotizacion() {
     setCotCreada(null)
     setPedidoCreado(null)
     setPedidoExtras([])
+    setPedidoCancelado(false)
+    setConfirmCancel(false)
     setFormaPago('LIQUIDADO')
     setAnticipoStr('')
     setErrorConversion(null)
@@ -1098,10 +1103,75 @@ export default function NuevaCotizacion() {
     window.scrollTo(0, 0)
   }
 
+  const handleCancelarPedido = async () => {
+    if (!pedidoCreado?.id) return
+    setCancelando(true)
+    try {
+      await cancelarPedido(pedidoCreado.id)
+      setPedidoCancelado(true)
+      setConfirmCancel(false)
+    } catch (e) {
+      alert('Error al cancelar: ' + e.message)
+    } finally {
+      setCancelando(false)
+    }
+  }
+
   // ── Pantalla de ticket ────────────────────────────────────────────────────
   if (cotCreada) {
     // Si ya se convirtió, mostrar ticket de pedido
     if (pedidoCreado) {
+      if (pedidoCancelado) {
+        return (
+          <>
+            <div className="page-header">
+              <div>
+                <div className="page-title">Pedido cancelado — {pedidoCreado.folio}</div>
+              </div>
+              <button className="btn btn-primary" onClick={nuevaCotizacion}>+ Nueva cotizacion</button>
+            </div>
+            <div className="page-body">
+              <div className="alert" style={{ background:'#fef2f2', border:'1px solid #fca5a5', color:'#991b1b', borderRadius:8, padding:'12px 16px', fontWeight:600 }}>
+                ❌ Pedido <strong>{pedidoCreado.folio}</strong> cancelado. No aparecerá en ventas netas.
+              </div>
+            </div>
+          </>
+        )
+      }
+
+      const detallePedido = {
+        tipo: 'pedido',
+        folio: pedidoCreado.folio,
+        foliosCot: pedidoCreado.id_cotizacion ? `COT-${String(pedidoCreado.id_cotizacion).padStart(5,'0')}` : null,
+        fecha: pedidoCreado.fecha,
+        hora: pedidoCreado.hora ?? '',
+        clienteNombre: pedidoCreado.cliente?.nombre ?? 'Mostrador',
+        nivelNombre: pedidoCreado.nivel?.es_hoja_completa ? 'POR HOJA' : (pedidoCreado.nivel?.nombre ?? ''),
+        formaPago: pedidoCreado.forma_pago,
+        anticipo: pedidoCreado.anticipo,
+        saldo: pedidoCreado.saldo,
+        saldo_cobrado: pedidoCreado.saldo_cobrado,
+        esEntregado: pedidoCreado.estado === 'ENTREGADO',
+        total: pedidoCreado.total,
+        partidas: [
+          ...pedidoCreado.partidas.map(p => ({
+            piezas: p.cantidad, clave: p.clave_vidrio,
+            largo_cm: p.largo_cm, ancho_cm: p.ancho_cm,
+            subtotal_vidrio: p.subtotal_vidrio, procesos: p.procesos,
+            subtotal_partida: p.subtotal_partida,
+          })),
+          ...pedidoExtras.map(e => ({
+            tipo: e.tipo === 'HERRAJE' || e.tipo === 'PRODUCTO' ? e.tipo : 'MAQUILA',
+            descripcion: e.descripcion,
+            cantidad: e.cantidad,
+            unidad: e.unidad,
+            precio_unitario: e.precio_unitario != null ? Number(e.precio_unitario) : null,
+            subtotal_partida: Number(e.subtotal),
+            procesos: [],
+          })),
+        ],
+      }
+
       return (
         <>
           <div className="page-header">
@@ -1111,45 +1181,38 @@ export default function NuevaCotizacion() {
                 {pedidoCreado.estado === 'ENTREGADO' ? 'Liquidado · Entregado al momento' : 'Pendiente de entrega'}
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 10 }}>
-              {(() => {
-                const detallePedido = {
-                  tipo: 'pedido',
-                  folio: pedidoCreado.folio,
-                  foliosCot: pedidoCreado.id_cotizacion ? `COT-${String(pedidoCreado.id_cotizacion).padStart(5,'0')}` : null,
-                  fecha: pedidoCreado.fecha,
-                  hora: pedidoCreado.hora ?? '',
-                  clienteNombre: pedidoCreado.cliente?.nombre ?? 'Mostrador',
-                  nivelNombre: pedidoCreado.nivel?.es_hoja_completa ? 'POR HOJA' : (pedidoCreado.nivel?.nombre ?? ''),
-                  formaPago: pedidoCreado.forma_pago,
-                  anticipo: pedidoCreado.anticipo,
-                  saldo: pedidoCreado.saldo,
-                  saldo_cobrado: pedidoCreado.saldo_cobrado,
-                  esEntregado: pedidoCreado.estado === 'ENTREGADO',
-                  total: pedidoCreado.total,
-                  partidas: [
-                    ...pedidoCreado.partidas.map(p => ({
-                      piezas: p.cantidad, clave: p.clave_vidrio,
-                      largo_cm: p.largo_cm, ancho_cm: p.ancho_cm,
-                      subtotal_vidrio: p.subtotal_vidrio, procesos: p.procesos,
-                      subtotal_partida: p.subtotal_partida,
-                    })),
-                    ...pedidoExtras.map(e => ({
-                      tipo: e.tipo === 'HERRAJE' || e.tipo === 'PRODUCTO' ? e.tipo : 'MAQUILA',
-                      descripcion: e.descripcion,
-                      cantidad: e.cantidad,
-                      unidad: e.unidad,
-                      precio_unitario: e.precio_unitario != null ? Number(e.precio_unitario) : null,
-                      subtotal_partida: Number(e.subtotal),
-                      procesos: [],
-                    })),
-                  ],
-                }
-                return (<>
-                  <button className="btn btn-outline" onClick={() => printTicketVidrio(detallePedido)}>🖨️ Ticket</button>
-                  <button className="btn btn-outline" onClick={() => printPedidoA4(detallePedido)}>🖨️ Hoja</button>
-                </>)
-              })()}
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+              <button className="btn btn-outline" onClick={() => printTicketVidrio(detallePedido)}>🖨️ Ticket</button>
+              <button className="btn btn-outline" onClick={() => printPedidoA4(detallePedido)}>🖨️ Hoja</button>
+              {!confirmCancel ? (
+                <button
+                  className="btn btn-outline"
+                  style={{ color: '#dc2626', borderColor: '#dc2626' }}
+                  onClick={() => setConfirmCancel(true)}
+                >
+                  Cancelar pedido
+                </button>
+              ) : (
+                <div style={{ display:'flex', alignItems:'center', gap:8, background:'#fef2f2', border:'1px solid #fca5a5', borderRadius:8, padding:'6px 12px' }}>
+                  <span style={{ fontSize:13, color:'#991b1b', fontWeight:600 }}>¿Cancelar {pedidoCreado.folio}?</span>
+                  <button
+                    className="btn btn-outline btn-sm"
+                    style={{ color:'#dc2626', borderColor:'#dc2626', padding:'4px 10px', fontSize:12 }}
+                    onClick={handleCancelarPedido}
+                    disabled={cancelando}
+                  >
+                    {cancelando ? 'Cancelando…' : 'Sí, cancelar'}
+                  </button>
+                  <button
+                    className="btn btn-outline btn-sm"
+                    style={{ padding:'4px 10px', fontSize:12 }}
+                    onClick={() => setConfirmCancel(false)}
+                    disabled={cancelando}
+                  >
+                    No
+                  </button>
+                </div>
+              )}
               <button className="btn btn-primary" onClick={nuevaCotizacion}>+ Nueva cotizacion</button>
             </div>
           </div>
