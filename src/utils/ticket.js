@@ -12,9 +12,10 @@ export function printTicketVidrio(detalle) {
   const herrajes = detalle.partidas.filter(p => p.tipo === 'HERRAJE' || p.tipo === 'PRODUCTO')
   
   const renderVidrio = p => {
-    const pzas   = p.piezas ?? 1
-    const cuVid  = Number(p.subtotal_partida) / pzas
-    const totVid = cuVid * pzas
+    const pzas    = p.piezas ?? 1
+    const cuVid   = Number(p.subtotal_vidrio ?? p.subtotal_partida) / pzas
+    const totVid  = cuVid * pzas
+    const hasProc = (p.procesos ?? []).length > 0
     const procRows = (p.procesos ?? []).map(pr => {
       const cuPr  = Number(pr.subtotal) / pzas
       const totPr = cuPr * pzas
@@ -27,6 +28,14 @@ export function printTicketVidrio(detalle) {
         <span class="c-tot">$${totPr.toFixed(2)}</span>
       </div>`
     }).join('')
+    const subtotalRow = hasProc ? `
+      <div class="row5" style="font-size:11px;font-weight:600;border-top:1px dashed #ccc;margin-top:2px;padding-top:2px">
+        <span class="c-cant"></span>
+        <span class="c-med"></span>
+        <span class="c-desc">Subtotal</span>
+        <span class="c-cu">$${(Number(p.subtotal_partida) / pzas).toFixed(2)}</span>
+        <span class="c-tot">$${Number(p.subtotal_partida).toFixed(2)}</span>
+      </div>` : ''
     return `
       <div class="partida">
         <div class="row5 bold">
@@ -37,6 +46,7 @@ export function printTicketVidrio(detalle) {
           <span class="c-tot">$${totVid.toFixed(2)}</span>
         </div>
         ${procRows}
+        ${subtotalRow}
       </div>`
   }
 
@@ -343,19 +353,44 @@ export function printPedidoPendiente(detalle) {
 export function printCotizacionCarta(detalle) {
   const totalCalculado = detalle.partidas.reduce((sum, p) => sum + Number(p.subtotal_partida), 0)
   const rows = detalle.partidas.map((p) => {
-    const pzas = p.piezas ?? 1
-    const m2 = (pzas * p.largo_cm * p.ancho_cm / 10000).toFixed(4)
-    const procesos = (p.procesos ?? []).map(pr => pr.nombre).join(', ') || '—'
-    const precioPza = (Number(p.subtotal_partida) / pzas).toFixed(2)
+    const pzas    = p.piezas ?? 1
+    const m2      = (pzas * p.largo_cm * p.ancho_cm / 10000).toFixed(4)
+    const cuVid   = Number(p.subtotal_vidrio ?? p.subtotal_partida) / pzas
+    const totVid  = cuVid * pzas
+    const hasProc = (p.procesos ?? []).length > 0
+    const procSubRows = (p.procesos ?? []).map(pr => {
+      const cuPr  = Number(pr.subtotal) / pzas
+      const totPr = cuPr * pzas
+      return `
+      <tr class="partida-row">
+        <td></td>
+        <td style="font-size:12px;color:#555;padding-left:14px">+ ${pr.nombre}</td>
+        <td></td>
+        <td style="text-align:right;font-size:12px;color:#555">$${cuPr.toFixed(2)}</td>
+        <td style="text-align:right;font-size:12px;color:#555">$${totPr.toFixed(2)}</td>
+        <td></td>
+      </tr>`
+    }).join('')
+    const subtotalRow = hasProc ? `
+      <tr class="partida-row" style="border-top:1px dashed #ccc">
+        <td></td>
+        <td style="font-size:12px;font-weight:700;padding-left:14px">Subtotal</td>
+        <td></td>
+        <td style="text-align:right;font-size:12px;font-weight:700">$${(Number(p.subtotal_partida)/pzas).toFixed(2)}</td>
+        <td style="text-align:right;font-weight:700">$${Number(p.subtotal_partida).toFixed(2)}</td>
+        <td></td>
+      </tr>` : ''
     return `
       <tr class="partida-row">
         <td style="text-align:center;font-weight:700">${pzas}</td>
         <td><strong>${p.clave}</strong></td>
         <td style="text-align:center;color:#555;font-size:12px">${m2} m²</td>
-        <td style="text-align:right;font-size:12px">$${precioPza}</td>
-        <td style="text-align:right;font-weight:600">$${Number(p.subtotal_partida).toFixed(2)}</td>
-        <td style="color:#555;font-size:12px">${procesos}</td>
-      </tr>`
+        <td style="text-align:right;font-size:12px">$${cuVid.toFixed(2)}</td>
+        <td style="text-align:right;font-weight:600">$${totVid.toFixed(2)}</td>
+        <td></td>
+      </tr>
+      ${procSubRows}
+      ${subtotalRow}`
   }).join('')
 
   const pie = detalle.tipo === 'pedido' ? '¡Gracias por su compra!' : 'Cotización con vigencia de 15 días a partir de la fecha de emisión.'
@@ -503,11 +538,11 @@ export function printCotizacionCarta(detalle) {
     <thead>
       <tr>
         <th style="text-align:center">Pzas</th>
-        <th>Tipo de vidrio</th>
+        <th>Tipo / Proceso</th>
         <th style="text-align:center">m²</th>
-        <th style="text-align:right">Precio/pza</th>
+        <th style="text-align:right">C/u</th>
         <th style="text-align:right">Total</th>
-        <th>Descripción</th>
+        <th></th>
       </tr>
     </thead>
     <tbody>
@@ -563,19 +598,42 @@ export function printPedidoA4(detalle) {
 
   const vidrioRows = vidrios.map((p, idx) => {
     const pzas    = p.piezas ?? 1
-    const cuVid   = Number(p.subtotal_partida) / pzas
+    const cuVid   = Number(p.subtotal_vidrio ?? p.subtotal_partida) / pzas
     const totVid  = cuVid * pzas
-    const procNombres = (p.procesos ?? []).map(pr => pr.nombre).join(', ') || '—'
     const m2      = ((pzas * Number(p.largo_cm) * Number(p.ancho_cm)) / 10000).toFixed(4)
+    const bg      = idx % 2 === 0 ? '#fff' : '#fafafa'
+    const hasProc = (p.procesos ?? []).length > 0
+    const procSubRows = (p.procesos ?? []).map(pr => {
+      const cuPr  = Number(pr.subtotal) / pzas
+      const totPr = cuPr * pzas
+      return `
+      <tr style="background:${bg}">
+        <td></td><td></td>
+        <td style="font-size:11px;color:#555;padding-left:12px">+ ${pr.nombre}</td>
+        <td style="text-align:right;font-size:11px;color:#555">$${cuPr.toFixed(2)}</td>
+        <td style="text-align:right;font-size:11px;color:#555">$${totPr.toFixed(2)}</td>
+        <td></td>
+      </tr>`
+    }).join('')
+    const subtotalSubRow = hasProc ? `
+      <tr style="background:${bg};border-top:1px dashed #ddd">
+        <td></td><td></td>
+        <td style="font-size:11px;font-weight:700;padding-left:12px">Subtotal</td>
+        <td style="text-align:right;font-size:11px;font-weight:700">$${(Number(p.subtotal_partida)/pzas).toFixed(2)}</td>
+        <td style="text-align:right;font-weight:700">$${Number(p.subtotal_partida).toFixed(2)}</td>
+        <td></td>
+      </tr>` : ''
     return `
-      <tr style="background:${idx % 2 === 0 ? '#fff' : '#fafafa'}">
+      <tr style="background:${bg}">
         <td style="text-align:center;font-weight:700">${pzas}</td>
-        <td style="font-size:11px">${p.largo_cm}×${p.ancho_cm} cm</td>
+        <td style="font-size:11px">${p.largo_cm}×${p.ancho_cm} cm · ${m2} m²</td>
         <td style="font-weight:700;color:#1a3a6b">${p.clave ?? ''}</td>
         <td style="text-align:right;font-size:11px">$${cuVid.toFixed(2)}</td>
         <td style="text-align:right;font-weight:600">$${totVid.toFixed(2)}</td>
-        <td style="font-size:11px;color:#555">${procNombres}</td>
-      </tr>`
+        <td></td>
+      </tr>
+      ${procSubRows}
+      ${subtotalSubRow}`
   }).join('')
 
   const vidrioSection = vidrios.length === 0 ? '' : `
@@ -584,10 +642,10 @@ export function printPedidoA4(detalle) {
       <thead><tr>
         <th style="text-align:center">Pzas</th>
         <th>Medida</th>
-        <th>Tipo</th>
+        <th>Tipo / Proceso</th>
         <th style="text-align:right">C/u</th>
         <th style="text-align:right">Total</th>
-        <th>Descripción</th>
+        <th></th>
       </tr></thead>
       <tbody>${vidrioRows}</tbody>
     </table>`
