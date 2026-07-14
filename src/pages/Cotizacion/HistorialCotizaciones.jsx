@@ -293,6 +293,7 @@ function PedidoCreadoModal({ detalle, onClose }) {
     clienteNombre: detalle.cliente?.nombre ?? 'Mostrador',
     nivelNombre:   detalle.nivel?.es_hoja_completa ? 'POR HOJA' : (detalle.nivel?.nombre ?? ''),
     formaPago:     detalle.forma_pago,
+    metodoPago:    detalle.metodo_pago ?? null,
     anticipo:      detalle.anticipo,
     saldo:         detalle.saldo,
     saldo_cobrado: detalle.saldo_cobrado,

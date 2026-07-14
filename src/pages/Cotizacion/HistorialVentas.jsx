@@ -132,6 +132,7 @@ function DetalleVentaModal({ resumen, onClose }) {
               clienteNombre: detalle.cliente?.nombre ?? 'Mostrador',
               nivelNombre:   detalle.nivel?.nombre ?? '',
               formaPago:     detalle.forma_pago,
+              metodoPago:    detalle.metodo_pago ?? null,
               anticipo:      detalle.anticipo,
               saldo:         detalle.saldo,
               saldo_cobrado: detalle.saldo_cobrado,
@@ -289,9 +290,9 @@ export default function HistorialVentas() {
   }
 
   const formaPagoBadge = (fp) =>
-    fp === 'LIQUIDADO'
-      ? <span className="badge badge-green">Liquidado</span>
-      : <span className="badge badge-orange">Anticipo</span>
+    fp === 'LIQUIDADO' ? <span className="badge badge-green">Liquidado</span>
+    : fp === 'CREDITO' ? <span className="badge badge-blue">Por cobrar</span>
+    : <span className="badge badge-orange">Anticipo</span>
 
   return (
     <>

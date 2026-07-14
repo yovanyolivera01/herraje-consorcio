@@ -1,4 +1,5 @@
 import { r5 } from '../lib/utils'
+import logoUrl from '../assets/images/logo.png'
 
 /**
  * Imprime un ticket de vidrio (cotización o pedido) via iframe.
@@ -116,9 +117,10 @@ export function printTicketVidrio(detalle) {
 
   const pagoRows = detalle.tipo === 'pedido' ? `
     <hr class="divider">
-    <div class="row"><span>Forma de pago:</span><span>${
+    ${detalle.metodoPago ? `<div class="row"><span>Método de pago:</span><span>${detalle.metodoPago.charAt(0) + detalle.metodoPago.slice(1).toLowerCase()}</span></div>` : ''}
+    <div class="row"><span>Método de entrega:</span><span>${
       detalle.formaPago === 'LIQUIDADO' ? 'Liquidado' :
-      detalle.formaPago === 'CREDITO'   ? 'Crédito' :
+      detalle.formaPago === 'CREDITO'   ? 'Por cobrar' :
       detalle.formaPago === 'CONTADO'   ? 'Contado' : 'Anticipo'
     }</span></div>
     ${detalle.formaPago === 'ANTICIPO' ? `
@@ -127,7 +129,7 @@ export function printTicketVidrio(detalle) {
       ${detalle.esEntregado && detalle.saldo_cobrado != null ? `<div class="row"><span>Saldo cobrado:</span><span class="bold">$${r5(Number(detalle.saldo_cobrado)).toFixed(2)}</span></div>` : ''}
     ` : ''}
     ${detalle.formaPago === 'CREDITO' ? `
-  <div class="row"><span>Saldo a crédito:</span><span class="bold">$${totalCalculado.toFixed(2)}</span></div>
+  <div class="row"><span>Saldo por cobrar:</span><span class="bold">$${totalCalculado.toFixed(2)}</span></div>
   <br><br><br>
   <div style="border-top:1px solid #000;width:70%;margin:0 auto;margin-top:20px;"></div>
   <div style="text-align:center;font-size:11px;margin-top:4px;">Firma del cliente</div>
@@ -166,11 +168,11 @@ export function printTicketVidrio(detalle) {
     .total-row { font-size: 15px; font-weight: 700; }
     .footer { margin-top: 10px; font-size: 12px; }
     .row5 { display: flex; align-items: baseline; margin-bottom: 3px; font-size: 11px; }
-    .c-cant { width: 12px; flex-shrink: 0; }
-    .c-med  { width: 42px; flex-shrink: 0; }
-    .c-desc { flex: 1; }
-    .c-cu   { width: 44px; flex-shrink: 0; text-align: right; }
-    .c-tot  { width: 48px; flex-shrink: 0; text-align: right; }
+    .c-cant { width: 22px; flex-shrink: 0; }
+    .c-med  { width: 54px; flex-shrink: 0; }
+    .c-desc { flex: 1; padding-left: 4px; }
+    .c-cu   { width: 42px; flex-shrink: 0; text-align: right; }
+    .c-tot  { width: 46px; flex-shrink: 0; text-align: right; }
     .col-header { font-size: 9px; color: #555; border-bottom: 1px dashed #aaa; margin-bottom: 3px; }
   </style>
 </head>
@@ -380,51 +382,10 @@ export function printCotizacionCarta(detalle) {
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 13px; color: #111; -webkit-print-color-adjust: exact; print-color-adjust: exact; padding: 12mm 14mm; }
 
-    /* ── Encabezado principal ── */
-    .brand-header {
-      background: #1a3a6b;
-      border-radius: 12px;
-      padding: 28px 40px 22px;
-      color: #fff;
-      text-align: center;
-      position: relative;
-      margin-bottom: 20px;
-    }
-    .brand-header .diamond-left,
-    .brand-header .diamond-right {
-      position: absolute; top: 50%; transform: translateY(-50%);
-      width: 60px; height: 90px;
-      border: 2px solid rgba(100,160,230,0.5);
-      border-radius: 50%;
-    }
-    .brand-header .diamond-left  { left: 30px; }
-    .brand-header .diamond-right { right: 30px; }
-    .brand-header .diamond-left::before,
-    .brand-header .diamond-right::before {
-      content: '';
-      position: absolute; top: 8px; left: 8px; right: 8px; bottom: 8px;
-      border: 1.5px solid rgba(100,160,230,0.35);
-      border-radius: 50%;
-    }
-    .brand-header .top-diamond {
-      width: 14px; height: 14px;
-      border: 2px solid rgba(100,180,255,0.6);
-      transform: rotate(45deg);
-      margin: 0 auto 10px;
-    }
-    .brand-header h1 {
-      font-size: 38px; font-weight: 900; letter-spacing: 2px;
-      text-transform: uppercase; line-height: 1;
-    }
-    .brand-header .consorcio {
-      font-size: 20px; font-weight: 300; letter-spacing: 12px;
-      color: rgba(150,190,255,0.85); margin: 4px 0 10px;
-      text-transform: uppercase;
-    }
-    .brand-header .slogan {
-      font-style: italic; font-size: 15px;
-      color: rgba(210,230,255,0.8); letter-spacing: 1px;
-    }
+    .brand-header { display: flex; align-items: center; gap: 16px; padding-bottom: 14px; border-bottom: 2px solid #1a3a6b; margin-bottom: 20px; }
+    .brand-logo { width: 80px; height: auto; flex-shrink: 0; }
+    .brand-name { font-size: 17px; font-weight: 900; letter-spacing: 1px; color: #1a3a6b; }
+    .brand-detail { font-size: 11px; color: #555; margin-top: 3px; }
 
     /* ── Marcas ── */
     .marcas-section { margin-bottom: 20px; }
@@ -489,14 +450,13 @@ export function printCotizacionCarta(detalle) {
 </head>
 <body>
 
-  <!-- Encabezado de marca -->
   <div class="brand-header">
-    <div class="diamond-left"></div>
-    <div class="diamond-right"></div>
-    <div class="top-diamond"></div>
-    <h1 style="font-size:26px">VIDRIO TEMPLADO Y ALUMINIO ROSALES</h1>
-    <div class="slogan">Rosales #35 C.P. 55270, Granjas Valle de Guadalupe · Ecatepec de Morelos, Estado de Mexico</div>
-    <div class="slogan" style="margin-top:4px">Tel: 5523134256, 5522161432, 5547912671 · rosalesvidriotempladofernando@gmail.com</div>
+    <img src="${logoUrl}" class="brand-logo" alt="Logo">
+    <div>
+      <div class="brand-name">VIDRIO TEMPLADO Y ALUMINIO ROSALES</div>
+      <div class="brand-detail">Rosales #35 C.P. 55270, Granjas Valle de Guadalupe · Ecatepec de Morelos, Estado de Mexico</div>
+      <div class="brand-detail">Tel: 5523134256, 5522161432, 5547912671 · rosalesvidriotempladofernando@gmail.com</div>
+    </div>
   </div>
 
   <!-- Marcas -->
@@ -704,17 +664,18 @@ export function printPedidoA4(detalle) {
 
   const pagoInfo = (() => {
     const fp = detalle.formaPago
-    if (!fp || fp === 'LIQUIDADO') return `<div class="pago-row"><span>Forma de pago:</span><span class="bold">Liquidado</span></div>`
-    if (fp === 'CREDITO') return `
-      <div class="pago-row"><span>Forma de pago:</span><span class="bold">Crédito</span></div>
-      <div class="pago-row"><span>Saldo a crédito:</span><span class="bold">$${totalCalculado.toFixed(2)}</span></div>
+    const mp = detalle.metodoPago ? `<div class="pago-row"><span>Método de pago:</span><span class="bold">${detalle.metodoPago.charAt(0) + detalle.metodoPago.slice(1).toLowerCase()}</span></div>` : ''
+    if (!fp || fp === 'LIQUIDADO') return `${mp}<div class="pago-row"><span>Método de entrega:</span><span class="bold">Liquidado</span></div>`
+    if (fp === 'CREDITO') return `${mp}
+      <div class="pago-row"><span>Método de entrega:</span><span class="bold">Por cobrar</span></div>
+      <div class="pago-row"><span>Saldo por cobrar:</span><span class="bold">$${totalCalculado.toFixed(2)}</span></div>
       <div style="border-top:1px solid #000;width:60%;margin:24px auto 4px"></div>
       <div style="text-align:center;font-size:11px">Firma del cliente</div>`
-    if (fp === 'ANTICIPO') return `
-      <div class="pago-row"><span>Forma de pago:</span><span class="bold">Anticipo</span></div>
+    if (fp === 'ANTICIPO') return `${mp}
+      <div class="pago-row"><span>Método de entrega:</span><span class="bold">Anticipo</span></div>
       <div class="pago-row"><span>Anticipo pagado:</span><span class="bold">$${r5(Number(detalle.anticipo)).toFixed(2)}</span></div>
       <div class="pago-row"><span>Saldo pendiente:</span><span class="bold">$${r5(Number(detalle.saldo)).toFixed(2)}</span></div>`
-    return `<div class="pago-row"><span>Forma de pago:</span><span class="bold">${fp}</span></div>`
+    return `${mp}<div class="pago-row"><span>Método de entrega:</span><span class="bold">${fp}</span></div>`
   })()
 
   const esMaquila = maquilas.length > 0 && vidrios.length === 0
@@ -730,13 +691,10 @@ export function printPedidoA4(detalle) {
     @page { margin: 0; size: A4 portrait; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 13px; color: #111; -webkit-print-color-adjust: exact; print-color-adjust: exact; padding: 12mm 14mm; }
-    .brand-header { background: #1a3a6b; border-radius: 12px; padding: 22px 40px 18px; color: #fff; text-align: center; position: relative; margin-bottom: 18px; }
-    .brand-header .oval-l, .brand-header .oval-r { position: absolute; top: 50%; transform: translateY(-50%); width: 52px; height: 80px; border: 2px solid rgba(100,160,230,.45); border-radius: 50%; }
-    .brand-header .oval-l { left: 26px; } .brand-header .oval-r { right: 26px; }
-    .brand-header .oval-l::before, .brand-header .oval-r::before { content: ''; position: absolute; inset: 8px; border: 1.5px solid rgba(100,160,230,.25); border-radius: 50%; }
-    .brand-header .diamond { width: 12px; height: 12px; border: 2px solid rgba(120,180,255,.6); transform: rotate(45deg); margin: 0 auto 8px; }
-    .brand-header h1 { font-size: 24px; font-weight: 900; letter-spacing: 2px; }
-    .brand-header .slogan { font-style: italic; font-size: 12px; color: rgba(210,230,255,.85); margin-top: 3px; }
+    .brand-header { display: flex; align-items: center; gap: 16px; padding-bottom: 14px; border-bottom: 2px solid #1a3a6b; margin-bottom: 18px; }
+    .brand-logo { width: 80px; height: auto; flex-shrink: 0; }
+    .brand-name { font-size: 17px; font-weight: 900; letter-spacing: 1px; color: #1a3a6b; }
+    .brand-detail { font-size: 11px; color: #555; margin-top: 3px; }
     .doc-info { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; }
     .doc-titulo { font-size: 18px; font-weight: 700; color: #1a3a6b; }
     .doc-meta { font-size: 12px; color: #555; line-height: 1.8; text-align: right; }
@@ -758,11 +716,12 @@ export function printPedidoA4(detalle) {
 </head>
 <body>
   <div class="brand-header">
-    <div class="oval-l"></div><div class="oval-r"></div>
-    <div class="diamond"></div>
-    <h1>VIDRIO TEMPLADO Y ALUMINIO ROSALES</h1>
-    <div class="slogan">Rosales #35 C.P. 55270, Granjas Valle de Guadalupe · Ecatepec de Morelos, Estado de Mexico</div>
-    <div class="slogan">Tel: 5523134256, 5522161432, 5547912671 · rosalesvidriotempladofernando@gmail.com</div>
+    <img src="${logoUrl}" class="brand-logo" alt="Logo">
+    <div>
+      <div class="brand-name">VIDRIO TEMPLADO Y ALUMINIO ROSALES</div>
+      <div class="brand-detail">Rosales #35 C.P. 55270, Granjas Valle de Guadalupe · Ecatepec de Morelos, Estado de Mexico</div>
+      <div class="brand-detail">Tel: 5523134256, 5522161432, 5547912671 · rosalesvidriotempladofernando@gmail.com</div>
+    </div>
   </div>
 
   <div class="doc-info">
@@ -830,13 +789,10 @@ export function printTicket(venta, modo = '80mm') {
     @page { margin: 0; size: A4 portrait; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 13px; color: #111; -webkit-print-color-adjust: exact; print-color-adjust: exact; padding: 12mm 14mm; }
-    .brand-header { background: #1a3a6b; border-radius: 12px; padding: 22px 40px 18px; color: #fff; text-align: center; position: relative; margin-bottom: 18px; }
-    .brand-header .oval-l, .brand-header .oval-r { position: absolute; top: 50%; transform: translateY(-50%); width: 52px; height: 80px; border: 2px solid rgba(100,160,230,.45); border-radius: 50%; }
-    .brand-header .oval-l { left: 26px; } .brand-header .oval-r { right: 26px; }
-    .brand-header .oval-l::before, .brand-header .oval-r::before { content: ''; position: absolute; inset: 8px; border: 1.5px solid rgba(100,160,230,.25); border-radius: 50%; }
-    .brand-header .diamond { width: 12px; height: 12px; border: 2px solid rgba(120,180,255,.6); transform: rotate(45deg); margin: 0 auto 8px; }
-    .brand-header h1 { font-size: 24px; font-weight: 900; letter-spacing: 2px; }
-    .brand-header .slogan { font-style: italic; font-size: 12px; color: rgba(210,230,255,.85); margin-top: 3px; }
+    .brand-header { display: flex; align-items: center; gap: 16px; padding-bottom: 14px; border-bottom: 2px solid #1a3a6b; margin-bottom: 18px; }
+    .brand-logo { width: 80px; height: auto; flex-shrink: 0; }
+    .brand-name { font-size: 17px; font-weight: 900; letter-spacing: 1px; color: #1a3a6b; }
+    .brand-detail { font-size: 11px; color: #555; margin-top: 3px; }
     .doc-info { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
     .doc-titulo { font-size: 18px; font-weight: 700; color: #1a3a6b; }
     .doc-meta { font-size: 12px; color: #555; line-height: 1.8; text-align: right; }
@@ -853,11 +809,12 @@ export function printTicket(venta, modo = '80mm') {
 </head>
 <body>
   <div class="brand-header">
-    <div class="oval-l"></div><div class="oval-r"></div>
-    <div class="diamond"></div>
-    <h1>VIDRIO TEMPLADO Y ALUMINIO ROSALES</h1>
-    <div class="slogan">Rosales #35 C.P. 55270, Granjas Valle de Guadalupe · Ecatepec de Morelos, Estado de Mexico</div>
-    <div class="slogan">Tel: 5523134256, 5522161432, 5547912671 · rosalesvidriotempladofernando@gmail.com</div>
+    <img src="${logoUrl}" class="brand-logo" alt="Logo">
+    <div>
+      <div class="brand-name">VIDRIO TEMPLADO Y ALUMINIO ROSALES</div>
+      <div class="brand-detail">Rosales #35 C.P. 55270, Granjas Valle de Guadalupe · Ecatepec de Morelos, Estado de Mexico</div>
+      <div class="brand-detail">Tel: 5523134256, 5522161432, 5547912671 · rosalesvidriotempladofernando@gmail.com</div>
+    </div>
   </div>
 
   <div class="doc-info">

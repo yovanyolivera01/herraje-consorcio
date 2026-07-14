@@ -185,14 +185,15 @@ router.get('/pedidos/credito', async (req, res) => {
 router.get('/pedidos/:id', async (req, res) => {
   try {
     const id = req.params.id
-    const [cabRes, partRes, procRes] = await Promise.all([
+    const [cabRes, partRes, procRes, mpRes] = await Promise.all([
       query('SELECT * FROM sp_obtener_cabecera_pedido($1)', [id]),
       query('SELECT * FROM sp_obtener_partidas_pedido($1)', [id]),
       query('SELECT * FROM sp_obtener_procesos_pedido($1)', [id]),
+      query('SELECT metodo_pago FROM pedido WHERE id_pedido=$1', [id]),
     ])
     if (!cabRes.rows.length) return res.status(404).json({ message: 'Pedido no encontrado' })
 
-    const cab = cabRes.rows[0]
+    const cab = { ...cabRes.rows[0], metodo_pago: mpRes.rows[0]?.metodo_pago ?? null }
     let extras = []
     const id_cotizacion = cab.id_cotizacion ?? null
     if (id_cotizacion) {
