@@ -14,7 +14,7 @@ export function printTicketVidrio(detalle) {
   
   const renderVidrio = p => {
     const pzas   = p.piezas ?? 1
-    const cuVid  = r5(Number(p.subtotal_vidrio) / pzas)
+    const cuVid  = r5(Number(p.subtotal_partida) / pzas)
     const totVid = cuVid * pzas
     const procRows = (p.procesos ?? []).map(pr => {
       const cuPr  = r5(Number(pr.subtotal) / pzas)
@@ -99,16 +99,7 @@ export function printTicketVidrio(detalle) {
     <span style="width:50px;flex-shrink:0;text-align:right">Total</span>
   </div>`
 
-  const totalCalculado = detalle.partidas.reduce((sum, p) => {
-    if (p.tipo === 'MAQUILA' || p.tipo === 'HERRAJE' || p.tipo === 'PRODUCTO') {
-      return sum + r5(Number(p.subtotal_partida))
-    }
-    const pzas = p.piezas ?? 1
-    const cuVid = r5(Number(p.subtotal_vidrio || p.subtotal_partida) / pzas)
-    const totVid = cuVid * pzas
-    const totProc = (p.procesos ?? []).reduce((s, pr) => s + r5(Number(pr.subtotal) / pzas) * pzas, 0)
-    return sum + totVid + totProc
-  }, 0)
+  const totalCalculado = detalle.partidas.reduce((sum, p) => sum + r5(Number(p.subtotal_partida)), 0)
 
   let rows = ''
   if (vidrios.length)  rows += sectionLbl('Vidrio') + colHeader + vidrios.map(renderVidrio).join('')
@@ -569,19 +560,11 @@ export function printPedidoA4(detalle) {
   const maquilas = detalle.partidas.filter(p => p.tipo === 'MAQUILA')
   const herrajes = detalle.partidas.filter(p => p.tipo === 'HERRAJE' || p.tipo === 'PRODUCTO')
 
-  const totalCalculado = detalle.partidas.reduce((sum, p) => {
-    if (p.tipo === 'MAQUILA' || p.tipo === 'HERRAJE' || p.tipo === 'PRODUCTO') {
-      return sum + r5(Number(p.subtotal_partida))
-    }
-    const pzas  = p.piezas ?? 1
-    const cuVid = r5(Number(p.subtotal_vidrio || p.subtotal_partida) / pzas)
-    const totProc = (p.procesos ?? []).reduce((s, pr) => s + r5(Number(pr.subtotal) / pzas) * pzas, 0)
-    return sum + cuVid * pzas + totProc
-  }, 0)
+  const totalCalculado = detalle.partidas.reduce((sum, p) => sum + r5(Number(p.subtotal_partida)), 0)
 
   const vidrioRows = vidrios.map((p, idx) => {
     const pzas    = p.piezas ?? 1
-    const cuVid   = r5(Number(p.subtotal_vidrio || p.subtotal_partida) / pzas)
+    const cuVid   = r5(Number(p.subtotal_partida) / pzas)
     const totVid  = cuVid * pzas
     const procNombres = (p.procesos ?? []).map(pr => pr.nombre).join(', ') || '—'
     const m2      = ((pzas * Number(p.largo_cm) * Number(p.ancho_cm)) / 10000).toFixed(4)
