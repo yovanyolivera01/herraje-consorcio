@@ -10,8 +10,8 @@ describe('create pedido credito', () => {
   })
 
   it('pedido credito tiene tipo_pago CREDITO', () => {
-    const pedido = { tipo_pago: 'CREDITO', total: 500, saldo: 500 }
-    expect(pedido.tipo_pago).toBe('CREDITO')
+    const pedido = { tipo_pago: 'POR COBRAR', total: 500, saldo: 500 }
+    expect(pedido.tipo_pago).toBe('POR COBRAR')
   })
 
   it('pedido credito con anticipo reduce el saldo', () => {
@@ -22,25 +22,25 @@ describe('create pedido credito', () => {
   })
 
   it('pedido credito NO debe marcar es_entregado al crear', () => {
-    const pedido = { tipo_pago: 'CREDITO', es_entregado: false }
+    const pedido = { tipo_pago: 'POR COBRAR', es_entregado: false }
     expect(pedido.es_entregado).toBe(false)
   })
 
   it('boton muestra "Cobrar el saldo" cuando tipo_pago es CREDITO', () => {
-    const tipo_pago = 'CREDITO'
-    const label = tipo_pago === 'CREDITO' ? 'Cobrar el saldo' : 'Marcar como entregado'
+    const tipo_pago = 'POR COBRAR'
+    const label = tipo_pago === 'POR COBRAR' ? 'Cobrar el saldo' : 'Marcar como entregado'
     expect(label).toBe('Cobrar el saldo')
   })
 
   it('boton muestra "Marcar como entregado" cuando NO es CREDITO', () => {
     const tipo_pago = 'CONTADO'
-    const label = tipo_pago === 'CREDITO' ? 'Cobrar el saldo' : 'Marcar como entregado'
+    const label = tipo_pago === 'POR COBRAR' ? 'Cobrar el saldo' : 'Marcar como entregado'
     expect(label).toBe('Marcar como entregado')
   })
 
   it('ticket footer es "Entregado." cuando tipo_pago es CREDITO', () => {
-    const tipo_pago = 'CREDITO'
-    const footer = tipo_pago === 'CREDITO' ? 'Entregado.' : 'Pendiente de entrega.'
+    const tipo_pago = 'POR COBRAR'
+    const footer = tipo_pago === 'POR COBRAR' ? 'Entregado.' : 'Pendiente de entrega.'
     expect(footer).toBe('Entregado.')
   })
 })

@@ -76,7 +76,7 @@ function TicketPedido({ detalle, extras = [] }) {
       </div>
       <hr className="ticket-divider" />
       <div style={{ textAlign:'center', fontSize:11, color:'var(--text-muted)', marginTop:8 }}>
-        {detalle.tipo_pago === 'CREDITO' ? 'Por cobrar.' : 'Pedido pendiente de entrega.'}
+        {detalle.tipo_pago === 'POR COBRAR' ? 'Por cobrar.' : 'Pedido pendiente de entrega.'}
       </div>
     </div>
   )
@@ -429,7 +429,7 @@ function DetallePedidoModal({ resumen, onClose, onEntregado }) {
                   ],
                 })}>🖨️ Hoja</button>
                 <button className="btn btn-primary" onClick={() => setShowEntregar(true)}>
-                  {resumen.tipo_pago === 'CREDITO' ? '💰 Cobrar' : '📦 Marcar como entregado'}
+                  {resumen.tipo_pago === 'POR COBRAR' ? '💰 Cobrar' : '📦 Marcar como entregado'}
                 </button>
               </>
             )}
@@ -643,7 +643,7 @@ export default function PedidosPendientes() {
   }, [tab])
 
   const q = busqueda.trim().toLowerCase()
-  const pedidosBase = tab === 'credito' ? pedidosCredito : pedidos.filter(p => p.tipo_pago !== 'CREDITO')
+  const pedidosBase = tab === 'credito' ? pedidosCredito : pedidos.filter(p => p.tipo_pago !== 'POR COBRAR')
   const pedidosFiltrados = q
     ? pedidosBase.filter(p =>
         p.folio?.toLowerCase().includes(q) ||

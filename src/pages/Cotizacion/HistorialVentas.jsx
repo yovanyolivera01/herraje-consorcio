@@ -138,6 +138,7 @@ function DetalleVentaModal({ resumen, onClose }) {
               saldo_cobrado: detalle.saldo_cobrado,
               esEntregado:   true,
               esReimpresion: true,
+              esCancelado:   resumen.esCancelado ?? false,
               total:         detalle.total,
               partidas: [
                 ...(detalle.partidas ?? []).map(p => ({
@@ -324,7 +325,7 @@ export default function HistorialVentas() {
 
   const formaPagoBadge = (fp) =>
     fp === 'LIQUIDADO' ? <span className="badge badge-green">Liquidado</span>
-    : fp === 'CREDITO' ? <span className="badge badge-blue">Por cobrar</span>
+    : fp === 'POR COBRAR' ? <span className="badge badge-blue">Por cobrar</span>
     : <span className="badge badge-orange">Anticipo</span>
 
   const tabStyle = (t) => ({

@@ -742,7 +742,7 @@ export default function MaquilaSection() {
                       }} onClick={() => { setModalTipoPago(tp.descripcion); setModalAnticipo(''); setModalError(null) }}>
                         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
                           <input type="radio" name="maqFP" value={tp.descripcion} checked={modalTipoPago === tp.descripcion} onChange={() => {}} />
-                          <span style={{ fontWeight:600, fontSize:14 }}>{tp.descripcion === 'CREDITO' ? 'Por cobrar' : tp.descripcion.charAt(0) + tp.descripcion.slice(1).toLowerCase()}</span>
+                          <span style={{ fontWeight:600, fontSize:14 }}>{tp.descripcion === 'POR COBRAR' ? 'Por cobrar' : tp.descripcion.charAt(0) + tp.descripcion.slice(1).toLowerCase()}</span>
                         </div>
                       </label>
                     ))}

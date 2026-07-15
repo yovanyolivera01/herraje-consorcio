@@ -9,7 +9,7 @@ import {
   LogOut, Menu, ChevronDown, ChevronLeft, ChevronRight, Crown, User,
   Frame, DoorOpen, Hammer, Warehouse, Box,
   ShoppingCart, TrendingUp, Archive,
-  CardSim,
+  CardSim, Moon, Sun,
 } from 'lucide-react'
 
 // ── Navegacion del sistema Herraje ────────────────────────────────────────
@@ -150,8 +150,14 @@ export default function Layout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => window.innerWidth >= 768 && window.innerWidth < 1024
 )
   const [busqueda, setBusqueda] = useState('')
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('theme') === 'dark')
   const location = useLocation()
   const { role, user, logout } = useAuth()
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light')
+    localStorage.setItem('theme', darkMode ? 'dark' : 'light')
+  }, [darkMode])
 
   useEffect(() => {
     document.body.style.overflow = drawerOpen ? 'hidden' : ''
@@ -336,13 +342,28 @@ export default function Layout() {
           })}
         </nav>
 
-        <button
-          className="sidebar-collapse-btn"
-          onClick={() => setSidebarCollapsed(c => !c)}
-          title={sidebarCollapsed ? 'Expandir menú' : 'Compactar menú'}
-        >
-          {sidebarCollapsed ? <ChevronRight size={15} /> : <ChevronLeft size={15} />}
-        </button>
+        <div style={{ display: 'flex', gap: 6, padding: '0 10px 10px' }}>
+          <button
+            className="sidebar-collapse-btn"
+            style={{ flex: 1, margin: 0 }}
+            onClick={() => setSidebarCollapsed(c => !c)}
+            title={sidebarCollapsed ? 'Expandir menú' : 'Compactar menú'}
+          >
+            {sidebarCollapsed ? <ChevronRight size={15} /> : <ChevronLeft size={15} />}
+          </button>
+          <button
+            onClick={() => setDarkMode(d => !d)}
+            title={darkMode ? 'Modo claro' : 'Modo oscuro'}
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              padding: '7px 10px', border: '1px solid var(--border)', borderRadius: 6,
+              background: 'none', cursor: 'pointer', color: 'var(--text-muted)',
+              transition: 'background 0.15s, color 0.15s', flexShrink: 0,
+            }}
+          >
+            {darkMode ? <Sun size={15} /> : <Moon size={15} />}
+          </button>
+        </div>
       </aside>
 
       <main className="main-content">
@@ -364,6 +385,17 @@ export default function Layout() {
               }
               <span>{user?.nombre ?? user?.user_metadata?.nombre ?? user?.email?.split('@')[0]}</span>
             </span>
+            <button
+              onClick={() => setDarkMode(d => !d)}
+              style={{
+                background: 'none', border: '1px solid var(--border)', borderRadius: 6,
+                padding: '4px 8px', fontSize: 12, cursor: 'pointer', color: 'var(--text-muted)',
+                display: 'flex', alignItems: 'center',
+              }}
+              title={darkMode ? 'Modo claro' : 'Modo oscuro'}
+            >
+              {darkMode ? <Sun size={14} /> : <Moon size={14} />}
+            </button>
             <button
               onClick={logout}
               style={{

@@ -235,6 +235,7 @@ export const getPedidosCancelados = async (fechaDesde, fechaHasta) => {
       clienteNombre:   row.cliente ?? 'Mostrador',
       total:           Number(row.total),
       tipo_pago:       row.tipo_pago,
+      esCancelado:     true,
     }
   })
 }
@@ -264,7 +265,7 @@ export const getPedidosCredito = async () => {
       saldo:          Number(row.total) - Number(row.monto_anticipo ?? 0),
       estatus:        row.estatus,
       tipo:           row.tipo ?? 'VIDRIO',
-      tipo_pago:      'CREDITO',
+      tipo_pago:      'POR COBRAR',
     }
   })
 }
