@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import logoVR from '../assets/images/logoVR.jpeg'
 import {
   Truck, Package, ReceiptText, BarChart2,
   Layers, Settings2, Building2, Users, Tag,
@@ -9,7 +10,7 @@ import {
   LogOut, Menu, ChevronDown, ChevronLeft, ChevronRight, Crown, User,
   Frame, DoorOpen, Hammer, Warehouse, Box,
   ShoppingCart, TrendingUp, Archive,
-  CardSim,
+  CardSim, Moon, Sun,
 } from 'lucide-react'
 
 // ── Navegacion del sistema Herraje ────────────────────────────────────────
@@ -150,8 +151,14 @@ export default function Layout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => window.innerWidth >= 768 && window.innerWidth < 1024
 )
   const [busqueda, setBusqueda] = useState('')
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('theme') === 'dark')
   const location = useLocation()
   const { role, user, logout } = useAuth()
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light')
+    localStorage.setItem('theme', darkMode ? 'dark' : 'light')
+  }, [darkMode])
 
   useEffect(() => {
     document.body.style.overflow = drawerOpen ? 'hidden' : ''
@@ -243,14 +250,11 @@ export default function Layout() {
 
       <aside className={`sidebar${drawerOpen ? ' sidebar-open' : ''}`}>
         {/* Logo */}
-        <div className="sidebar-logo">
-          <span className="sidebar-logo-icon">
-            {sistemaIconos[sistemaActivo]}
-          </span>
-          <div className="sidebar-logo-text">
-            <h1>{{ herraje: 'Herraje', vidrio: 'Catalogos', ventas: 'Ventas', reportes: 'Reportes', inventarios: 'Almacén', personal: 'Personal', egresos: 'Egresos' }[sistemaActivo] ?? 'Herraje'}</h1>
-            <p>Vidreria Rosales</p>
-          </div>
+        <div className="sidebar-logo" style={{ justifyContent: 'center', padding: '12px 10px' }}>
+          {sidebarCollapsed
+            ? <span className="sidebar-logo-icon">{sistemaIconos[sistemaActivo]}</span>
+            : <img src={logoVR} alt="Vidreria Rosales" style={{ maxWidth: '100%', width: 100, borderRadius: 6, display: 'block' }} />
+          }
         </div>
 
         {/* Buscador */}
@@ -339,13 +343,45 @@ export default function Layout() {
           })}
         </nav>
 
-        <button
-          className="sidebar-collapse-btn"
-          onClick={() => setSidebarCollapsed(c => !c)}
-          title={sidebarCollapsed ? 'Expandir menú' : 'Compactar menú'}
-        >
-          {sidebarCollapsed ? <ChevronRight size={15} /> : <ChevronLeft size={15} />}
-        </button>
+        <div style={{ padding: '0 10px 4px' }}>
+          <button
+            onClick={logout}
+            title="Cerrar sesión"
+            style={{
+              width: '100%', display: 'flex', alignItems: 'center',
+              justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
+              gap: 8, padding: sidebarCollapsed ? '8px 0' : '8px 14px',
+              border: '1px solid var(--border)', borderRadius: 6,
+              background: 'none', cursor: 'pointer', color: 'var(--danger, #dc2626)',
+              fontSize: 13, fontWeight: 600,
+            }}
+          >
+            <LogOut size={15} />
+            {!sidebarCollapsed && 'Cerrar sesión'}
+          </button>
+        </div>
+        <div style={{ display: 'flex', gap: 6, padding: '4px 10px 10px' }}>
+          <button
+            className="sidebar-collapse-btn"
+            style={{ flex: 1, margin: 0 }}
+            onClick={() => setSidebarCollapsed(c => !c)}
+            title={sidebarCollapsed ? 'Expandir menú' : 'Compactar menú'}
+          >
+            {sidebarCollapsed ? <ChevronRight size={15} /> : <ChevronLeft size={15} />}
+          </button>
+          <button
+            onClick={() => setDarkMode(d => !d)}
+            title={darkMode ? 'Modo claro' : 'Modo oscuro'}
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              padding: '7px 10px', border: '1px solid var(--border)', borderRadius: 6,
+              background: 'none', cursor: 'pointer', color: 'var(--text-muted)',
+              transition: 'background 0.15s, color 0.15s', flexShrink: 0,
+            }}
+          >
+            {darkMode ? <Sun size={15} /> : <Moon size={15} />}
+          </button>
+        </div>
       </aside>
 
       <main className="main-content">
@@ -367,6 +403,17 @@ export default function Layout() {
               }
               <span>{user?.nombre ?? user?.user_metadata?.nombre ?? user?.email?.split('@')[0]}</span>
             </span>
+            <button
+              onClick={() => setDarkMode(d => !d)}
+              style={{
+                background: 'none', border: '1px solid var(--border)', borderRadius: 6,
+                padding: '4px 8px', fontSize: 12, cursor: 'pointer', color: 'var(--text-muted)',
+                display: 'flex', alignItems: 'center',
+              }}
+              title={darkMode ? 'Modo claro' : 'Modo oscuro'}
+            >
+              {darkMode ? <Sun size={14} /> : <Moon size={14} />}
+            </button>
             <button
               onClick={logout}
               style={{

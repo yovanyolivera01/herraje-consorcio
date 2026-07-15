@@ -10,9 +10,10 @@ import { venderProductoGeneral } from '../../lib/productosGeneralesApi'
 import { printTicketVidrio, printPedidoA4 } from '../../utils/ticket'
 
 const TIPO_META = {
-  VIDRIO:   { label: 'Vidrio',   bg: '#dbeafe', color: '#1d4ed8' },
-  MAQUILA:  { label: 'Maquila',  bg: '#fef3c7', color: '#b45309' },
-  PRODUCTO: { label: 'Herraje',  bg: '#dcfce7', color: '#15803d' },
+  VIDRIO:   { label: 'Vidrio',        bg: '#dbeafe', color: '#1d4ed8' },
+  MAQUILA:  { label: 'Maquila',       bg: '#fef3c7', color: '#b45309' },
+  PRODUCTO: { label: 'Herraje',       bg: '#dcfce7', color: '#15803d' },
+  EXTRA:    { label: 'Proceso Extra', bg: '#fce7f3', color: '#9d174d' },
 }
 
 // Convierte una partida del historial (formato DB) al formato interno del formulario
@@ -209,6 +210,20 @@ function TicketPedidoRapido({ detalle, extras = [] }) {
         </>
       )}
 
+      {/* Proceso Extra */}
+      {extras.some(e => e.tipo === 'EXTRA') && (
+        <>
+          <hr className="ticket-divider" />
+          <div style={{ fontWeight:700, fontSize:11, textTransform:'uppercase', letterSpacing:1, marginBottom:4, color:'var(--text-muted)' }}>Proceso Extra</div>
+          {extras.filter(e => e.tipo === 'EXTRA').map((e, i) => (
+            <div key={i} className="ticket-row" style={{ fontWeight:600, fontSize:12, marginBottom:4 }}>
+              <span>{e.cantidad} · {e.descripcion}</span>
+              <span>${fmt5(e.subtotal)}</span>
+            </div>
+          ))}
+        </>
+      )}
+
       {/* Herraje */}
       {extras.some(e => e.tipo === 'PRODUCTO') && (
         <>
@@ -349,6 +364,12 @@ export default function NuevaCotizacion() {
 
   // ── Draft: persistir en sessionStorage ───────────────────────────────────
   const DRAFT_KEY = 'cot_nueva_draft'
+
+  // Auto-select the first precio level when context loads and nothing is set yet
+  useEffect(() => {
+    if (cotEdit || nivelId || !nivelesPrecio.length) return
+    setNivelId(String(nivelesPrecio[0].id_nivel_precio))
+  }, [nivelesPrecio]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (cotEdit) return
@@ -574,7 +595,7 @@ export default function NuevaCotizacion() {
     setPreciosCli([])
     if (cid) { setDatosCotOpen(false)
       const cl = clientes.find(c => c.id_cliente === Number(cid))
-      setNivelId(cl?.id_nivel_precio ? String(cl.id_nivel_precio) : '')
+      setNivelId(cl?.id_nivel_precio ? String(cl.id_nivel_precio) : (nivelesPrecio[0]?.id_nivel_precio ? String(nivelesPrecio[0].id_nivel_precio) : ''))
       setCargandoCli(true)
       getPreciosClienteRegistrado(Number(cid))
         .then(data => setPreciosCli(data ?? []))
@@ -693,6 +714,7 @@ export default function NuevaCotizacion() {
     if (maqParsed.error)            { setMaqNotError(maqParsed.error); return }
     if (!efectivoNivelId)           { setMaqNotError('Selecciona un nivel de precio'); return }
     if (!maqProcesosSelec.length)   { setMaqNotError('Selecciona al menos un proceso'); return }
+    if (maqSubtotal === 0)          { setMaqNotError('Los procesos seleccionados no tienen precio configurado'); return }
     const espesorSel = espesores.find(e => e.id_espesor === Number(maqEspesorId))
     setPartidas(prev => [...prev, {
       _key:            Date.now() + Math.random(),
@@ -710,6 +732,22 @@ export default function NuevaCotizacion() {
       subtotal_partida: maqSubtotal,
     }])
     setMaqNotacion(''); setMaqDescripcion(''); setMaqEspesorId(''); setMaqProcesosSelec([]); setMaqNotError(''); setMaqError('')
+  }
+
+  // ── Proceso Extra ─────────────────────────────────────────────────────────
+  const handleAgregarExtraStandalone = (proceso, cantidad) => {
+    const qty   = Number(cantidad) > 0 ? Number(cantidad) : 1
+    const precio = efectivoNivelId ? (getPrecioEsp(proceso.id_proceso) ?? 0) : 0
+    if (precio <= 0) return
+    setPartidas(prev => [...prev, {
+      _key:             Date.now() + Math.random(),
+      tipo:             'EXTRA',
+      descripcion:      proceso.nombre,
+      cantidad:         qty,
+      unidad:           'pza',
+      precio_unitario:  precio,
+      subtotal_partida: precio * qty,
+    }])
   }
 
   // ── Catálogo herraje unificado (HERRAJE + GENERAL) ────────────────────────
@@ -874,6 +912,7 @@ export default function NuevaCotizacion() {
   const handleFinalizar = async () => {
     if (!nivelValido) { setSaveError('Selecciona un nivel de precio'); return }
     if (!partidas.length) { setSaveError('Agrega al menos una partida'); return }
+    if (totalGeneral <= 0) { setSaveError('El total no puede ser $0. Verifica que los procesos tengan precio configurado'); return }
     setSaving(true)
     setSaveError(null)
 
@@ -973,6 +1012,7 @@ export default function NuevaCotizacion() {
     const antN = parseFloat(modalAnticipoStr) || 0
     if (!nivelValido) { setModalError('Selecciona un nivel de precio'); return }
     if (!partidas.length) { setModalError('Agrega al menos una partida'); return }
+    if (totalGeneral <= 0) { setModalError('El total no puede ser $0. Verifica que los procesos tengan precio configurado'); return }
     const vidrioPartidas = partidas.filter(p => p.tipo === 'VIDRIO' || !p.tipo)
     if (modalFormaPago === 'ANTICIPO') {
       if (antN <= 0)            { setModalError('Ingresa un monto de anticipo valido'); return }
@@ -1343,7 +1383,7 @@ export default function NuevaCotizacion() {
                         flex: 1, padding: '7px 0', borderRadius: 8, fontSize: 13,
                         cursor: 'pointer', fontWeight: active ? 700 : 400,
                         border: `2px solid ${active ? meta.color : 'var(--border)'}`,
-                        background: active ? meta.bg : 'white',
+                        background: active ? meta.bg : 'var(--card)',
                         color: active ? meta.color : 'var(--text)',
                         transition: 'all 0.15s',
                       }}
@@ -1377,7 +1417,7 @@ export default function NuevaCotizacion() {
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
                       {nivelesPrecio.map(n => {
                         const activo   = nivelId === String(n.id_nivel_precio)
-                        const bloqueado = !!clienteId
+                        const bloqueado = usarPreciosCli
                         const precioM2 = tipoVidrioId
                           ? getPrecioVidrio(Number(tipoVidrioId), n.id_nivel_precio)
                           : null
@@ -1392,7 +1432,7 @@ export default function NuevaCotizacion() {
                               padding: '7px 14px', borderRadius: 8, fontSize: 14,
                               cursor: bloqueado && !activo ? 'not-allowed' : 'pointer',
                               border: `2px solid ${activo ? 'var(--accent)' : 'var(--border)'}`,
-                              background: activo ? 'var(--accent)' : bloqueado ? 'var(--bg)' : 'white',
+                              background: activo ? 'var(--accent)' : bloqueado ? 'var(--bg)' : 'var(--card)',
                               color: activo ? 'white' : bloqueado ? 'var(--text-muted)' : 'var(--text)',
                               fontWeight: activo ? 700 : 400,
                               opacity: bloqueado && !activo ? 0.4 : 1,
@@ -1501,21 +1541,21 @@ export default function NuevaCotizacion() {
                 const hasRight = barrenos.length > 0 || saques.length > 0 || extras.length > 0
                 if (!hasLeft && !hasRight) return null
 
-                const checkRow = (p, sel, onToggle, onQtyChange, qty) => (
+                const checkRow = (p, sel, onToggle, onQtyChange, qty, onAddStandalone) => (
                   <div
                     key={p.id_proceso}
-                    onClick={onToggle}
+                    onClick={e => { if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON') onToggle() }}
+                    className={sel ? 'proc-row-sel' : undefined}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 3,
                       padding: '3px 8px',
-                      background: sel ? '#eff6ff' : 'transparent',
                       cursor: 'pointer', userSelect: 'none', borderRadius: 4,
                     }}
                   >
-                    <input type="checkbox" checked={sel} readOnly
+                    <input type="checkbox" checked={sel} readOnly onClick={onToggle}
                       style={{ cursor: 'pointer', flexShrink: 0, width: 6, height: 6 }}
                     />
-                    <span style={{ fontSize: 17, fontWeight: sel ? 600 : 400 }}>{p.nombre}</span>
+                    <span style={{ fontSize: 17, fontWeight: sel ? 600 : 400, flex: 1 }}>{p.nombre}</span>
                     {onQtyChange && sel && (
                       <input
                         type="number" min="1" step="1"
@@ -1523,8 +1563,17 @@ export default function NuevaCotizacion() {
                         style={{ width: 46, padding: '1px 4px', fontSize: 11, margin: 0, height: 22, flexShrink: 0 }}
                         value={qty}
                         onClick={e => e.stopPropagation()}
+                        onKeyDown={e => { if (e.key === 'Enter' && onAddStandalone) { e.preventDefault(); onAddStandalone() } }}
                         onChange={e => onQtyChange(parseInt(e.target.value))}
                       />
+                    )}
+                    {onAddStandalone && sel && (
+                      <button
+                        type="button"
+                        onClick={e => { e.stopPropagation(); onAddStandalone() }}
+                        title="Agregar como partida extra"
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px', fontSize: 14, lineHeight: 1, flexShrink: 0 }}
+                      >➕</button>
                     )}
                   </div>
                 )
@@ -1589,9 +1638,11 @@ export default function NuevaCotizacion() {
                           {extras.length > 0 && (<>
                             {groupLabel('Extras')}
                             {extras.map(p => {
-                              const sel = extrasSeleccionados.find(s => s.id_proceso === p.id_proceso)
+                              const sel    = extrasSeleccionados.find(s => s.id_proceso === p.id_proceso)
+                              const precio = efectivoNivelId ? (getPrecioEsp(p.id_proceso) ?? 0) : 0
                               return checkRow(p, !!sel, () => toggleExtra(p.id_proceso),
-                                val => updateExtraCantidad(p.id_proceso, val), sel?.cantidad ?? 1)
+                                val => updateExtraCantidad(p.id_proceso, val), sel?.cantidad ?? 1,
+                                precio > 0 ? () => handleAgregarExtraStandalone(p, sel?.cantidad ?? 1) : null)
                             })}
                           </>)}
                         </div>
@@ -1742,7 +1793,7 @@ export default function NuevaCotizacion() {
                                 padding: '4px 10px', borderRadius: 6, fontSize: 12,
                                 cursor: 'pointer', fontWeight: activo ? 700 : 400,
                                 border: `2px solid ${activo ? '#b45309' : 'var(--border)'}`,
-                                background: activo ? '#fef3c7' : 'white',
+                                background: activo ? '#fef3c7' : 'var(--card)',
                                 color: activo ? '#b45309' : 'var(--text)',
                                 transition: 'all 0.15s',
                               }}
@@ -1779,10 +1830,10 @@ export default function NuevaCotizacion() {
                       <div
                         key={p.id_proceso}
                         onClick={onToggle}
+                        className={sel ? 'proc-row-sel' : undefined}
                         style={{
                           display: 'flex', alignItems: 'center', gap: 8,
                           padding: '6px 10px',
-                          background: sel ? '#eff6ff' : 'transparent',
                           cursor: 'pointer', userSelect: 'none', borderRadius: 5,
                         }}
                       >
@@ -1861,8 +1912,17 @@ export default function NuevaCotizacion() {
                                 {groupLabel('Extras')}
                                 {extras.map(p => {
                                   const sel = maqProcesosSelec.find(s => s.id_proceso === p.id_proceso)
-                                  return checkRow(p, !!sel, () => toggleMaqProceso(p.id_proceso),
-                                    val => setMaqProcesoQty(p.id_proceso, val), sel?.cantidad ?? '')
+                                  const precio = efectivoNivelId ? getPrecioEsp(p.id_proceso) : null
+                                  const sinPrecio = efectivoNivelId && (precio === null || precio === 0)
+                                  return (
+                                    <div key={p.id_proceso} style={{ position: 'relative' }}>
+                                      {checkRow(p, !!sel, () => toggleMaqProceso(p.id_proceso),
+                                        val => setMaqProcesoQty(p.id_proceso, val), sel?.cantidad ?? '')}
+                                      {sinPrecio && (
+                                        <span style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', fontSize: 10, color: '#dc2626', fontWeight: 700 }}>sin precio</span>
+                                      )}
+                                    </div>
+                                  )
                                 })}
                               </>)}
                             </div>
@@ -1922,6 +1982,7 @@ export default function NuevaCotizacion() {
                 </div>
               )}
 
+
               {tipoPartida === 'PRODUCTO' && (
                 <div>
                   {herrajeError && <div className="alert alert-error" style={{ marginBottom: 8 }}>❌ {herrajeError}</div>}
@@ -1940,7 +2001,7 @@ export default function NuevaCotizacion() {
                     {herrajeResultados.length > 0 && (
                       <div style={{
                         position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50,
-                        background: 'white', border: '1.5px solid var(--border)',
+                        background: 'var(--card)', border: '1.5px solid var(--border)',
                         borderRadius: 8, boxShadow: '0 8px 24px rgba(0,0,0,0.1)',
                         overflow: 'hidden', marginTop: 4,
                       }}>
@@ -1977,7 +2038,7 @@ export default function NuevaCotizacion() {
                     {herrajeQuery.trim() && herrajeResultados.length === 0 && (
                       <div style={{
                         position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50,
-                        background: 'white', border: '1.5px solid var(--border)', borderRadius: 8,
+                        background: 'var(--card)', border: '1.5px solid var(--border)', borderRadius: 8,
                         padding: 14, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13, marginTop: 4,
                       }}>
                         No se encontraron productos
@@ -2033,6 +2094,18 @@ export default function NuevaCotizacion() {
                               + {pr.nombre}: ${fmt5(pr.subtotal)}
                             </div>
                           ))}
+                        </>
+                      ) : p.tipo === 'EXTRA' ? (
+                        <>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                            <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: TIPO_META.EXTRA.bg, color: TIPO_META.EXTRA.color }}>
+                              Proceso Extra
+                            </span>
+                            <span style={{ fontWeight: 600, fontSize: 14 }}>{p.descripcion}</span>
+                          </div>
+                          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                            {p.cantidad} {p.unidad} × ${fmt5(p.precio_unitario)}
+                          </div>
                         </>
                       ) : (
                         <>
@@ -2193,13 +2266,13 @@ export default function NuevaCotizacion() {
                           flex: 1, minWidth: 140, display: 'flex', flexDirection: 'column', gap: 3,
                           padding: '10px 12px', borderRadius: 8, cursor: 'pointer',
                           border: `2px solid ${modalFormaPago === tp.descripcion ? 'var(--accent)' : 'var(--border)'}`,
-                          background: modalFormaPago === tp.descripcion ? 'var(--accent-subtle, #ede9fe)' : 'white',
+                          background: modalFormaPago === tp.descripcion ? 'var(--accent-subtle, #ede9fe)' : 'var(--card)',
                         }}
                         onClick={() => { setModalFormaPago(tp.descripcion); setModalAnticipoStr(''); setModalError(null) }}
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <input type="radio" name="modalFP" value={tp.descripcion} checked={modalFormaPago === tp.descripcion} onChange={() => {}} />
-                          <span style={{ fontWeight: 600, fontSize: 14 }}>{tp.descripcion === 'CREDITO' ? 'Por cobrar' : tp.descripcion.charAt(0) + tp.descripcion.slice(1).toLowerCase()}</span>
+                          <span style={{ fontWeight: 600, fontSize: 14 }}>{tp.descripcion === 'POR COBRAR' ? 'Por cobrar' : tp.descripcion.charAt(0) + tp.descripcion.slice(1).toLowerCase()}</span>
                         </div>
                       </label>
                     ))}

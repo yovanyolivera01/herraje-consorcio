@@ -223,7 +223,7 @@ function ConvertirPedidoModal({ cotizacion, onClose, onCreado }) {
           <div className="form-group">
             <label className="form-label required">Forma de pago</label>
             <div style={{ display:'flex', gap:16, marginTop:6 }}>
-              {[['LIQUIDADO','Liquidado — pago total'],['ANTICIPO','Anticipo — pago parcial'],['CREDITO','Por cobrar']].map(([val, label]) => (
+              {[['LIQUIDADO','Liquidado — pago total'],['ANTICIPO','Anticipo — pago parcial'],['POR COBRAR','Por cobrar']].map(([val, label]) => (
                 <label key={val} style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', fontSize:14 }}>
                   <input
                     type="radio" name="formaPago" value={val}
@@ -707,7 +707,7 @@ function DetalleMaquilaModal({ cotId, onClose, onReopenOk, onConvertidoOk }) {
                 <select className="form-input" value={tipoPago} onChange={e => setTipoPago(e.target.value)}>
                   <option value="ANTICIPO">Anticipo</option>
                   <option value="LIQUIDADO">Liquidado (pago total)</option>
-                  <option value="CREDITO">Por cobrar</option>
+                  <option value="POR COBRAR">Por cobrar</option>
                 </select>
               </div>
               {tipoPago === 'ANTICIPO' && (

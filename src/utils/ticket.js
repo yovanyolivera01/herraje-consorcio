@@ -1,4 +1,4 @@
-import logoUrl from '../assets/images/logo.png'
+import logoUrl from '../assets/images/logoVR_b64.txt?raw'
 
 /**
  * Imprime un ticket de vidrio (cotización o pedido) via iframe.
@@ -7,9 +7,10 @@ import logoUrl from '../assets/images/logo.png'
  *   partidas[{piezas, clave, largo_cm, ancho_cm, subtotal_vidrio, procesos, subtotal_partida}])
  */
 export function printTicketVidrio(detalle) {
-  const vidrios  = detalle.partidas.filter(p => !p.tipo || p.tipo === 'VIDRIO')
-  const maquilas = detalle.partidas.filter(p => p.tipo === 'MAQUILA')
-  const herrajes = detalle.partidas.filter(p => p.tipo === 'HERRAJE' || p.tipo === 'PRODUCTO')
+  const vidrios    = detalle.partidas.filter(p => !p.tipo || p.tipo === 'VIDRIO')
+  const maquilas   = detalle.partidas.filter(p => p.tipo === 'MAQUILA')
+  const extrasProc = detalle.partidas.filter(p => p.tipo === 'EXTRA')
+  const herrajes   = detalle.partidas.filter(p => p.tipo === 'HERRAJE' || p.tipo === 'PRODUCTO')
   
   const renderVidrio = p => {
     const pzas    = p.piezas ?? 1
@@ -55,10 +56,13 @@ export function printTicketVidrio(detalle) {
       const pzas  = p.piezas ?? 1
       const dimStr = `${p.largo_cm}×${p.ancho_cm}cm`
       const clave = (p.clave && p.clave !== dimStr) ? ` · ${p.clave}` : ''
-      const procRows = (p.procesos ?? []).map(pr => `
+      const procRows = (p.procesos ?? []).map(pr => {
+        const cu = pr.precio_unitario != null ? ` · $${Number(pr.precio_unitario).toFixed(2)}` : ''
+        return `
         <div class="row" style="padding-left:10px;font-size:12px">
-          <span>+${pr.nombre}</span><span>$${Number(pr.subtotal ?? 0).toFixed(2)}</span>
-        </div>`).join('')
+          <span>+${pr.nombre}${cu}</span><span>$${Number(pr.subtotal ?? 0).toFixed(2)}</span>
+        </div>`
+      }).join('')
       return `
         <div class="partida">
           <div class="row bold">
@@ -111,16 +115,18 @@ export function printTicketVidrio(detalle) {
   const totalCalculado = detalle.partidas.reduce((sum, p) => sum + Number(p.subtotal_partida), 0)
 
   let rows = ''
-  if (vidrios.length)  rows += sectionLbl('Vidrio') + colHeader + vidrios.map(renderVidrio).join('')
-  if (maquilas.length) rows += sectionLbl('Maquila') + maqColHeader + maquilas.map(renderMaquila).join('')
-  if (herrajes.length) rows += sectionLbl('Herraje') + herrajes.map(renderHerraje).join('')
+  if (vidrios.length)    rows += sectionLbl('Vidrio') + colHeader + vidrios.map(renderVidrio).join('')
+  if (maquilas.length)   rows += sectionLbl('Maquila') + maqColHeader + maquilas.map(renderMaquila).join('')
+  if (extrasProc.length) rows += sectionLbl('Proceso Extra') + extrasProc.map(p => `
+    <div class="row"><span>${p.cantidad ?? 1} · ${p.descripcion ?? '—'}</span><span>$${Number(p.subtotal_partida).toFixed(2)}</span></div>`).join('')
+  if (herrajes.length)   rows += sectionLbl('Herraje') + herrajes.map(renderHerraje).join('')
 
   const pagoRows = detalle.tipo === 'pedido' ? `
     <hr class="divider">
     ${detalle.metodoPago ? `<div class="row"><span>Método de pago:</span><span>${detalle.metodoPago.charAt(0) + detalle.metodoPago.slice(1).toLowerCase()}</span></div>` : ''}
     <div class="row"><span>Método de entrega:</span><span>${
       detalle.formaPago === 'LIQUIDADO' ? 'Liquidado' :
-      detalle.formaPago === 'CREDITO'   ? 'Por cobrar' :
+      detalle.formaPago === 'POR COBRAR' ? 'Por cobrar' :
       detalle.formaPago === 'CONTADO'   ? 'Contado' : 'Anticipo'
     }</span></div>
     ${detalle.formaPago === 'ANTICIPO' ? `
@@ -128,7 +134,7 @@ export function printTicketVidrio(detalle) {
       ${!detalle.esEntregado ? `<div class="row"><span>Saldo pendiente:</span><span class="bold">$${Number(detalle.saldo).toFixed(2)}</span></div>` : ''}
       ${detalle.esEntregado && detalle.saldo_cobrado != null ? `<div class="row"><span>Saldo cobrado:</span><span class="bold">$${Number(detalle.saldo_cobrado).toFixed(2)}</span></div>` : ''}
     ` : ''}
-    ${detalle.formaPago === 'CREDITO' ? `
+    ${detalle.formaPago === 'POR COBRAR' ? `
   <div class="row"><span>Saldo por cobrar:</span><span class="bold">$${totalCalculado.toFixed(2)}</span></div>
   <br><br><br>
   <div style="border-top:1px solid #000;width:70%;margin:0 auto;margin-top:20px;"></div>
@@ -137,14 +143,18 @@ export function printTicketVidrio(detalle) {
 
   ` : ''
 
-  const esMaquila = maquilas.length > 0 && vidrios.length === 0
+  const esMaquila = (maquilas.length > 0 || extrasProc.length > 0) && vidrios.length === 0
   const titulo = detalle.tipo === 'pedido'
     ? (esMaquila ? 'Pedido maquila' : 'Pedido vidrio')
     : (esMaquila ? 'Cotizacion maquila' : 'Cotizacion vidrio')
   const folioLabel = detalle.tipo === 'pedido' ? 'Pedido:' : 'Folio:'
   const cotLabel = detalle.tipo === 'pedido' ? `<div class="row"><span>Cotizacion:</span><span>${detalle.foliosCot ?? ''}</span></div>` : ''
   const pie = detalle.esEntregado ? '¡Gracias por su compra!' : detalle.tipo === 'pedido' ? 'Pendiente de entrega.' : 'Cotizacion con vigencia de 15 dias.'
-  const reimpresionHtml = detalle.esReimpresion ? `<div class="center" style="font-size:11px;font-weight:700;border:1px dashed #000;padding:3px 0;margin-top:6px;letter-spacing:1px">*** REIMPRESION — PEDIDO ENTREGADO ***</div>` : ''
+  const reimpresionHtml = detalle.esCancelado
+    ? `<div class="center" style="font-size:12px;font-weight:700;border:2px solid #991b1b;padding:4px 0;margin-top:6px;letter-spacing:1px;color:#991b1b">⚠ PEDIDO CANCELADO — REIMPRESIÓN ⚠</div>`
+    : detalle.esReimpresion
+      ? `<div class="center" style="font-size:11px;font-weight:700;border:1px dashed #000;padding:3px 0;margin-top:6px;letter-spacing:1px">*** REIMPRESION — PEDIDO ENTREGADO ***</div>`
+      : ''
 
   const html = `<!DOCTYPE html>
 <html lang="es">
@@ -179,6 +189,7 @@ export function printTicketVidrio(detalle) {
 <body>
   <div class="header center">
     <h1>VIDRIO TEMPLADO Y ALUMINIO ROSALES</h1>
+    <p style="font-style:italic;font-weight:700">Calidad que se ve, confianza que perdura</p>
     <p>Rosales #35 C.P. 55270, Granjas Valle de Guadalupe</p>
     <p>Ecatepec de Morelos, Estado de Mexico</p>
     <p>Tel: 5523134256, 5522161432, 5547912671</p>
@@ -324,7 +335,7 @@ export function printPedidoPendiente(detalle) {
     <div class="row" style="font-size:14px"><span class="bold">Saldo pendiente:</span><span class="bold">$${(totalCalculado - Number(detalle.anticipo)).toFixed(2)}</span></div>
   </div>
   <hr class="divider-thin">
-  <div class="center" style="font-size:11px;margin-top:6px">${detalle.tipo_pago === 'CREDITO' ? 'Entregado.' : 'Pendiente de entrega.'}</div>
+  <div class="center" style="font-size:11px;margin-top:6px">${detalle.tipo_pago === 'POR COBRAR' ? 'Entregado.' : 'Pendiente de entrega.'}</div>
 </body>
 </html>`
 
@@ -352,7 +363,9 @@ export function printPedidoPendiente(detalle) {
  */
 export function printCotizacionCarta(detalle) {
   const totalCalculado = detalle.partidas.reduce((sum, p) => sum + Number(p.subtotal_partida), 0)
-  const rows = detalle.partidas.map((p) => {
+  const vidrosPartidas  = detalle.partidas.filter(p => !p.tipo || p.tipo === 'VIDRIO' || p.tipo === 'MAQUILA')
+  const extrasPartidas  = detalle.partidas.filter(p => p.tipo === 'EXTRA')
+  const rows = vidrosPartidas.map((p) => {
     const pzas    = p.piezas ?? 1
     const m2      = (pzas * p.largo_cm * p.ancho_cm / 10000).toFixed(4)
     const cuVid   = Number(p.subtotal_vidrio ?? p.subtotal_partida) / pzas
@@ -479,6 +492,7 @@ export function printCotizacionCarta(detalle) {
     <img src="${logoUrl}" class="brand-logo" alt="Logo">
     <div>
       <div class="brand-name">VIDRIO TEMPLADO Y ALUMINIO ROSALES</div>
+      <div class="brand-detail" style="font-style:italic;color:#1565c0;font-weight:600;margin-top:2px">Calidad que se ve, confianza que perdura</div>
       <div class="brand-detail">Rosales #35 C.P. 55270, Granjas Valle de Guadalupe · Ecatepec de Morelos, Estado de Mexico</div>
       <div class="brand-detail">Tel: 5523134256, 5522161432, 5547912671 · rosalesvidriotempladofernando@gmail.com</div>
     </div>
@@ -550,6 +564,26 @@ export function printCotizacionCarta(detalle) {
     </tbody>
   </table>
 
+  ${extrasPartidas.length > 0 ? `
+  <div style="font-size:13px;font-weight:700;color:#1a3a6b;margin:12px 0 6px;text-transform:uppercase;letter-spacing:1px">Proceso Extra</div>
+  <table>
+    <thead><tr>
+      <th>Proceso</th>
+      <th style="text-align:center">Cant</th>
+      <th style="text-align:right">P.U.</th>
+      <th style="text-align:right">Total</th>
+    </tr></thead>
+    <tbody>
+      ${extrasPartidas.map((p, idx) => `
+      <tr style="background:${idx % 2 === 0 ? '#fff' : '#fafafa'}">
+        <td>${p.descripcion ?? '—'}</td>
+        <td style="text-align:center">${p.cantidad ?? 1}</td>
+        <td style="text-align:right;font-size:11px">$${Number(p.precio_unitario ?? 0).toFixed(2)}</td>
+        <td style="text-align:right;font-weight:600">$${Number(p.subtotal_partida).toFixed(2)}</td>
+      </tr>`).join('')}
+    </tbody>
+  </table>` : ''}
+
   <!-- Total -->
   <div class="total-box">
     <div class="total-inner">TOTAL: $${totalCalculado.toFixed(2)}</div>
@@ -590,9 +624,10 @@ export function printCotizacionCarta(detalle) {
  * Acepta el mismo objeto detalle que printTicketVidrio (tipo: 'pedido').
  */
 export function printPedidoA4(detalle) {
-  const vidrios  = detalle.partidas.filter(p => !p.tipo || p.tipo === 'VIDRIO')
-  const maquilas = detalle.partidas.filter(p => p.tipo === 'MAQUILA')
-  const herrajes = detalle.partidas.filter(p => p.tipo === 'HERRAJE' || p.tipo === 'PRODUCTO')
+  const vidrios    = detalle.partidas.filter(p => !p.tipo || p.tipo === 'VIDRIO')
+  const maquilas   = detalle.partidas.filter(p => p.tipo === 'MAQUILA')
+  const extrasProc = detalle.partidas.filter(p => p.tipo === 'EXTRA')
+  const herrajes   = detalle.partidas.filter(p => p.tipo === 'HERRAJE' || p.tipo === 'PRODUCTO')
 
   const totalCalculado = detalle.partidas.reduce((sum, p) => sum + Number(p.subtotal_partida), 0)
 
@@ -651,26 +686,38 @@ export function printPedidoA4(detalle) {
     </table>`
 
   const maquilaRows = maquilas.map((p, idx) => {
-    const dotIdx = (p.descripcion ?? '').indexOf(' · ')
-    const dims   = dotIdx >= 0 ? p.descripcion.slice(0, dotIdx) : (p.descripcion ?? p.clave ?? '—')
-    const procs  = dotIdx >= 0 ? p.descripcion.slice(dotIdx + 3).split(', ').filter(Boolean) : []
-    const cuVal  = p.precio_unitario != null
+    const hasDims = p.largo_cm && Number(p.largo_cm) > 0
+    const dims = hasDims
+      ? `${p.piezas ?? p.cantidad ?? 1} · ${p.largo_cm}×${p.ancho_cm}cm${p.descripcion ? ' · ' + p.descripcion : ''}`
+      : (p.descripcion ?? p.clave ?? '—')
+    const bg = `background:${idx % 2 === 0 ? '#fff' : '#fafafa'}`
+    if (hasDims && (p.procesos ?? []).length > 0) {
+      const procRows = p.procesos.map(pr => {
+        const cu = pr.precio_unitario != null ? `$${Number(pr.precio_unitario).toFixed(2)}` : '—'
+        return `
+        <tr>
+          <td style="font-size:11px;color:#555;padding-left:14px">+ ${pr.nombre}</td>
+          <td style="text-align:right;font-size:11px;color:#555">${cu}</td>
+          <td style="text-align:right;font-size:11px;color:#555">$${Number(pr.subtotal ?? 0).toFixed(2)}</td>
+        </tr>`
+      }).join('')
+      return `
+      <tr style="${bg}">
+        <td style="font-weight:600">${dims}</td>
+        <td></td>
+        <td style="text-align:right;font-weight:600">$${Number(p.subtotal_partida).toFixed(2)}</td>
+      </tr>${procRows}`
+    }
+    const cuVal = p.precio_unitario != null
       ? Number(p.precio_unitario)
       : (p.cantidad ? Number(p.subtotal_partida) / Number(p.cantidad) : null)
     const cu  = cuVal != null ? `$${Number(cuVal).toFixed(2)}` : '—'
-    const tot = `$${Number(p.subtotal_partida).toFixed(2)}`
-    const procRows = procs.map(pr => `
-      <tr>
-        <td style="font-size:11px;color:#555;padding-left:12px">+ ${pr}</td>
-        <td></td>
-        <td></td>
-      </tr>`).join('')
     return `
-      <tr style="background:${idx % 2 === 0 ? '#fff' : '#fafafa'}">
+      <tr style="${bg}">
         <td style="font-weight:600">${dims}</td>
         <td style="text-align:right">${cu}</td>
-        <td style="text-align:right;font-weight:600">${tot}</td>
-      </tr>${procRows}`
+        <td style="text-align:right;font-weight:600">$${Number(p.subtotal_partida).toFixed(2)}</td>
+      </tr>`
   }).join('')
 
   const maquilaSection = maquilas.length === 0 ? '' : `
@@ -682,6 +729,26 @@ export function printPedidoA4(detalle) {
         <th style="text-align:right">Total</th>
       </tr></thead>
       <tbody>${maquilaRows}</tbody>
+    </table>`
+
+  const extraProcRows = extrasProc.map((p, idx) => `
+    <tr style="background:${idx % 2 === 0 ? '#fff' : '#fafafa'}">
+      <td>${p.descripcion ?? '—'}</td>
+      <td style="text-align:center">${p.cantidad ?? 1}</td>
+      <td style="text-align:right;font-size:11px">$${Number(p.precio_unitario ?? 0).toFixed(2)}</td>
+      <td style="text-align:right;font-weight:600">$${Number(p.subtotal_partida).toFixed(2)}</td>
+    </tr>`).join('')
+
+  const extraProcSection = extrasProc.length === 0 ? '' : `
+    <div class="section-title" style="margin-top:16px">Proceso Extra</div>
+    <table>
+      <thead><tr>
+        <th>Proceso</th>
+        <th style="text-align:center">Cant</th>
+        <th style="text-align:right">P.U.</th>
+        <th style="text-align:right">Total</th>
+      </tr></thead>
+      <tbody>${extraProcRows}</tbody>
     </table>`
 
   const herrajeRows = herrajes.map((p, idx) => `
@@ -706,7 +773,7 @@ export function printPedidoA4(detalle) {
     const fp = detalle.formaPago
     const mp = detalle.metodoPago ? `<div class="pago-row"><span>Método de pago:</span><span class="bold">${detalle.metodoPago.charAt(0) + detalle.metodoPago.slice(1).toLowerCase()}</span></div>` : ''
     if (!fp || fp === 'LIQUIDADO') return `${mp}<div class="pago-row"><span>Método de entrega:</span><span class="bold">Liquidado</span></div>`
-    if (fp === 'CREDITO') return `${mp}
+    if (fp === 'POR COBRAR') return `${mp}
       <div class="pago-row"><span>Método de entrega:</span><span class="bold">Por cobrar</span></div>
       <div class="pago-row"><span>Saldo por cobrar:</span><span class="bold">$${totalCalculado.toFixed(2)}</span></div>
       <div style="border-top:1px solid #000;width:60%;margin:24px auto 4px"></div>
@@ -718,9 +785,9 @@ export function printPedidoA4(detalle) {
     return `${mp}<div class="pago-row"><span>Método de entrega:</span><span class="bold">${fp}</span></div>`
   })()
 
-  const esMaquila = maquilas.length > 0 && vidrios.length === 0
+  const esMaquila = (maquilas.length > 0 || extrasProc.length > 0) && vidrios.length === 0
   const titulo = esMaquila ? 'PEDIDO DE MAQUILA' : herrajes.length > 0 && vidrios.length === 0 ? 'PEDIDO DE HERRAJE' : 'PEDIDO DE VIDRIO'
-  const pie = detalle.esEntregado ? '¡Gracias por su compra!' : detalle.formaPago === 'CREDITO' ? 'Entregado.' : 'Pendiente de entrega.'
+  const pie = detalle.esEntregado ? '¡Gracias por su compra!' : detalle.formaPago === 'POR COBRAR' ? 'Entregado.' : 'Pendiente de entrega.'
 
   const html = `<!DOCTYPE html>
 <html lang="es">
@@ -759,6 +826,7 @@ export function printPedidoA4(detalle) {
     <img src="${logoUrl}" class="brand-logo" alt="Logo">
     <div>
       <div class="brand-name">VIDRIO TEMPLADO Y ALUMINIO ROSALES</div>
+      <div class="brand-detail" style="font-style:italic;color:#1565c0;font-weight:600;margin-top:2px">Calidad que se ve, confianza que perdura</div>
       <div class="brand-detail">Rosales #35 C.P. 55270, Granjas Valle de Guadalupe · Ecatepec de Morelos, Estado de Mexico</div>
       <div class="brand-detail">Tel: 5523134256, 5522161432, 5547912671 · rosalesvidriotempladofernando@gmail.com</div>
     </div>
@@ -781,6 +849,7 @@ export function printPedidoA4(detalle) {
 
   ${vidrioSection}
   ${maquilaSection}
+  ${extraProcSection}
   ${herrajeSection}
 
   <div class="total-box">
@@ -790,7 +859,11 @@ export function printPedidoA4(detalle) {
   <div class="pago-box">${pagoInfo}</div>
 
   <div class="footer-doc">${pie}<br>Vidrio Templado y Aluminio Rosales · Tel: 5523134256, 5522161432, 5547912671</div>
-  ${detalle.esReimpresion ? `<div style="margin-top:14px;text-align:center;font-size:11px;font-weight:700;letter-spacing:2px;border:1.5px dashed #999;padding:6px;color:#555">*** REIMPRESIÓN — PEDIDO ENTREGADO ***</div>` : ''}
+  ${detalle.esCancelado
+    ? `<div style="margin-top:14px;text-align:center;font-size:13px;font-weight:700;letter-spacing:2px;border:2px solid #991b1b;padding:8px;color:#991b1b">⚠ PEDIDO CANCELADO — REIMPRESIÓN ⚠</div>`
+    : detalle.esReimpresion
+      ? `<div style="margin-top:14px;text-align:center;font-size:11px;font-weight:700;letter-spacing:2px;border:1.5px dashed #999;padding:6px;color:#555">*** REIMPRESIÓN — PEDIDO ENTREGADO ***</div>`
+      : ''}
 </body>
 </html>`
 
@@ -852,6 +925,7 @@ export function printTicket(venta, modo = '80mm') {
     <img src="${logoUrl}" class="brand-logo" alt="Logo">
     <div>
       <div class="brand-name">VIDRIO TEMPLADO Y ALUMINIO ROSALES</div>
+      <div class="brand-detail" style="font-style:italic;color:#1565c0;font-weight:600;margin-top:2px">Calidad que se ve, confianza que perdura</div>
       <div class="brand-detail">Rosales #35 C.P. 55270, Granjas Valle de Guadalupe · Ecatepec de Morelos, Estado de Mexico</div>
       <div class="brand-detail">Tel: 5523134256, 5522161432, 5547912671 · rosalesvidriotempladofernando@gmail.com</div>
     </div>

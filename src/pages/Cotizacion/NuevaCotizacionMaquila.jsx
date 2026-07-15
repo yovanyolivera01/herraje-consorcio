@@ -145,7 +145,7 @@ function ConvertirModal({ cotizacion, onClose, onConvertido }) {
             <select className="form-input" value={tipoPago} onChange={e => setTipoPago(e.target.value)}>
               <option value="ANTICIPO">Anticipo</option>
               <option value="LIQUIDADO">Liquidado (pago total)</option>
-              <option value="CREDITO">Por cobrar</option>
+              <option value="POR COBRAR">Por cobrar</option>
             </select>
           </div>
           {tipoPago === 'ANTICIPO' && (

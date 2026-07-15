@@ -113,12 +113,12 @@ function ConvertirModal({ cotizacion, onClose, onCreado }) {
     }
     setSaving(true); setError(null)
     try {
-      const monto = formaPago === 'LIQUIDADO' ? cotizacion.total : formaPago === 'CREDITO' ? 0 : parseFloat(anticipo)
+      const monto = formaPago === 'LIQUIDADO' ? cotizacion.total : formaPago === 'POR COBRAR' ? 0 : parseFloat(anticipo)
 
       const idPedido = await convertirCotizacionAPedido(cotizacion.id, formaPago, monto, metodoPago)
 
       // Registrar productos herraje como venta en historial de ventas
-      if (formaPago === 'LIQUIDADO' || formaPago === 'CREDITO') {
+      if (formaPago === 'LIQUIDADO' || formaPago === 'POR COBRAR') {
         const prodExtras = (cotizacion.partidas ?? []).filter(p => p.tipo === 'PRODUCTO')
         if (prodExtras.length > 0) {
           const ventaPartidas = prodExtras.map(p => ({
@@ -176,7 +176,7 @@ function ConvertirModal({ cotizacion, onClose, onCreado }) {
               {tiposPago.map(tp => (
                 <label key={tp.id_tipo_pago} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 14 }}>
                   <input type="radio" name="fp" value={tp.descripcion} checked={formaPago === tp.descripcion} onChange={() => { setFormaPago(tp.descripcion); setError(null) }} />
-                  {tp.descripcion === 'CREDITO' ? 'Por cobrar' : tp.descripcion.charAt(0) + tp.descripcion.slice(1).toLowerCase()}
+                  {tp.descripcion === 'POR COBRAR' ? 'Por cobrar' : tp.descripcion.charAt(0) + tp.descripcion.slice(1).toLowerCase()}
                 </label>
               ))}
             </div>

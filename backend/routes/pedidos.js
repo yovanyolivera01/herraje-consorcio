@@ -175,7 +175,7 @@ router.get('/pedidos/exportar', async (req, res) => {
 
 router.get('/pedidos/credito', async (req, res) => {
   try {
-    const { rows } = await query('SELECT * FROM v_pedidos_credito')
+    const { rows } = await query('SELECT * FROM v_pedidos_por_cobrar')
     ok(res, rows)
   } catch (e) { err(res, e) }
 })
