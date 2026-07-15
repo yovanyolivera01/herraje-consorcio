@@ -608,7 +608,7 @@ function DetalleMaquilaModal({ resumen, onClose, onActualizado }) {
                 descripcion:      p.descripcion,
                 subtotal_partida: p.subtotal_partida,
                 subtotal_vidrio:  null,
-                procesos:         (p.procesos ?? []).map(pr => ({ nombre: pr.nombre, subtotal: pr.subtotal })),
+                procesos:         (p.procesos ?? []).map(pr => ({ nombre: pr.nombre, precio_unitario: pr.precio_unitario ?? null, subtotal: pr.subtotal })),
               })),
             }
             return (<>

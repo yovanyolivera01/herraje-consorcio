@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { SquareDashed } from 'lucide-react'
 import { useNavigate, useLocation } from 'react-router-dom'
+import logoVR from '../assets/images/logoVR.jpeg'
 import { useAuth } from '../context/AuthContext'
 import { HOME_POR_ROL, PERMISOS } from '../context/AuthContext'
 
@@ -41,22 +41,18 @@ export default function Login() {
     }}>
       <div style={{ width: '100%', maxWidth: 360 }}>
 
-        <div style={{ textAlign: 'center', marginBottom: 32, color: '#fff' }}>
-          <SquareDashed size={48} color="white" />
-          <h1 style={{ fontSize: 26, fontWeight: 900, letterSpacing: 2, margin: 0 }}>VIDRIO TEMPLADO ROSALES </h1>
-          <p style={{ fontSize: 13, color: 'rgba(180,210,255,.8)', margin: '4px 0 0', letterSpacing: 4 }}>
-            
-          </p>
+        <div style={{ textAlign: 'center', marginBottom: 32 }}>
+          <img src={logoVR} alt="Vidrio Templado Rosales" style={{ maxWidth: 220, width: '100%', borderRadius: 10 }} />
         </div>
 
         <div style={{
-          background: '#fff', borderRadius: 14, padding: '32px 28px',
+          background: 'var(--card)', borderRadius: 14, padding: '32px 28px',
           boxShadow: '0 20px 60px rgba(0,0,0,.35)',
         }}>
-          <h2 style={{ fontSize: 18, fontWeight: 700, margin: '0 0 6px', color: '#1a3a6b' }}>
+          <h2 style={{ fontSize: 18, fontWeight: 700, margin: '0 0 6px', color: 'var(--text)' }}>
             Iniciar sesión
           </h2>
-          <p style={{ fontSize: 13, color: '#888', margin: '0 0 24px' }}>
+          <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 24px' }}>
             Ingresa tu usuario y contraseña
           </p>
 
@@ -107,9 +103,6 @@ export default function Login() {
           </form>
         </div>
 
-        <p style={{ textAlign: 'center', color: 'rgba(180,210,255,.4)', fontSize: 11, marginTop: 24 }}>
-          Templados Consorcio · Sistema interno
-        </p>
       </div>
     </div>
   )

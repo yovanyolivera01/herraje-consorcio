@@ -56,10 +56,13 @@ export function printTicketVidrio(detalle) {
       const pzas  = p.piezas ?? 1
       const dimStr = `${p.largo_cm}×${p.ancho_cm}cm`
       const clave = (p.clave && p.clave !== dimStr) ? ` · ${p.clave}` : ''
-      const procRows = (p.procesos ?? []).map(pr => `
+      const procRows = (p.procesos ?? []).map(pr => {
+        const cu = pr.precio_unitario != null ? ` · $${Number(pr.precio_unitario).toFixed(2)}` : ''
+        return `
         <div class="row" style="padding-left:10px;font-size:12px">
-          <span>+${pr.nombre}</span><span>$${Number(pr.subtotal ?? 0).toFixed(2)}</span>
-        </div>`).join('')
+          <span>+${pr.nombre}${cu}</span><span>$${Number(pr.subtotal ?? 0).toFixed(2)}</span>
+        </div>`
+      }).join('')
       return `
         <div class="partida">
           <div class="row bold">
@@ -683,26 +686,38 @@ export function printPedidoA4(detalle) {
     </table>`
 
   const maquilaRows = maquilas.map((p, idx) => {
-    const dotIdx = (p.descripcion ?? '').indexOf(' · ')
-    const dims   = dotIdx >= 0 ? p.descripcion.slice(0, dotIdx) : (p.descripcion ?? p.clave ?? '—')
-    const procs  = dotIdx >= 0 ? p.descripcion.slice(dotIdx + 3).split(', ').filter(Boolean) : []
-    const cuVal  = p.precio_unitario != null
+    const hasDims = p.largo_cm && Number(p.largo_cm) > 0
+    const dims = hasDims
+      ? `${p.piezas ?? p.cantidad ?? 1} · ${p.largo_cm}×${p.ancho_cm}cm${p.descripcion ? ' · ' + p.descripcion : ''}`
+      : (p.descripcion ?? p.clave ?? '—')
+    const bg = `background:${idx % 2 === 0 ? '#fff' : '#fafafa'}`
+    if (hasDims && (p.procesos ?? []).length > 0) {
+      const procRows = p.procesos.map(pr => {
+        const cu = pr.precio_unitario != null ? `$${Number(pr.precio_unitario).toFixed(2)}` : '—'
+        return `
+        <tr>
+          <td style="font-size:11px;color:#555;padding-left:14px">+ ${pr.nombre}</td>
+          <td style="text-align:right;font-size:11px;color:#555">${cu}</td>
+          <td style="text-align:right;font-size:11px;color:#555">$${Number(pr.subtotal ?? 0).toFixed(2)}</td>
+        </tr>`
+      }).join('')
+      return `
+      <tr style="${bg}">
+        <td style="font-weight:600">${dims}</td>
+        <td></td>
+        <td style="text-align:right;font-weight:600">$${Number(p.subtotal_partida).toFixed(2)}</td>
+      </tr>${procRows}`
+    }
+    const cuVal = p.precio_unitario != null
       ? Number(p.precio_unitario)
       : (p.cantidad ? Number(p.subtotal_partida) / Number(p.cantidad) : null)
     const cu  = cuVal != null ? `$${Number(cuVal).toFixed(2)}` : '—'
-    const tot = `$${Number(p.subtotal_partida).toFixed(2)}`
-    const procRows = procs.map(pr => `
-      <tr>
-        <td style="font-size:11px;color:#555;padding-left:12px">+ ${pr}</td>
-        <td></td>
-        <td></td>
-      </tr>`).join('')
     return `
-      <tr style="background:${idx % 2 === 0 ? '#fff' : '#fafafa'}">
+      <tr style="${bg}">
         <td style="font-weight:600">${dims}</td>
         <td style="text-align:right">${cu}</td>
-        <td style="text-align:right;font-weight:600">${tot}</td>
-      </tr>${procRows}`
+        <td style="text-align:right;font-weight:600">$${Number(p.subtotal_partida).toFixed(2)}</td>
+      </tr>`
   }).join('')
 
   const maquilaSection = maquilas.length === 0 ? '' : `

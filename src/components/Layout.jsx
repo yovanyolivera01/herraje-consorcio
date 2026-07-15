@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import logoVR from '../assets/images/logoVR.jpeg'
 import {
   Truck, Package, ReceiptText, BarChart2,
   Layers, Settings2, Building2, Users, Tag,
@@ -246,14 +247,11 @@ export default function Layout() {
 
       <aside className={`sidebar${drawerOpen ? ' sidebar-open' : ''}`}>
         {/* Logo */}
-        <div className="sidebar-logo">
-          <span className="sidebar-logo-icon">
-            {sistemaIconos[sistemaActivo]}
-          </span>
-          <div className="sidebar-logo-text">
-            <h1>{{ herraje: 'Herraje', vidrio: 'Catalogos', ventas: 'Ventas', reportes: 'Reportes', inventarios: 'Almacén', personal: 'Personal', egresos: 'Egresos' }[sistemaActivo] ?? 'Herraje'}</h1>
-            <p>Vidreria Rosales</p>
-          </div>
+        <div className="sidebar-logo" style={{ justifyContent: 'center', padding: '12px 10px' }}>
+          {sidebarCollapsed
+            ? <span className="sidebar-logo-icon">{sistemaIconos[sistemaActivo]}</span>
+            : <img src={logoVR} alt="Vidreria Rosales" style={{ maxWidth: '100%', width: 100, borderRadius: 6, display: 'block' }} />
+          }
         </div>
 
         {/* Buscador */}
@@ -342,7 +340,24 @@ export default function Layout() {
           })}
         </nav>
 
-        <div style={{ display: 'flex', gap: 6, padding: '0 10px 10px' }}>
+        <div style={{ padding: '0 10px 4px' }}>
+          <button
+            onClick={logout}
+            title="Cerrar sesión"
+            style={{
+              width: '100%', display: 'flex', alignItems: 'center',
+              justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
+              gap: 8, padding: sidebarCollapsed ? '8px 0' : '8px 14px',
+              border: '1px solid var(--border)', borderRadius: 6,
+              background: 'none', cursor: 'pointer', color: 'var(--danger, #dc2626)',
+              fontSize: 13, fontWeight: 600,
+            }}
+          >
+            <LogOut size={15} />
+            {!sidebarCollapsed && 'Cerrar sesión'}
+          </button>
+        </div>
+        <div style={{ display: 'flex', gap: 6, padding: '4px 10px 10px' }}>
           <button
             className="sidebar-collapse-btn"
             style={{ flex: 1, margin: 0 }}
