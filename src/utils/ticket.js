@@ -292,10 +292,7 @@ export function printTicketVidrio(detalle) {
 export function printPedidoPendiente(detalle) {
   const extras = detalle.extras ?? []
   const extrasTotal = extras.reduce((sum, e) => sum + Number(e.subtotal), 0)
-  const totalCalculado = detalle.partidas.reduce((sum, p) => {
-    const procSubtotal = (p.procesos ?? []).reduce((s, pr) => s + Number(pr.subtotal), 0)
-    return sum + Number(p.subtotal_vidrio ?? p.subtotal_partida) + procSubtotal
-  }, 0) + extrasTotal
+  const totalCalculado = detalle.partidas.reduce((sum, p) => sum + Number(p.subtotal_partida), 0) + extrasTotal
   const totalPzasVidrio  = detalle.partidas.reduce((s, p) => s + Number(p.cantidad ?? 1), 0)
   const totalPzasMaquila = extras.filter(e => e.tipo === 'MAQUILA').reduce((s, e) => s + Number(e.cantidad ?? 1), 0)
   const piezasResumen = [
@@ -304,8 +301,7 @@ export function printPedidoPendiente(detalle) {
   ].join('')
   const rows = detalle.partidas.map((p, i) => {
     const cant = p.cantidad ?? 1
-    const procSubtotal = (p.procesos ?? []).reduce((s, pr) => s + Number(pr.subtotal), 0)
-    const exactSubtotal = Number(p.subtotal_vidrio ?? p.subtotal_partida) + procSubtotal
+    const exactSubtotal = Number(p.subtotal_partida)
     const procRows = (p.procesos ?? []).map(pr => {
       const cantLabel = pr.cantidad && pr.cantidad !== 1 ? ` × ${pr.cantidad}` : ''
       return `<div class="row" style="padding-left:12px;font-size:11px;color:#444">
