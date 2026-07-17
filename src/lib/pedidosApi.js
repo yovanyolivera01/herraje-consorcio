@@ -30,10 +30,10 @@ function formatearFechaHora(isoString) {
 
 // ── Conversión cotización → pedido ────────────────────────────────────────────
 
-export const convertirCotizacionAPedido = async (id_cotizacion, tipo_pago, monto_anticipo, metodo_pago, observaciones) => {
+export const convertirCotizacionAPedido = async (id_cotizacion, tipo_pago, monto_anticipo, metodo_pago, observaciones, partidas_obs) => {
   const data = await apiFetch('/pedidos/convertir', {
     method: 'POST',
-    body: { id_cotizacion, tipo_pago, monto_anticipo: Number(monto_anticipo), metodo_pago: metodo_pago || null, observaciones: observaciones || null },
+    body: { id_cotizacion, tipo_pago, monto_anticipo: Number(monto_anticipo), metodo_pago: metodo_pago || null, observaciones: observaciones || null, partidas_obs: partidas_obs ?? null },
   })
   return data.id_pedido
 }

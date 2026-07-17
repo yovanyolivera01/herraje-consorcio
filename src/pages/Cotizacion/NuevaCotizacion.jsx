@@ -42,7 +42,8 @@ function convertirPartidaDesdeDB(p) {
       precio_unitario: pr.precio_unitario,
       subtotal:        pr.subtotal,
     })),
-    precio_manual: null,
+    precio_manual:  null,
+    observaciones:  '',
   }
 }
 
@@ -147,6 +148,27 @@ function TicketCotizacion({ cotizacion }) {
   )
 }
 
+// ── SVG glass icon for partial ML sides ──────────────────────────────────
+function GlassIconML({ sides, largo, ancho }) {
+  const { top: t, bottom: b, left: l, right: r } = sides
+  const W = 44, H = 34, lbH = 8, lbW = 14
+  const gx0 = lbW, gy0 = lbH, gx1 = W - 2, gy1 = H - lbH - 1
+  const cx = (gx0 + gx1) / 2, cy = (gy0 + gy1) / 2
+  const on  = { stroke: '#1B4DFF', strokeWidth: 2.5 }
+  const off = { stroke: '#BBBBBB', strokeWidth: 1, strokeDasharray: '2,2' }
+  return (
+    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ display: 'block', flexShrink: 0 }}>
+      <rect x={gx0} y={gy0} width={gx1-gx0} height={gy1-gy0} fill="rgba(100,140,255,0.08)"/>
+      <line x1={gx0} y1={gy0} x2={gx1} y2={gy0} {...(t ? on : off)}/>
+      <line x1={gx0} y1={gy1} x2={gx1} y2={gy1} {...(b ? on : off)}/>
+      <line x1={gx0} y1={gy0} x2={gx0} y2={gy1} {...(l ? on : off)}/>
+      <line x1={gx1} y1={gy0} x2={gx1} y2={gy1} {...(r ? on : off)}/>
+      {(t || b) && <text x={cx} y={t ? gy0-3 : gy1+7} textAnchor="middle" fontSize={6} fontFamily="system-ui" fontWeight="700" fill="#1B4DFF">{ancho}cm</text>}
+      {(l || r) && <text x={l ? gx0-1 : gx1+1} y={cy} textAnchor={l ? 'end' : 'start'} dominantBaseline="middle" fontSize={6} fontFamily="system-ui" fontWeight="700" fill="#1B4DFF" transform={`rotate(-90,${l ? gx0-1 : gx1+1},${cy})`}>{largo}cm</text>}
+    </svg>
+  )
+}
+
 // ── Ticket de pedido (post-conversión) ───────────────────────────────────
 function TicketPedidoRapido({ detalle, extras = [] }) {
   return (
@@ -201,15 +223,28 @@ function TicketPedidoRapido({ detalle, extras = [] }) {
             const dotIdx = (e.descripcion ?? '').indexOf(' · ')
             const dims   = dotIdx >= 0 ? e.descripcion.slice(0, dotIdx) : (e.descripcion ?? '')
             const procs  = dotIdx >= 0 ? e.descripcion.slice(dotIdx + 3).split(', ') : []
+            const notasJson = (() => { try { return e.notas ? JSON.parse(e.notas) : null } catch { return null } })()
+            const notasProcs = notasJson?.procesos ?? []
+            const dm = dims.match(/(\d+(?:\.\d+)?)×(\d+(?:\.\d+)?)cm/)
+            const pLargo = dm?.[1], pAncho = dm?.[2]
             return (
               <div key={i} style={{ marginBottom: 6 }}>
                 <div className="ticket-row" style={{ fontWeight:600, fontSize:12 }}>
                   <span>{dims}</span>
                   <span>${fmt5(e.subtotal)}</span>
                 </div>
-                {procs.map((pr, j) => (
-                  <div key={j} style={{ fontSize:11, paddingLeft:10 }}>+{pr}</div>
-                ))}
+                {procs.map((pr, j) => {
+                  const sides = notasProcs[j]?.sidesML
+                  const allSides = sides?.top && sides?.bottom && sides?.left && sides?.right
+                  const showIcon = sides && !allSides && pLargo && pAncho
+                  const txt = showIcon ? pr.replace(/\s*\[[TBLR]+\]/g, '') : pr
+                  return (
+                    <div key={j} style={{ display:'flex', alignItems:'center', gap:4, fontSize:11, paddingLeft:10 }}>
+                      {showIcon && <GlassIconML sides={sides} largo={pLargo} ancho={pAncho} />}
+                      <span>+{txt}</span>
+                    </div>
+                  )
+                })}
               </div>
             )
           })}
@@ -709,6 +744,7 @@ export default function NuevaCotizacion() {
   const [modalAnticipoStr,    setModalAnticipoStr]    = useState('')
   const [modalMetodoPago,     setModalMetodoPago]     = useState('EFECTIVO')
   const [modalObservaciones,  setModalObservaciones]  = useState('')
+  const [comentariosAbiertos, setComentariosAbiertos] = useState(new Set())
   const [modalError,          setModalError]          = useState(null)
   const [modalConvertiendo,   setModalConvertiendo]   = useState(false)
 
@@ -1033,6 +1069,7 @@ export default function NuevaCotizacion() {
       es_hoja_completa:  preview.esHojaCompleta,
       procesos:          preview.procesosCalc,
       precio_manual:     (!isNaN(manualNum) && manualNum > 0) ? manualNum : null,
+      observaciones:     '',
     }
 
     setPartidas(prev => [...prev, nuevaPartida])
@@ -1139,8 +1176,9 @@ export default function NuevaCotizacion() {
       procesos_maq:    maqPreviewProcesos,
       cantidad:        maqParsed.piezas,
       unidad:          'pza',
-      precio_unitario: maqParsed.piezas > 0 ? maqSubtotal / maqParsed.piezas : 0,
+      precio_unitario:  maqParsed.piezas > 0 ? maqSubtotal / maqParsed.piezas : 0,
       subtotal_partida: maqSubtotal,
+      observaciones:    '',
     }])
     setMaqNotacion(''); setMaqDescripcion(''); setMaqEspesorId(''); setMaqProcesosSelec([]); setMaqNotError(''); setMaqError('')
   }
@@ -1288,6 +1326,19 @@ export default function NuevaCotizacion() {
     )
   }
 
+  // ── Comentarios por partida ───────────────────────────────────────────────
+  const toggleComentarioPartida = (key) => {
+    setComentariosAbiertos(prev => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+  const actualizarObservacionesPartida = (key, value) => {
+    setPartidas(prev => prev.map(p => p._key === key ? { ...p, observaciones: value } : p))
+  }
+
   // ── Quitar partida ────────────────────────────────────────────────────────
   const quitarPartida = (idx) => {
     requestAnimationFrame(() => {
@@ -1349,6 +1400,7 @@ export default function NuevaCotizacion() {
         subtotal:            p.subtotal_partida,
         id_producto_general: p.id_producto_general ?? null,
         notas,
+        observaciones:       p.observaciones || null,
       })
       if (error) throw new Error(error)
     }
@@ -1481,7 +1533,7 @@ export default function NuevaCotizacion() {
         })
         await deletePartidasExtra(cotEdit.id)
         await guardarExtras(cotEdit.id)
-        const idPedido = await convertirCotizacionAPedido(cotEdit.id, modalFormaPago, monto, modalMetodoPago, modalObservaciones)
+        const idPedido = await convertirCotizacionAPedido(cotEdit.id, modalFormaPago, monto, modalMetodoPago, modalObservaciones, vidrioPartidas.map(p => p.observaciones || null))
         decrementarStockProductos(partidas)
         const detalle  = await getDetallePedido(idPedido)
         if (detalle.id_cotizacion) {
@@ -1531,6 +1583,7 @@ export default function NuevaCotizacion() {
               subtotal:            p.subtotal_partida,
               id_producto_general: p.id_producto_general ?? null,
               notas,
+              observaciones:       p.observaciones || null,
             }
           })
         const idPedido = await crearPedidoDirectoConExtras({
@@ -1678,6 +1731,7 @@ export default function NuevaCotizacion() {
             unidad: e.unidad,
             precio_unitario: e.precio_unitario != null ? Number(e.precio_unitario) : null,
             subtotal_partida: Number(e.subtotal),
+            notas: e.notas ?? null,
             procesos: [],
           })),
         ],
@@ -2566,10 +2620,30 @@ export default function NuevaCotizacion() {
                           </div>
                         </>
                       )}
+                      {comentariosAbiertos.has(p._key) && (
+                        <textarea
+                          value={p.observaciones ?? ''}
+                          onChange={e => actualizarObservacionesPartida(p._key, e.target.value)}
+                          placeholder="Comentario u observación..."
+                          style={{
+                            display: 'block', width: '100%', marginTop: 6,
+                            fontSize: 12, resize: 'vertical', minHeight: 48,
+                            padding: '5px 8px', borderRadius: 6, fontFamily: 'inherit',
+                            border: '1px solid var(--border)',
+                            background: 'var(--bg)', color: 'var(--text)',
+                          }}
+                        />
+                      )}
                     </div>
                     <div style={{ fontWeight: 700, fontSize: 16, color: 'var(--accent)', minWidth: 80, textAlign: 'right' }}>
                       ${fmt5(p.subtotal_partida)}
                     </div>
+                    <button
+                      className="btn-icon"
+                      title="Comentario"
+                      onClick={() => toggleComentarioPartida(p._key)}
+                      style={{ color: p.observaciones ? 'var(--accent)' : 'var(--text-muted)', fontSize: 15 }}
+                    >💬</button>
                     <button
                       className="btn-icon danger"
                       onPointerDown={e => { e.preventDefault(); quitarPartida(i) }}

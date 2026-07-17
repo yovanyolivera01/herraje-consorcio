@@ -6,6 +6,25 @@ import logoUrl from '../assets/images/logoVR_b64.txt?raw'
  *   tipo, formaPago, anticipo, saldo, saldo_cobrado, esEntregado, total,
  *   partidas[{piezas, clave, largo_cm, ancho_cm, subtotal_vidrio, procesos, subtotal_partida}])
  */
+function glassIconSVG(sides, largo, ancho) {
+  const { top: t, bottom: b, left: l, right: r } = sides
+  if (t && b && l && r) return ''
+  const W = 44, H = 34, lbH = 8, lbW = 14
+  const gx0 = lbW, gy0 = lbH, gx1 = W - 2, gy1 = H - lbH - 1
+  const cx = (gx0 + gx1) / 2, cy = (gy0 + gy1) / 2
+  const S = (ax, ay, bx, by, on) => on
+    ? `<line x1="${ax}" y1="${ay}" x2="${bx}" y2="${by}" stroke="#1B4DFF" stroke-width="2.5"/>`
+    : `<line x1="${ax}" y1="${ay}" x2="${bx}" y2="${by}" stroke="#BBBBBB" stroke-width="1" stroke-dasharray="2,2"/>`
+  let lbl = ''
+  if (t || b) lbl += `<text x="${cx}" y="${t ? gy0 - 3 : gy1 + 7}" text-anchor="middle" font-size="6" font-family="Arial,sans-serif" font-weight="700" fill="#1B4DFF">${ancho}cm</text>`
+  if (l || r) { const lx = l ? gx0 - 1 : gx1 + 1; lbl += `<text x="${lx}" y="${cy}" text-anchor="${l ? 'end' : 'start'}" dominant-baseline="middle" font-size="6" font-family="Arial,sans-serif" font-weight="700" fill="#1B4DFF" transform="rotate(-90,${lx},${cy})">${largo}cm</text>` }
+  return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="display:inline-block;vertical-align:middle;flex-shrink:0;margin-right:3px"><rect x="${gx0}" y="${gy0}" width="${gx1-gx0}" height="${gy1-gy0}" fill="rgba(100,140,255,0.08)"/>${S(gx0,gy0,gx1,gy0,t)}${S(gx0,gy1,gx1,gy1,b)}${S(gx0,gy0,gx0,gy1,l)}${S(gx1,gy0,gx1,gy1,r)}${lbl}</svg>`
+}
+
+function parseMaqNotas(p) {
+  try { return p.notas ? JSON.parse(p.notas) : null } catch { return null }
+}
+
 export function printTicketVidrio(detalle) {
   const vidrios    = detalle.partidas.filter(p => !p.tipo || p.tipo === 'VIDRIO')
   const maquilas   = detalle.partidas.filter(p => p.tipo === 'MAQUILA')
@@ -76,8 +95,29 @@ export function printTicketVidrio(detalle) {
           </div>`
     }
     const label = p.descripcion || p.clave || '—'
-    const cu    = p.precio_unitario != null ? `$${Number(p.precio_unitario).toFixed(2)}` : ''
-    const tot   = `$${Number(p.subtotal_partida).toFixed(2)}`
+    const notasProcs = (parseMaqNotas(p)?.procesos) ?? []
+    const dotIdx = label.indexOf(' · ')
+    if (dotIdx >= 0) {
+      const dimsStr = label.slice(0, dotIdx)
+      const procsStr = label.slice(dotIdx + 3)
+      const dm = dimsStr.match(/(\d+(?:\.\d+)?)×(\d+(?:\.\d+)?)cm/)
+      const pLargo = dm?.[1], pAncho = dm?.[2]
+      const procList = procsStr.split(', ')
+      const procRows = procList.map((pr, i) => {
+        const sides = notasProcs[i]?.sidesML
+        const allSides = sides?.top && sides?.bottom && sides?.left && sides?.right
+        const icon = (sides && !allSides && pLargo && pAncho) ? glassIconSVG(sides, pLargo, pAncho) : ''
+        const txt = icon ? pr.replace(/\s*\[[TBLR]+\]/g, '') : pr
+        return `<div style="display:flex;align-items:center;padding-left:10px;font-size:11px;margin-bottom:1px">${icon}<span>+${txt}</span></div>`
+      }).join('')
+      return `
+        <div class="partida">
+          <div class="row bold"><span>${dimsStr}</span><span>$${Number(p.subtotal_partida).toFixed(2)}</span></div>
+          ${procRows}
+        </div>`
+    }
+    const cu  = p.precio_unitario != null ? `$${Number(p.precio_unitario).toFixed(2)}` : ''
+    const tot = `$${Number(p.subtotal_partida).toFixed(2)}`
     return `
       <div class="partida">
         <div style="display:flex;align-items:baseline;font-size:11px;margin-bottom:2px;gap:2px">
@@ -120,8 +160,8 @@ export function printTicketVidrio(detalle) {
     return sum + Number(p.subtotal_vidrio ?? p.subtotal_partida) + procSubtotal
   }, 0)
 
-  const totalPzasVidrio  = vidrios.reduce((s, p) => s + (p.piezas ?? p.cantidad ?? 1), 0)
-  const totalPzasMaquila = maquilas.reduce((s, p) => s + (p.piezas ?? p.cantidad ?? 1), 0)
+  const totalPzasVidrio  = vidrios.reduce((s, p) => s + Number(p.piezas ?? p.cantidad ?? 1), 0)
+  const totalPzasMaquila = maquilas.reduce((s, p) => s + Number(p.piezas ?? p.cantidad ?? 1), 0)
   const piezasResumen = [
     totalPzasVidrio  > 0 ? `<div class="row" style="font-size:11px;color:#555"><span>Piezas vendidas:</span><span><strong>${totalPzasVidrio}</strong></span></div>`  : '',
     totalPzasMaquila > 0 ? `<div class="row" style="font-size:11px;color:#555"><span>Piezas maquila recibidas:</span><span><strong>${totalPzasMaquila}</strong></span></div>` : '',
@@ -662,8 +702,8 @@ export function printPedidoA4(detalle) {
     return sum + Number(p.subtotal_vidrio ?? p.subtotal_partida) + procSubtotal
   }, 0)
 
-  const totalPzasVidrio  = vidrios.reduce((s, p) => s + (p.piezas ?? p.cantidad ?? 1), 0)
-  const totalPzasMaquila = maquilas.reduce((s, p) => s + (p.piezas ?? p.cantidad ?? 1), 0)
+  const totalPzasVidrio  = vidrios.reduce((s, p) => s + Number(p.piezas ?? p.cantidad ?? 1), 0)
+  const totalPzasMaquila = maquilas.reduce((s, p) => s + Number(p.piezas ?? p.cantidad ?? 1), 0)
   const piezasResumen = (totalPzasVidrio > 0 || totalPzasMaquila > 0) ? `
     <div style="display:flex;gap:24px;font-size:12px;color:#444;margin-bottom:8px;margin-top:4px">
       ${totalPzasVidrio  > 0 ? `<span>Piezas vendidas: <strong>${totalPzasVidrio}</strong></span>`  : ''}
@@ -748,6 +788,26 @@ export function printPedidoA4(detalle) {
         <td></td>
         <td style="text-align:right;font-weight:600">$${Number(p.subtotal_partida).toFixed(2)}</td>
       </tr>${procRows}`
+    }
+    // Extra-only path: parse description for dims + ML processes with glass icons
+    if (!hasDims) {
+      const notasProcs = (parseMaqNotas(p)?.procesos) ?? []
+      const dotIdx = dims.indexOf(' · ')
+      if (dotIdx >= 0) {
+        const dimsStr = dims.slice(0, dotIdx)
+        const procsStr = dims.slice(dotIdx + 3)
+        const dm = dimsStr.match(/(\d+(?:\.\d+)?)×(\d+(?:\.\d+)?)cm/)
+        const pLargo = dm?.[1], pAncho = dm?.[2]
+        const procList = procsStr.split(', ')
+        const procTrs = procList.map((pr, i) => {
+          const sides = notasProcs[i]?.sidesML
+          const allSides = sides?.top && sides?.bottom && sides?.left && sides?.right
+          const icon = (sides && !allSides && pLargo && pAncho) ? glassIconSVG(sides, pLargo, pAncho) : ''
+          const txt = icon ? pr.replace(/\s*\[[TBLR]+\]/g, '') : pr
+          return `<tr><td style="font-size:11px;color:#555;padding-left:14px"><div style="display:flex;align-items:center">${icon}<span>+${txt}</span></div></td><td></td><td></td></tr>`
+        }).join('')
+        return `<tr style="${bg}"><td style="font-weight:600">${dimsStr}</td><td></td><td style="text-align:right;font-weight:600">$${Number(p.subtotal_partida).toFixed(2)}</td></tr>${procTrs}`
+      }
     }
     const cuVal = p.precio_unitario != null
       ? Number(p.precio_unitario)

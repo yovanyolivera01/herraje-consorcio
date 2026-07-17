@@ -531,13 +531,13 @@ router.get('/cotizaciones/:id/extras', async (req, res) => {
 
 router.post('/cotizaciones/:id/extras', async (req, res) => {
   try {
-    const { tipo, descripcion, unidad, cantidad, precio_unitario, subtotal, id_producto_general, notas } = req.body
+    const { tipo, descripcion, unidad, cantidad, precio_unitario, subtotal, id_producto_general, notas, observaciones } = req.body
     const { rows } = await query(
       `INSERT INTO partida_cotizacion_extra
-         (id_cotizacion, tipo, descripcion, unidad, cantidad, precio_unitario, subtotal, id_producto_general, notas)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+         (id_cotizacion, tipo, descripcion, unidad, cantidad, precio_unitario, subtotal, id_producto_general, notas, observaciones)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
       [req.params.id, tipo, descripcion, unidad ?? 'pza', Number(cantidad),
-       Number(precio_unitario), Number(subtotal), id_producto_general ?? null, notas ?? null]
+       Number(precio_unitario), Number(subtotal), id_producto_general ?? null, notas ?? null, observaciones ?? null]
     )
     ok(res, rows[0])
   } catch (e) { err(res, e) }

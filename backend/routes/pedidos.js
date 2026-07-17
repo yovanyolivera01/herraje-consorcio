@@ -5,11 +5,22 @@ const router = express.Router()
 function ok(res, data) { res.json(data) }
 function err(res, e, status = 500) { res.status(status).json({ message: e.message }) }
 
+async function guardarObsPartidas(id_pedido, obs) {
+  if (!obs || !obs.some(o => o)) return
+  const { rows } = await query(
+    'SELECT id_partida_pedido FROM partida_pedido WHERE id_pedido=$1 ORDER BY id_partida_pedido ASC',
+    [id_pedido]
+  )
+  for (let i = 0; i < Math.min(rows.length, obs.length); i++) {
+    if (obs[i]) await query('UPDATE partida_pedido SET observaciones=$1 WHERE id_partida_pedido=$2', [obs[i], rows[i].id_partida_pedido])
+  }
+}
+
 // ── Convertir cotización a pedido ─────────────────────────────────────────────
 
 router.post('/pedidos/convertir', async (req, res) => {
   try {
-    const { id_cotizacion, tipo_pago, monto_anticipo, metodo_pago, observaciones } = req.body
+    const { id_cotizacion, tipo_pago, monto_anticipo, metodo_pago, observaciones, partidas_obs } = req.body
     const { rows } = await query(
       'SELECT * FROM sp_convertir_cotizacion_a_pedido($1, $2, $3)',
       [id_cotizacion, tipo_pago, Number(monto_anticipo)]
@@ -20,6 +31,7 @@ router.post('/pedidos/convertir', async (req, res) => {
     }
     if (metodo_pago) await query('UPDATE pedido SET metodo_pago=$1 WHERE id_pedido=$2', [metodo_pago, row.out_id_pedido])
     if (observaciones) await query('UPDATE pedido SET observaciones=$1 WHERE id_pedido=$2', [observaciones, row.out_id_pedido])
+    await guardarObsPartidas(row.out_id_pedido, partidas_obs)
 
     // Descontar inventario de vidrio
     try {
@@ -48,6 +60,7 @@ router.post('/pedidos/directo', async (req, res) => {
     }
     if (metodo_pago) await query('UPDATE pedido SET metodo_pago=$1 WHERE id_pedido=$2', [metodo_pago, row.out_id_pedido])
     if (observaciones) await query('UPDATE pedido SET observaciones=$1 WHERE id_pedido=$2', [observaciones, row.out_id_pedido])
+    await guardarObsPartidas(row.out_id_pedido, (partidas ?? []).map(p => p.observaciones || null))
     try { await query('SELECT sp_insertar_pedidod($1)', [row.out_id_pedido]) } catch {}
     ok(res, { id_pedido: row.out_id_pedido, folio: row.out_folio })
   } catch (e) { err(res, e) }
@@ -92,13 +105,14 @@ router.post('/pedidos/directo-con-extras', async (req, res) => {
 
     if (metodo_pago) await query('UPDATE pedido SET metodo_pago=$1 WHERE id_pedido=$2', [metodo_pago, id_pedido])
     if (observaciones) await query('UPDATE pedido SET observaciones=$1 WHERE id_pedido=$2', [observaciones, id_pedido])
+    await guardarObsPartidas(id_pedido, (partidas ?? []).map(p => p.observaciones || null))
     for (const extra of (extras ?? [])) {
       await query(
-        `INSERT INTO partida_pedido_extra (id_pedido, tipo, descripcion, unidad, cantidad, precio_unitario, subtotal, id_producto_general, notas)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+        `INSERT INTO partida_pedido_extra (id_pedido, tipo, descripcion, unidad, cantidad, precio_unitario, subtotal, id_producto_general, notas, observaciones)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
         [id_pedido, extra.tipo, extra.descripcion ?? '', extra.unidad ?? 'pza',
          Number(extra.cantidad), Number(extra.precio_unitario), Number(extra.subtotal),
-         extra.id_producto_general ?? null, extra.notas ?? null]
+         extra.id_producto_general ?? null, extra.notas ?? null, extra.observaciones ?? null]
       )
     }
     try { await query('SELECT sp_insertar_pedidod($1)', [id_pedido]) } catch {}
