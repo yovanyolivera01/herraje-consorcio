@@ -300,25 +300,31 @@ export function printPedidoPendiente(detalle) {
     totalPzasMaquila > 0 ? `<div class="row" style="font-size:11px;color:#555"><span>Piezas maquila recibidas:</span><span><strong>${totalPzasMaquila}</strong></span></div>` : '',
   ].join('')
   const rows = detalle.partidas.map((p, i) => {
-    const cant = p.cantidad ?? 1
-    const exactSubtotal = Number(p.subtotal_partida)
+    const cant        = p.cantidad ?? 1
+    const vidSubtotal = Number(p.subtotal_vidrio ?? p.subtotal_partida)
+    const hasProc     = (p.procesos ?? []).length > 0
     const procRows = (p.procesos ?? []).map(pr => {
       const cantLabel = pr.cantidad && pr.cantidad !== 1 ? ` × ${pr.cantidad}` : ''
       return `<div class="row" style="padding-left:12px;font-size:11px;color:#444">
         <span>+ ${pr.nombre}${cantLabel}</span><span>$${Number(pr.subtotal).toFixed(2)}</span>
       </div>`
     }).join('')
+    const subtotalRow = hasProc ? `
+      <div class="row" style="padding-top:3px;border-top:1px dashed #ccc;margin-top:2px;font-weight:700;font-size:12px">
+        <span>Subtotal</span><span>$${Number(p.subtotal_partida).toFixed(2)}</span>
+      </div>` : ''
 
     return `
       <div class="partida">
         <div class="row" style="margin-bottom:2px">
           <span class="bold" style="font-size:13px">${cant}- ${p.largo_cm}×${p.ancho_cm} ${p.clave_vidrio}</span>
-          <span class="bold" style="font-size:13px">$${exactSubtotal.toFixed(2)}</span>
+          <span class="bold" style="font-size:13px">$${vidSubtotal.toFixed(2)}</span>
         </div>
         <div style="font-size:11px;color:#444;margin-bottom:3px;padding-left:12px">
           ${p.clave_vidrio}${p.descripcion_vidrio ? ' — ' + p.descripcion_vidrio : ''} · ${Number(p.metros2).toFixed(4)} m²
         </div>
         ${procRows}
+        ${subtotalRow}
       </div>`
   }).join('<div style="border-top:1px dashed #ccc;margin:5px 0"></div>')
 
