@@ -40,7 +40,7 @@ export function printTicketVidrio(detalle) {
     const exactSubtotal = Number(p.subtotal_partida)
     const procRows = (p.procesos ?? []).map(pr => {
       const cuPr  = Number(pr.subtotal) / pzas
-      const totPr = cuPr * pzas
+      const totPr = Number(pr.subtotal)
       return `
       <div class="row5" style="padding-left:10px;font-size:11px">
         <span class="c-cant"></span>
@@ -438,7 +438,7 @@ export function printCotizacionCarta(detalle) {
     const hasProc = (p.procesos ?? []).length > 0
     const procSubRows = (p.procesos ?? []).map(pr => {
       const cuPr  = Number(pr.subtotal) / pzas
-      const totPr = cuPr * pzas
+      const totPr = Number(pr.subtotal)
       return `
       <tr class="partida-row">
         <td></td>
@@ -715,7 +715,7 @@ export function printPedidoA4(detalle) {
     const exactSubtotal = Number(p.subtotal_partida)
     const procSubRows = (p.procesos ?? []).map(pr => {
       const cuPr  = Number(pr.subtotal) / pzas
-      const totPr = cuPr * pzas
+      const totPr = Number(pr.subtotal)
       return `
       <tr style="background:${bg}">
         <td></td><td></td>

@@ -894,7 +894,7 @@ export default function NuevaCotizacion() {
 
     const metros2_pieza   = (largo * ancho) / 10000
     const metros2_total   = parsed.piezas * metros2_pieza
-    const subtotal_vidrio = metros2_total * precio_m2
+    const subtotal_vidrio = Math.round(metros2_total * precio_m2 * 100) / 100
 
     // Calcular procesos seleccionados
     let subtotal_procesos = 0
@@ -925,7 +925,7 @@ export default function NuevaCotizacion() {
       const sinPrecio  = precioNivel === null && Number(proc.precio_unitario) === 0
       const configVacio = (isML && sp.sidesML && cantidad === 0)
         || (isM2 && sp.cellsM2 && !sp.cellsM2.some(Boolean))
-      const subtotal = cantidad * precio_unitario
+      const subtotal = Math.round(cantidad * precio_unitario * 100) / 100
       subtotal_procesos += subtotal
       return { id_proceso: proc.id_proceso, id_unidad_cobro: proc.id_unidad_cobro, nombre: proc.nombre, unidad, cantidad, precio_unitario, subtotal, sinPrecio, configVacio }
     }).filter(Boolean)
@@ -937,7 +937,7 @@ export default function NuevaCotizacion() {
       const precioBruto = getPrecioEsp(proc.id_proceso)
       const sinPrecio = precioBruto === null
       const precio_unitario = precioBruto ?? 0
-      const subtotal = bs.cantidad * precio_unitario
+      const subtotal = Math.round(bs.cantidad * precio_unitario * 100) / 100
       subtotal_procesos += subtotal
       procesosCalc.push({
         id_proceso:      proc.id_proceso,
@@ -958,7 +958,7 @@ export default function NuevaCotizacion() {
       const precioBruto = getPrecioEsp(proc.id_proceso)
       const sinPrecio = precioBruto === null
       const precio_unitario = precioBruto ?? 0
-      const subtotal = ss.cantidad * precio_unitario
+      const subtotal = Math.round(ss.cantidad * precio_unitario * 100) / 100
       subtotal_procesos += subtotal
       procesosCalc.push({
         id_proceso:      proc.id_proceso,
@@ -979,7 +979,7 @@ export default function NuevaCotizacion() {
       const precioBruto = getPrecioEsp(proc.id_proceso)
       const sinPrecio = precioBruto === null
       const precio_unitario = precioBruto ?? 0
-      const subtotal = es.cantidad * precio_unitario
+      const subtotal = Math.round(es.cantidad * precio_unitario * 100) / 100
       subtotal_procesos += subtotal
       procesosCalc.push({
         id_proceso:      proc.id_proceso,
@@ -1052,7 +1052,7 @@ export default function NuevaCotizacion() {
     const manualNum   = esPequena && precioManual !== '' ? parseFloat(precioManual) : NaN
     const subtotalFin = (!isNaN(manualNum) && manualNum > 0)
       ? manualNum
-      : preview.subtotal_vidrio + preview.subtotal_procesos
+      : Math.round((preview.subtotal_vidrio + preview.subtotal_procesos) * 100) / 100
 
     const nuevaPartida = {
       _key:              Date.now() + Math.random(),

@@ -142,7 +142,7 @@ export default function VentaDirecta() {
     const largo            = parsed.largo
     const ancho            = parsed.ancho
     const metros2_total    = parsed.piezas * (largo * ancho) / 10000
-    const subtotal_vidrio  = metros2_total * precio_m2
+    const subtotal_vidrio  = Math.round(metros2_total * precio_m2 * 100) / 100
 
     let subtotal_procesos = 0
     const procesosCalc = procesosSeleccionados.map(sp => {
@@ -155,12 +155,12 @@ export default function VentaDirecta() {
         : ((largo + ancho) * 2 / 100) * parsed.piezas
       const precioNivel    = getPrecioProceso(proc.id_proceso, Number(nivelId), tipo?.espesor?.id_espesor ?? null)
       const precio_unitario = precioNivel !== null ? precioNivel : Number(proc.precio_unitario)
-      const subtotal       = cantidad * precio_unitario
+      const subtotal       = Math.round(cantidad * precio_unitario * 100) / 100
       subtotal_procesos   += subtotal
       return { id_proceso: proc.id_proceso, id_unidad_cobro: proc.id_unidad_cobro, nombre: proc.nombre, unidad, cantidad, precio_unitario, subtotal }
     }).filter(Boolean)
 
-    return { piezas: parsed.piezas, largo, ancho, metros2_total, precio_m2, subtotal_vidrio, subtotal_procesos, subtotal_total: subtotal_vidrio + subtotal_procesos, esHojaCompleta, procesosCalc }
+    return { piezas: parsed.piezas, largo, ancho, metros2_total, precio_m2, subtotal_vidrio, subtotal_procesos, subtotal_total: Math.round((subtotal_vidrio + subtotal_procesos) * 100) / 100, esHojaCompleta, procesosCalc }
   }, [notacion, tipoVidrioId, nivelId, procesosSeleccionados, tiposVidrio, nivelesPrecio, procesosActivos, getPrecioVidrio, getPrecioProceso])
 
   // ── Cambio de cliente → auto-selecciona nivel ─────────────────────────────

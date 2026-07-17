@@ -361,7 +361,7 @@ export default function CotizacionRegistrado() {
     if (precio_m2 === null) return { sinPrecio: true }
     const { piezas, largo, ancho } = parsed
     const metros2_total   = piezas * (largo * ancho) / 10000
-    const subtotal_vidrio = metros2_total * precio_m2
+    const subtotal_vidrio = Math.round(metros2_total * precio_m2 * 100) / 100
     let subtotal_procesos = 0
     const procesosCalc = procesosSeleccionados.map(sp => {
       const proc = procesosActivos.find(p => p.id_proceso === sp.id_proceso)
@@ -372,11 +372,11 @@ export default function CotizacionRegistrado() {
         ? metros2_total
         : ((largo + ancho) * 2 / 100) * piezas
       const precio_unitario = getPrecioProcesoCliente(Number(tipoVidrioId), proc.id_proceso) ?? Number(proc.precio_unitario)
-      const subtotal = cantidad * precio_unitario
+      const subtotal = Math.round(cantidad * precio_unitario * 100) / 100
       subtotal_procesos += subtotal
       return { id_proceso: proc.id_proceso, id_unidad_cobro: proc.id_unidad_cobro, nombre: proc.nombre, unidad, cantidad, precio_unitario, subtotal }
     }).filter(Boolean)
-    return { piezas, largo, ancho, metros2_total, precio_m2, subtotal_vidrio, subtotal_procesos, subtotal_total: subtotal_vidrio + subtotal_procesos, procesosCalc }
+    return { piezas, largo, ancho, metros2_total, precio_m2, subtotal_vidrio, subtotal_procesos, subtotal_total: Math.round((subtotal_vidrio + subtotal_procesos) * 100) / 100, procesosCalc }
   }, [notacion, tipoVidrioId, clienteId, procesosSeleccionados, preciosCli, cargandoPr, tipoPartida]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Agregar partida VIDRIO ────────────────────────────────────────────────
@@ -393,12 +393,12 @@ export default function CotizacionRegistrado() {
     let subtotal_proc_emp = 0
     const procesos_emp = preview.procesosCalc.map(pr => {
       const p_unit = getPrecioProcesoEmpresa(Number(tipoVidrioId), pr.id_proceso, id_espesor) ?? pr.precio_unitario
-      const sub    = pr.cantidad * p_unit
+      const sub    = Math.round(pr.cantidad * p_unit * 100) / 100
       subtotal_proc_emp += sub
       return { ...pr, precio_unitario: p_unit, subtotal: sub }
     })
-    const subtotal_vidrio_emp  = metros2 * precio_m2_emp
-    const subtotal_partida_emp = subtotal_vidrio_emp + subtotal_proc_emp
+    const subtotal_vidrio_emp  = Math.round(metros2 * precio_m2_emp * 100) / 100
+    const subtotal_partida_emp = Math.round((subtotal_vidrio_emp + subtotal_proc_emp) * 100) / 100
 
     setPartidas(prev => [...prev, {
       _key:               Date.now() + Math.random(),
