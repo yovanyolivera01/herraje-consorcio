@@ -892,7 +892,7 @@ export default function HistorialCotizaciones() {
             <button key={t} onClick={() => setTab(t)} style={{
               padding:'7px 18px', borderRadius:8, fontSize:13, cursor:'pointer', fontWeight:600,
               border:`2px solid ${tab===t ? 'var(--accent)' : 'var(--border)'}`,
-              background: tab===t ? 'var(--accent)' : 'white',
+              background: tab===t ? 'var(--accent)' : 'var(--card)',
               color: tab===t ? 'white' : 'var(--text)',
               transition:'all 0.15s',
             }}>{label}</button>

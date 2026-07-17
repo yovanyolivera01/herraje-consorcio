@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { fmt5 } from '../../lib/utils'
 import { parseNotacion, calcTotal } from '../../lib/cotizacionUtils'
 import { useLocation, useNavigate } from 'react-router-dom'
@@ -153,7 +153,7 @@ function TicketPedidoRapido({ detalle, extras = [] }) {
     <div className="ticket-preview">
       <div className="ticket-header">
         <h2>VIDRIO TEMPLADO Y ALUMINIO ROSALES</h2>
-        <p style={{ fontWeight: 700 }}>ARTE EN VIDRIO</p>
+        <p style={{ fontWeight: 700, fontStyle: 'italic' }}>Calidad que se ve, confianza que perdura</p>
         <p style={{ fontWeight: 700 }}>Pedido</p>
       </div>
       <hr className="ticket-divider" />
@@ -163,6 +163,12 @@ function TicketPedidoRapido({ detalle, extras = [] }) {
       )}
       <div className="ticket-row"><span>Fecha:</span><span>{detalle.fecha}</span></div>
       <div className="ticket-row"><span>Cliente:</span><span>{detalle.cliente?.nombre ?? 'Mostrador'}</span></div>
+      {detalle.observaciones && (
+        <div className="ticket-row" style={{ fontSize: 11, color: 'var(--text-muted)', alignItems: 'flex-start' }}>
+          <span style={{ whiteSpace: 'nowrap', marginRight: 6 }}>Obs:</span>
+          <span style={{ textAlign: 'right' }}>{detalle.observaciones}</span>
+        </div>
+      )}
       <hr className="ticket-divider" />
 
       {/* Vidrio */}
@@ -242,7 +248,12 @@ function TicketPedidoRapido({ detalle, extras = [] }) {
       <div className="ticket-total"><span>TOTAL</span><span>${fmt5(detalle.total)}</span></div>
       <div className="ticket-row" style={{ marginTop:6 }}>
         <span>Forma de pago:</span>
-        <span>{detalle.forma_pago === 'LIQUIDADO' ? 'Liquidado' : 'Anticipo'}</span>
+        <span>{
+          detalle.forma_pago === 'LIQUIDADO'  ? 'Liquidado' :
+          detalle.forma_pago === 'POR COBRAR' ? 'Por cobrar' :
+          detalle.forma_pago === 'ANTICIPO'   ? 'Anticipo' :
+          detalle.forma_pago ?? ''
+        }</span>
       </div>
       {detalle.forma_pago === 'ANTICIPO' && (
         <>
@@ -264,6 +275,365 @@ function TicketPedidoRapido({ detalle, extras = [] }) {
   )
 }
 
+
+// ── Panel izquierdo de procesos (m², ml, otros) reutilizable ─────────────
+function ProcesosPanelLeft({ procM2, procML, procOtros, seleccionados, onToggle, onOpenConfig }) {
+  const GL = label => (
+    <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', padding: '4px 10px 2px', marginTop: 4 }}>
+      {label}
+    </div>
+  )
+  const makeRow = (p) => {
+    const sel = seleccionados.find(s => s.id_proceso === p.id_proceso)
+    const u   = (p.unidad_cobro?.nombre ?? '').toLowerCase()
+    const isM2 = u.includes('m2') || u.includes('m²') || u.includes('cuadrado')
+    const isML = u.includes('ml') || u.includes('lineal')
+    const hasCfg = isM2 || isML
+    return (
+      <div key={p.id_proceso} style={{ display: 'flex', alignItems: 'center' }}>
+        <div
+          style={{ flex: 1, display: 'flex', alignItems: 'center', padding: '3px 10px', cursor: 'pointer', gap: 4 }}
+          onClick={() => onToggle(p)}
+        >
+          <input type="checkbox" checked={!!sel} onChange={() => {}}
+            style={{ pointerEvents: 'none', accentColor: 'var(--accent)', width: 14, height: 14, flexShrink: 0 }} />
+          <span style={{ flex: 1, fontSize: 12, userSelect: 'none' }}>{p.nombre}</span>
+        </div>
+        {sel && hasCfg && (
+          <button type="button" title="Configurar"
+            onClick={e => { e.stopPropagation(); onOpenConfig(p.id_proceso, p.nombre, isM2 ? 'm2' : 'ml') }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, padding: '2px 4px', color: 'var(--accent)' }}
+          >⚙️</button>
+        )}
+      </div>
+    )
+  }
+  return (
+    <>
+      {procM2.length    > 0 && (<>{GL('m²')}   {procM2.map(makeRow)}</>)}
+      {procML.length    > 0 && (<>{GL('ml')}    {procML.map(makeRow)}</>)}
+      {procOtros.length > 0 && (<>{GL('Otros')} {procOtros.map(makeRow)}</>)}
+    </>
+  )
+}
+
+// ── Modal de configuracion de proceso (m² / ml) ──────────────────────────
+function ProcesoConfigModal({ nombre, tipo, largo, ancho, config, onSave, onClose }) {
+  const [sides, setSides] = useState(
+    config?.sidesML ?? { top: true, bottom: true, left: true, right: true }
+  )
+  // m2 area grid: 4×3 cells the user paints to select the processed area
+  const COLS = 4, ROWS = 3, NCELLS = COLS * ROWS
+  const initCells = config?.cellsM2
+    ?? (config?.facesM2
+        ? Array(NCELLS).fill(config.facesM2.front || config.facesM2.back)
+        : Array(NCELLS).fill(true))
+  const [cells, setCells] = useState(initCells)
+  const selectedCells = cells.filter(Boolean).length
+  const areaFrac = selectedCells / NCELLS
+
+  const svgRef   = useRef(null)
+  const dragging = useRef(false)
+  const drawMode = useRef(true) // true = activating, false = deactivating
+
+  const handleSave = () => {
+    if (tipo === 'm2') onSave({ cellsM2: cells, areaFrac })
+    else onSave({ sidesML: sides })
+    onClose()
+  }
+
+  const L = largo ?? 0
+  const A = ancho  ?? 0
+  const totalCm = tipo === 'ml'
+    ? (sides.top ? A : 0) + (sides.bottom ? A : 0) + (sides.left ? L : 0) + (sides.right ? L : 0)
+    : 0
+  const m2pieza = (L * A) / 10000
+
+  // SVG layout constants
+  const GL = 48, GT = 36, GW = 134, GH = 108
+  const GR = GL + GW, GB = GT + GH
+  const SVG_W = GL + GW + 48, SVG_H = GT + GH + 36
+  const CX = GL + GW / 2, CY = GT + GH / 2
+
+  const sideLines = [
+    { key: 'top',    x1: GL, y1: GT, x2: GR, y2: GT, lx: CX,      ly: GT - 14, rot: 0,   label: A ? `${A} cm` : '—' },
+    { key: 'bottom', x1: GL, y1: GB, x2: GR, y2: GB, lx: CX,      ly: GB + 16, rot: 0,   label: A ? `${A} cm` : '—' },
+    { key: 'left',   x1: GL, y1: GT, x2: GL, y2: GB, lx: GL - 14, ly: CY,      rot: -90, label: L ? `${L} cm` : '—' },
+    { key: 'right',  x1: GR, y1: GT, x2: GR, y2: GB, lx: GR + 14, ly: CY,      rot: 90,  label: L ? `${L} cm` : '—' },
+  ]
+
+  // Distance from point to a line segment
+  const distToSeg = (px, py, x1, y1, x2, y2) => {
+    const dx = x2 - x1, dy = y2 - y1
+    const lenSq = dx * dx + dy * dy
+    if (!lenSq) return Math.hypot(px - x1, py - y1)
+    const t = Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / lenSq))
+    return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy))
+  }
+
+  // Convert client coords to SVG-space coords
+  const toSVGPt = (e) => {
+    const rect = svgRef.current?.getBoundingClientRect()
+    if (!rect) return null
+    return {
+      x: (e.clientX - rect.left) * (SVG_W / rect.width),
+      y: (e.clientY - rect.top)  * (SVG_H / rect.height),
+    }
+  }
+
+  // Which side is nearest to a point (within threshold)?
+  const nearestSide = (px, py) => {
+    let best = null, minD = Infinity
+    for (const { key, x1, y1, x2, y2 } of sideLines) {
+      const d = distToSeg(px, py, x1, y1, x2, y2)
+      if (d < minD) { minD = d; best = key }
+    }
+    return minD < 26 ? best : null
+  }
+
+  const onPointerDown = (e) => {
+    const pt = toSVGPt(e)
+    if (!pt) return
+    const side = nearestSide(pt.x, pt.y)
+    if (!side) return
+    e.currentTarget.setPointerCapture(e.pointerId)
+    dragging.current = true
+    // Determine whether this gesture activates or deactivates
+    setSides(s => {
+      drawMode.current = !s[side]
+      return { ...s, [side]: !s[side] }
+    })
+  }
+
+  const onPointerMove = (e) => {
+    if (!dragging.current) return
+    const pt = toSVGPt(e)
+    if (!pt) return
+    const side = nearestSide(pt.x, pt.y)
+    if (!side) return
+    setSides(s => s[side] === drawMode.current ? s : { ...s, [side]: drawMode.current })
+  }
+
+  const onPointerUp = () => { dragging.current = false }
+
+  // m2 grid area selector
+  const GRD_W = 200, GRD_H = 108, GRD_PAD = 10
+  const CELL_W = GRD_W / COLS, CELL_H = GRD_H / ROWS
+  const GSVG_W = GRD_W + GRD_PAD * 2
+  const GSVG_H = GRD_H + GRD_PAD + 28
+
+  const toGridPt = (e) => {
+    const rect = svgRef.current?.getBoundingClientRect()
+    if (!rect) return null
+    return {
+      x: (e.clientX - rect.left) * (GSVG_W / rect.width),
+      y: (e.clientY - rect.top)  * (GSVG_H / rect.height),
+    }
+  }
+
+  const getCellIdx = (x, y) => {
+    const gx = x - GRD_PAD, gy = y - GRD_PAD
+    if (gx < 0 || gx >= GRD_W || gy < 0 || gy >= GRD_H) return -1
+    return Math.floor(gy / CELL_H) * COLS + Math.floor(gx / CELL_W)
+  }
+
+  const onGridDown = (e) => {
+    const pt = toGridPt(e)
+    if (!pt) return
+    const idx = getCellIdx(pt.x, pt.y)
+    if (idx < 0) return
+    e.currentTarget.setPointerCapture(e.pointerId)
+    dragging.current = true
+    setCells(prev => {
+      drawMode.current = !prev[idx]
+      const next = [...prev]; next[idx] = !prev[idx]; return next
+    })
+  }
+
+  const onGridMove = (e) => {
+    if (!dragging.current) return
+    const pt = toGridPt(e)
+    if (!pt) return
+    const idx = getCellIdx(pt.x, pt.y)
+    if (idx < 0) return
+    setCells(prev => {
+      if (prev[idx] === drawMode.current) return prev
+      const next = [...prev]; next[idx] = drawMode.current; return next
+    })
+  }
+
+  return (
+    <div
+      style={{
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999,
+      }}
+      onClick={e => e.target === e.currentTarget && onClose()}
+    >
+      <div style={{
+        background: 'var(--card)', border: '1px solid var(--border)',
+        borderRadius: 12, padding: '16px 20px', minWidth: 300, maxWidth: 380,
+        boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+          <div style={{ fontWeight: 700, fontSize: 14 }}>⚙️ {nombre}</div>
+          <button type="button" onClick={onClose}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: 'var(--text-muted)', padding: 2 }}
+          >✕</button>
+        </div>
+
+        {tipo === 'ml' && (
+          <>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>
+              Toca o arrastra sobre los lados del vidrio para dibujar el contorno:
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'center', userSelect: 'none' }}>
+              <svg
+                ref={svgRef}
+                width={SVG_W}
+                height={SVG_H}
+                onPointerDown={onPointerDown}
+                onPointerMove={onPointerMove}
+                onPointerUp={onPointerUp}
+                onPointerLeave={onPointerUp}
+                style={{ overflow: 'visible', touchAction: 'none', cursor: 'crosshair' }}
+              >
+                {/* Glass fill */}
+                <rect x={GL} y={GT} width={GW} height={GH} fill="rgba(147,210,255,0.10)" />
+
+                {/* Sides: visible stroke + wide transparent hit zone */}
+                {sideLines.map(({ key, x1, y1, x2, y2, lx, ly, rot, label }) => {
+                  const active = sides[key]
+                  return (
+                    <g key={key}>
+                      {/* Visible contour */}
+                      <line x1={x1} y1={y1} x2={x2} y2={y2}
+                        style={{
+                          stroke: active ? 'var(--accent)' : 'var(--border)',
+                          strokeWidth: active ? 6 : 2,
+                          strokeLinecap: 'round',
+                          transition: 'stroke 0.1s, stroke-width 0.1s',
+                          pointerEvents: 'none',
+                        }}
+                      />
+                      {/* Wide invisible hit zone (makes dragging easy) */}
+                      <line x1={x1} y1={y1} x2={x2} y2={y2}
+                        style={{ stroke: 'transparent', strokeWidth: 22, cursor: 'crosshair' }}
+                      />
+                      {/* Dimension label */}
+                      <text x={lx} y={ly}
+                        textAnchor="middle" dominantBaseline="middle" fontSize="10"
+                        transform={rot ? `rotate(${rot},${lx},${ly})` : undefined}
+                        style={{
+                          fill: active ? 'var(--accent)' : 'var(--text-muted)',
+                          fontWeight: active ? 700 : 400,
+                          transition: 'fill 0.1s',
+                          pointerEvents: 'none',
+                        }}
+                      >{label}</text>
+                    </g>
+                  )
+                })}
+
+                {/* Corner dots */}
+                {[[GL,GT],[GR,GT],[GR,GB],[GL,GB]].map(([cx,cy], i) => (
+                  <circle key={i} cx={cx} cy={cy} r={3.5}
+                    style={{ fill: 'var(--border)', pointerEvents: 'none' }} />
+                ))}
+
+                {/* Center label */}
+                <text x={CX} y={CY} textAnchor="middle" dominantBaseline="middle"
+                  fontSize="11" style={{ fill: 'var(--text-muted)', pointerEvents: 'none' }}>
+                  Vidrio
+                </text>
+              </svg>
+            </div>
+
+            <div style={{ marginTop: 6, textAlign: 'center', fontSize: 13 }}>
+              {totalCm > 0
+                ? <span>Total: <strong>{(totalCm / 100).toFixed(2)} m</strong> por pieza</span>
+                : <span style={{ color: 'var(--text-muted)' }}>Sin lados seleccionados</span>}
+              {L === 0 && <div style={{ fontSize: 11, color: '#f59e0b', marginTop: 2 }}>* Ingresa las medidas primero</div>}
+            </div>
+          </>
+        )}
+
+        {tipo === 'm2' && (
+          <>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>
+              Toca o arrastra para colorear el área donde aplica el proceso:
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'center', userSelect: 'none' }}>
+              <svg
+                ref={svgRef}
+                width={GSVG_W} height={GSVG_H}
+                onPointerDown={onGridDown}
+                onPointerMove={onGridMove}
+                onPointerUp={onPointerUp}
+                onPointerLeave={onPointerUp}
+                style={{ overflow: 'visible', touchAction: 'none', cursor: 'crosshair' }}
+              >
+                {/* Grid cells */}
+                {cells.map((active, idx) => {
+                  const col = idx % COLS
+                  const row = Math.floor(idx / COLS)
+                  return (
+                    <rect key={idx}
+                      x={GRD_PAD + col * CELL_W} y={GRD_PAD + row * CELL_H}
+                      width={CELL_W} height={CELL_H}
+                      style={{
+                        fill: active ? 'rgba(59,130,246,0.32)' : 'rgba(147,210,255,0.06)',
+                        stroke: 'var(--border)', strokeWidth: 0.5,
+                        pointerEvents: 'none',
+                        transition: 'fill 0.06s',
+                      }}
+                    />
+                  )
+                })}
+                {/* Outer glass border */}
+                <rect x={GRD_PAD} y={GRD_PAD} width={GRD_W} height={GRD_H} rx={4}
+                  style={{
+                    fill: 'none',
+                    stroke: selectedCells > 0 ? 'var(--accent)' : 'var(--border)',
+                    strokeWidth: selectedCells > 0 ? 2.5 : 1.5,
+                    pointerEvents: 'none',
+                  }}
+                />
+                {/* Glass shine */}
+                <line x1={GRD_PAD+12} y1={GRD_PAD+8} x2={GRD_PAD+17} y2={GRD_PAD+GRD_H-8}
+                  style={{ stroke: selectedCells > 0 ? 'rgba(255,255,255,0.45)' : 'rgba(200,230,255,0.2)', strokeWidth: 3.5, strokeLinecap: 'round', pointerEvents: 'none' }}
+                />
+                {/* Dimension label */}
+                {m2pieza > 0 && (
+                  <text x={GRD_PAD + GRD_W/2} y={GRD_PAD + GRD_H + 18}
+                    textAnchor="middle" dominantBaseline="middle" fontSize="10"
+                    style={{ fill: 'var(--text-muted)', pointerEvents: 'none' }}
+                  >{A}×{L} cm · {m2pieza.toFixed(4)} m²</text>
+                )}
+              </svg>
+            </div>
+            <div style={{ marginTop: 6, textAlign: 'center', fontSize: 13 }}>
+              {selectedCells > 0
+                ? <span>Área: <strong>{(m2pieza * areaFrac).toFixed(4)} m²</strong> ({Math.round(areaFrac * 100)}%) × piezas</span>
+                : <span style={{ color: '#dc2626' }}>Sin área seleccionada</span>}
+              {L === 0 && <div style={{ fontSize: 11, color: '#f59e0b', marginTop: 2 }}>* Ingresa las medidas primero</div>}
+            </div>
+          </>
+        )}
+
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 14 }}>
+          <button type="button" onClick={onClose}
+            style={{ padding: '6px 14px', background: 'var(--bg)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}
+          >Cancelar</button>
+          <button type="button" onClick={handleSave}
+            style={{ padding: '6px 14px', background: 'var(--accent)', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13, fontWeight: 700 }}
+          >Aplicar</button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 // ── Pagina Nueva Cotizacion ───────────────────────────────────────────────
 export default function NuevaCotizacion() {
@@ -295,7 +665,9 @@ export default function NuevaCotizacion() {
   const [notacion,     setNotacion]     = useState('')
   const [notError,     setNotError]     = useState('')
   const [tipoVidrioId, setTipoVidrioId] = useState('')
-  const [procesosSeleccionados, setProcesosSeleccionados] = useState([]) // [{id_proceso, nombre, ...}]
+  const [procesosSeleccionados, setProcesosSeleccionados] = useState([]) // [{id_proceso, ...config}]
+  const [configModal,    setConfigModal]    = useState(null) // { id_proceso, nombre, tipo:'ml'|'m2' }
+  const [maqConfigModal, setMaqConfigModal] = useState(null)
 
   // ── Estado calculadora Maquila ────────────────────────────────────────────
   const [maqNotacion,      setMaqNotacion]      = useState('')
@@ -336,6 +708,7 @@ export default function NuevaCotizacion() {
   const [modalFormaPago,      setModalFormaPago]      = useState('LIQUIDADO')
   const [modalAnticipoStr,    setModalAnticipoStr]    = useState('')
   const [modalMetodoPago,     setModalMetodoPago]     = useState('EFECTIVO')
+  const [modalObservaciones,  setModalObservaciones]  = useState('')
   const [modalError,          setModalError]          = useState(null)
   const [modalConvertiendo,   setModalConvertiendo]   = useState(false)
 
@@ -494,18 +867,31 @@ export default function NuevaCotizacion() {
       if (!proc) return null
       const unidad = proc.unidad_cobro?.nombre ?? ''
       const unidadLow = unidad.toLowerCase()
+      const isM2 = unidadLow.includes('m2') || unidadLow.includes('m²') || unidadLow.includes('cuadrado')
+      const isML = unidadLow.includes('ml') || unidadLow.includes('lineal')
       let cantidad
-      if (unidadLow === 'm2' || unidadLow === 'm²' || unidadLow.includes('cuadrado')) {
-        cantidad = metros2_total
+      if (isM2) {
+        const frac = sp.areaFrac
+          ?? (sp.facesM2 ? ((sp.facesM2.front ? 1 : 0) + (sp.facesM2.back ? 1 : 0)) : (sp.numCaras ?? 1))
+        cantidad = metros2_total * frac
+      } else if (isML && sp.sidesML) {
+        const s = sp.sidesML
+        const totalCm = (s.top ? ancho : 0) + (s.bottom ? ancho : 0) + (s.left ? largo : 0) + (s.right ? largo : 0)
+        cantidad = (totalCm / 100) * parsed.piezas
       } else {
-        cantidad = ((largo + ancho) * 2 / 100) * parsed.piezas
+        const lados = sp.lados ?? 'perimetro'
+        if (lados === 'largo')       cantidad = (largo / 100) * parsed.piezas
+        else if (lados === 'ancho')  cantidad = (ancho / 100) * parsed.piezas
+        else                         cantidad = ((largo + ancho) * 2 / 100) * parsed.piezas
       }
       const precioNivel = getPrecioProc(proc.id_proceso, tipo?.espesor?.id_espesor ?? null)
       const precio_unitario = precioNivel !== null ? precioNivel : Number(proc.precio_unitario)
-      const sinPrecio = precioNivel === null && Number(proc.precio_unitario) === 0
+      const sinPrecio  = precioNivel === null && Number(proc.precio_unitario) === 0
+      const configVacio = (isML && sp.sidesML && cantidad === 0)
+        || (isM2 && sp.cellsM2 && !sp.cellsM2.some(Boolean))
       const subtotal = cantidad * precio_unitario
       subtotal_procesos += subtotal
-      return { id_proceso: proc.id_proceso, id_unidad_cobro: proc.id_unidad_cobro, nombre: proc.nombre, unidad, cantidad, precio_unitario, subtotal, sinPrecio }
+      return { id_proceso: proc.id_proceso, id_unidad_cobro: proc.id_unidad_cobro, nombre: proc.nombre, unidad, cantidad, precio_unitario, subtotal, sinPrecio, configVacio }
     }).filter(Boolean)
 
     // Barrenos seleccionados
@@ -616,6 +1002,10 @@ export default function NuevaCotizacion() {
       setNotError('No hay precio configurado para este tipo y nivel')
       return
     }
+    if (preview.procesosCalc.some(pc => pc.configVacio)) {
+      setNotError('Hay procesos con 0 lados seleccionados. Abre ⚙️ para configurarlos.')
+      return
+    }
 
     const nivel = nivelesPrecio.find(n => n.id_nivel_precio === Number(nivelId))
     const largo = parsed.largo
@@ -667,33 +1057,42 @@ export default function NuevaCotizacion() {
     return maqProcesosSelec.map(sel => {
       const proc = procesosActivos.find(p => p.id_proceso === sel.id_proceso)
       if (!proc) return null
-      const unidad   = (proc.unidad_cobro?.nombre ?? '').toLowerCase()
-      const esPorPza = unidad.includes('pza') || unidad.includes('pieza')
-      const esPorML  = !esPorPza && (unidad.includes('ml') || unidad.includes('metro l'))
+      const unidad     = (proc.unidad_cobro?.nombre ?? '').toLowerCase()
+      const esPorPza   = unidad.includes('pza') || unidad.includes('pieza')
+      const esPorML    = !esPorPza && (unidad.includes('ml') || unidad.includes('lineal') || unidad.includes('metro l'))
+      const esPorM2    = !esPorPza && !esPorML && (unidad.includes('m2') || unidad.includes('m²') || unidad.includes('cuadrado'))
       const esEspecial = especialesIds.has(proc.id_proceso)
       let cantidad, precio_unitario
       if (esEspecial || esPorPza) {
         cantidad        = sel.cantidad !== '' ? Number(sel.cantidad) : 1
         precio_unitario = getPrecioEsp(proc.id_proceso) ?? 0
       } else if (esPorML) {
-        cantidad        = perimetroML
-        precio_unitario = (
-          getPrecioProc(proc.id_proceso, espesorNum) ??
-          getPrecioProc(proc.id_proceso, null) ??
-          0
-        )
+        if (sel.sidesML) {
+          const s = sel.sidesML
+          const L = maqParsed.largo, A = maqParsed.ancho
+          const totalCm = (s.top ? A : 0) + (s.bottom ? A : 0) + (s.left ? L : 0) + (s.right ? L : 0)
+          cantidad = (totalCm / 100) * maqParsed.piezas
+        } else {
+          cantidad = perimetroML
+        }
+        precio_unitario = getPrecioProc(proc.id_proceso, espesorNum) ?? getPrecioProc(proc.id_proceso, null) ?? 0
+      } else if (esPorM2) {
+        const frac = sel.areaFrac
+          ?? (sel.facesM2 ? ((sel.facesM2.front ? 1 : 0) + (sel.facesM2.back ? 1 : 0)) : (sel.numCaras ?? 1))
+        cantidad        = maqMetros2 * frac
+        precio_unitario = getPrecioProc(proc.id_proceso, espesorNum) ?? getPrecioProc(proc.id_proceso, null) ?? 0
       } else {
         cantidad        = maqMetros2
-        precio_unitario = (
-          getPrecioProc(proc.id_proceso, espesorNum) ??
-          getPrecioProc(proc.id_proceso, null) ??
-          0
-        )
+        precio_unitario = getPrecioProc(proc.id_proceso, espesorNum) ?? getPrecioProc(proc.id_proceso, null) ?? 0
       }
+      const configVacio = (esPorML && sel.sidesML && cantidad === 0)
+        || (esPorM2 && sel.cellsM2 && !sel.cellsM2.some(Boolean))
       return {
         id_proceso: proc.id_proceso, nombre: proc.nombre,
-        unidad: proc.unidad_cobro?.nombre ?? '', esPorM2: !esPorPza && !esPorML,
-        cantidad, precio_unitario, subtotal: cantidad * precio_unitario,
+        unidad: proc.unidad_cobro?.nombre ?? '', esPorM2, esPorML,
+        cantidad, precio_unitario, subtotal: cantidad * precio_unitario, configVacio,
+        sidesML:  esPorML ? (sel.sidesML ?? null) : undefined,
+        areaFrac: esPorM2 ? (sel.areaFrac ?? null) : undefined,
       }
     }).filter(Boolean)
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -701,11 +1100,22 @@ export default function NuevaCotizacion() {
 
   const maqSubtotal = maqPreviewProcesos.reduce((s, p) => s + p.subtotal, 0)
 
-  const toggleMaqProceso = (id) =>
+  const toggleMaqProceso = (procOrId) => {
+    const proc = typeof procOrId === 'object' && procOrId !== null ? procOrId : null
+    const id   = proc ? proc.id_proceso : procOrId
     setMaqProcesosSelec(prev => {
       const ex = prev.find(p => p.id_proceso === id)
-      return ex ? prev.filter(p => p.id_proceso !== id) : [...prev, { id_proceso: id, cantidad: '' }]
+      if (ex) return prev.filter(p => p.id_proceso !== id)
+      const u    = (proc?.unidad_cobro?.nombre ?? '').toLowerCase()
+      const isM2 = u.includes('m2') || u.includes('m²') || u.includes('cuadrado')
+      const isML = u.includes('ml') || u.includes('lineal')
+      const cfg  = isM2 ? { cellsM2: Array(12).fill(true), areaFrac: 1.0 } : isML ? { sidesML: { top:true, bottom:true, left:true, right:true } } : {}
+      return [...prev, { id_proceso: id, cantidad: '', ...cfg }]
     })
+  }
+
+  const updateMaqProcesoConfig = (id_proceso, config) =>
+    setMaqProcesosSelec(prev => prev.map(p => p.id_proceso === id_proceso ? { ...p, ...config } : p))
   const setMaqProcesoQty = (id, val) =>
     setMaqProcesosSelec(prev => prev.map(p => p.id_proceso === id ? { ...p, cantidad: val } : p))
 
@@ -713,8 +1123,9 @@ export default function NuevaCotizacion() {
   const handleAgregarMaquila = () => {
     if (maqParsed.error)            { setMaqNotError(maqParsed.error); return }
     if (!efectivoNivelId)           { setMaqNotError('Selecciona un nivel de precio'); return }
-    if (!maqProcesosSelec.length)   { setMaqNotError('Selecciona al menos un proceso'); return }
-    if (maqSubtotal === 0)          { setMaqNotError('Los procesos seleccionados no tienen precio configurado'); return }
+    if (!maqProcesosSelec.length)                          { setMaqNotError('Selecciona al menos un proceso'); return }
+    if (maqPreviewProcesos.some(p => p.configVacio))      { setMaqNotError('Hay procesos con 0 lados seleccionados. Abre ⚙️ para configurarlos.'); return }
+    if (maqSubtotal === 0)                                 { setMaqNotError('Los procesos seleccionados no tienen precio configurado'); return }
     const espesorSel = espesores.find(e => e.id_espesor === Number(maqEspesorId))
     setPartidas(prev => [...prev, {
       _key:            Date.now() + Math.random(),
@@ -819,8 +1230,22 @@ export default function NuevaCotizacion() {
     setProcesosSeleccionados(prev => {
       const existe = prev.find(p => p.id_proceso === proc.id_proceso)
       if (existe) return prev.filter(p => p.id_proceso !== proc.id_proceso)
-      return [...prev, { id_proceso: proc.id_proceso }]
+      const u = (proc.unidad_cobro?.nombre ?? '').toLowerCase()
+      const isM2 = u.includes('m2') || u.includes('m²') || u.includes('cuadrado')
+      const isML = u.includes('ml') || u.includes('lineal')
+      const extra = isM2
+        ? { cellsM2: Array(12).fill(true), areaFrac: 1.0 }
+        : isML
+          ? { sidesML: { top: true, bottom: true, left: true, right: true } }
+          : { lados: 'perimetro' }
+      return [...prev, { id_proceso: proc.id_proceso, ...extra }]
     })
+  }
+
+  const updateProcesoConfig = (id_proceso, config) => {
+    setProcesosSeleccionados(prev =>
+      prev.map(p => p.id_proceso === id_proceso ? { ...p, ...config } : p)
+    )
   }
 
   // ── Barrenos ──────────────────────────────────────────────────────────────
@@ -890,10 +1315,30 @@ export default function NuevaCotizacion() {
     const extras = partidas.filter(p => p.tipo && p.tipo !== 'VIDRIO')
     for (const p of extras) {
       let descripcion = p.descripcion
+      let notas = null
       if (p.tipo === 'MAQUILA' && p.piezas_maq != null) {
         const dims  = `${p.piezas_maq} ${p.largo_cm}×${p.ancho_cm}cm${p.espesor_label ? ` ${p.espesor_label}` : ''}`
-        const procs = (p.procesos_maq ?? []).map(pr => pr.nombre).join(', ')
-        descripcion = `${dims}${p.descripcion ? ` - ${p.descripcion}` : ''} · ${procs}`
+        const procs = (p.procesos_maq ?? []).map(pr => {
+          const qty = pr.cantidad != null ? ` ${Number(pr.cantidad).toFixed(3)} ${pr.unidad}` : ''
+          const cfg = pr.sidesML
+            ? ` [${['top','bottom','left','right'].filter(k => pr.sidesML[k]).map(k => k[0].toUpperCase()).join('')}]`
+            : (pr.areaFrac != null && pr.areaFrac < 1 ? ` (${Math.round(pr.areaFrac * 100)}%)` : '')
+          return `${pr.nombre}${qty}${cfg}`
+        }).join(', ')
+        descripcion = `${dims}${p.descripcion ? ` - ${p.descripcion}` : ''}${procs ? ` · ${procs}` : ''}`
+        notas = JSON.stringify({
+          metros2: p.metros2,
+          procesos: (p.procesos_maq ?? []).map(pr => ({
+            id_proceso:      pr.id_proceso,
+            nombre:          pr.nombre,
+            unidad:          pr.unidad ?? '',
+            cantidad:        pr.cantidad ?? 0,
+            precio_unitario: pr.precio_unitario ?? 0,
+            subtotal:        pr.subtotal ?? 0,
+            ...(pr.sidesML  ? { sidesML:  pr.sidesML  } : {}),
+            ...(pr.areaFrac != null ? { areaFrac: pr.areaFrac } : {}),
+          })),
+        })
       }
       const { error } = await agregarPartidaExtra(id_cotizacion, {
         tipo:                p.tipo,
@@ -903,6 +1348,7 @@ export default function NuevaCotizacion() {
         precio_unitario:     p.precio_unitario,
         subtotal:            p.subtotal_partida,
         id_producto_general: p.id_producto_general ?? null,
+        notas,
       })
       if (error) throw new Error(error)
     }
@@ -1035,7 +1481,7 @@ export default function NuevaCotizacion() {
         })
         await deletePartidasExtra(cotEdit.id)
         await guardarExtras(cotEdit.id)
-        const idPedido = await convertirCotizacionAPedido(cotEdit.id, modalFormaPago, monto)
+        const idPedido = await convertirCotizacionAPedido(cotEdit.id, modalFormaPago, monto, modalMetodoPago, modalObservaciones)
         decrementarStockProductos(partidas)
         const detalle  = await getDetallePedido(idPedido)
         if (detalle.id_cotizacion) {
@@ -1051,10 +1497,30 @@ export default function NuevaCotizacion() {
           .filter(p => p.tipo && p.tipo !== 'VIDRIO')
           .map(p => {
             let descripcion = p.descripcion
+            let notas = null
             if (p.tipo === 'MAQUILA' && p.piezas_maq != null) {
               const dims  = `${p.piezas_maq} ${p.largo_cm}×${p.ancho_cm}cm${p.espesor_label ? ` ${p.espesor_label}` : ''}`
-              const procs = (p.procesos_maq ?? []).map(pr => pr.nombre).join(', ')
-              descripcion = `${dims}${p.descripcion ? ` - ${p.descripcion}` : ''} · ${procs}`
+              const procs = (p.procesos_maq ?? []).map(pr => {
+                const qty = pr.cantidad != null ? ` ${Number(pr.cantidad).toFixed(3)} ${pr.unidad}` : ''
+                const cfg = pr.sidesML
+                  ? ` [${['top','bottom','left','right'].filter(k => pr.sidesML[k]).map(k => k[0].toUpperCase()).join('')}]`
+                  : (pr.areaFrac != null && pr.areaFrac < 1 ? ` (${Math.round(pr.areaFrac * 100)}%)` : '')
+                return `${pr.nombre}${qty}${cfg}`
+              }).join(', ')
+              descripcion = `${dims}${p.descripcion ? ` - ${p.descripcion}` : ''}${procs ? ` · ${procs}` : ''}`
+              notas = JSON.stringify({
+                metros2: p.metros2,
+                procesos: (p.procesos_maq ?? []).map(pr => ({
+                  id_proceso:      pr.id_proceso,
+                  nombre:          pr.nombre,
+                  unidad:          pr.unidad ?? '',
+                  cantidad:        pr.cantidad ?? 0,
+                  precio_unitario: pr.precio_unitario ?? 0,
+                  subtotal:        pr.subtotal ?? 0,
+                  ...(pr.sidesML   ? { sidesML:  pr.sidesML  } : {}),
+                  ...(pr.areaFrac != null ? { areaFrac: pr.areaFrac } : {}),
+                })),
+              })
             }
             return {
               tipo:                p.tipo,
@@ -1064,6 +1530,7 @@ export default function NuevaCotizacion() {
               precio_unitario:     p.precio_unitario,
               subtotal:            p.subtotal_partida,
               id_producto_general: p.id_producto_general ?? null,
+              notas,
             }
           })
         const idPedido = await crearPedidoDirectoConExtras({
@@ -1075,6 +1542,7 @@ export default function NuevaCotizacion() {
           extras:          extrasPayload,
           total:           totalGeneral,
           metodo_pago:     modalMetodoPago,
+          observaciones:   modalObservaciones,
         })
         decrementarStockProductos(partidas)
         const detalle = await getDetallePedido(idPedido)
@@ -1091,6 +1559,7 @@ export default function NuevaCotizacion() {
           tipo_pago:       modalFormaPago,
           monto_anticipo:  monto,
           metodo_pago:     modalMetodoPago,
+          observaciones:   modalObservaciones,
         })
         const folioRef = `PED-${String(idPedido).padStart(5, '0')}`
         decrementarInventarioDesdePartidas(vidrioPartidas, folioRef).catch(e => console.error('[inventario]', e))
@@ -1138,6 +1607,7 @@ export default function NuevaCotizacion() {
     setShowPedidoModal(false)
     setModalFormaPago('LIQUIDADO')
     setModalAnticipoStr('')
+    setModalObservaciones('')
     setModalError(null)
     setModalConvertiendo(false)
     window.scrollTo(0, 0)
@@ -1193,6 +1663,7 @@ export default function NuevaCotizacion() {
         saldo_cobrado: pedidoCreado.saldo_cobrado,
         esEntregado: pedidoCreado.estado === 'ENTREGADO',
         total: pedidoCreado.total,
+        observaciones: pedidoCreado.observaciones ?? '',
         partidas: [
           ...pedidoCreado.partidas.map(p => ({
             piezas: p.cantidad, clave: p.clave_vidrio,
@@ -1411,63 +1882,46 @@ export default function NuevaCotizacion() {
                 <span style={{ fontSize: 18, color: 'var(--text-muted)', display: 'inline-block', transition: 'transform 0.2s', transform: datosCotOpen ? 'none' : 'rotate(-90deg)' }}>▾</span>
               </div>
               {datosCotOpen && <div className="form-row">
-                {!usarPreciosCli && (
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label required">Nivel de precio</label>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
-                      {nivelesPrecio.map(n => {
-                        const activo   = nivelId === String(n.id_nivel_precio)
-                        const bloqueado = usarPreciosCli
-                        const precioM2 = tipoVidrioId
-                          ? getPrecioVidrio(Number(tipoVidrioId), n.id_nivel_precio)
-                          : null
-                        return (
-                          <button
-                            key={n.id_nivel_precio}
-                            type="button"
-                            disabled={bloqueado && !activo}
-                            onClick={() => { if (!bloqueado) { setNivelId(String(n.id_nivel_precio)); setDatosCotOpen(false) } }}
-                            title={bloqueado && !activo ? 'Nivel bloqueado al cliente seleccionado' : undefined}
-                            style={{
-                              padding: '7px 14px', borderRadius: 8, fontSize: 14,
-                              cursor: bloqueado && !activo ? 'not-allowed' : 'pointer',
-                              border: `2px solid ${activo ? 'var(--accent)' : 'var(--border)'}`,
-                              background: activo ? 'var(--accent)' : bloqueado ? 'var(--bg)' : 'var(--card)',
-                              color: activo ? 'white' : bloqueado ? 'var(--text-muted)' : 'var(--text)',
-                              fontWeight: activo ? 700 : 400,
-                              opacity: bloqueado && !activo ? 0.4 : 1,
-                              transition: 'all 0.15s',
-                              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1,
-                            }}
-                          >
-                            <span>{n.es_hoja_completa ? 'POR HOJA' : n.nombre}</span>
-                            {precioM2 !== null && (
-                              <span style={{ fontSize: 11, opacity: 0.85, fontWeight: 600 }}>
-                                ${precioM2.toFixed(2)}/m²
-                              </span>
-                            )}
-                          </button>
-                        )
-                      })}
-                    </div>
-                    {clienteId && (
-                      <div className="form-hint" style={{ marginTop: 6 }}>
-                        🔒 Nivel bloqueado al cliente seleccionado
-                      </div>
-                    )}
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label required">Nivel de precio</label>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+                    {nivelesPrecio.map(n => {
+                      const activo  = nivelId === String(n.id_nivel_precio)
+                      const precioM2 = tipoVidrioId
+                        ? getPrecioVidrio(Number(tipoVidrioId), n.id_nivel_precio)
+                        : null
+                      return (
+                        <button
+                          key={n.id_nivel_precio}
+                          type="button"
+                          onClick={() => { setNivelId(String(n.id_nivel_precio)); setDatosCotOpen(false) }}
+                          style={{
+                            padding: '7px 14px', borderRadius: 8, fontSize: 14,
+                            cursor: 'pointer',
+                            border: `2px solid ${activo ? 'var(--accent)' : 'var(--border)'}`,
+                            background: activo ? 'var(--accent)' : 'var(--card)',
+                            color: activo ? 'white' : 'var(--text)',
+                            fontWeight: activo ? 700 : 400,
+                            transition: 'all 0.15s',
+                            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1,
+                          }}
+                        >
+                          <span>{n.es_hoja_completa ? 'POR HOJA' : n.nombre}</span>
+                          {precioM2 !== null && (
+                            <span style={{ fontSize: 11, opacity: 0.85, fontWeight: 600 }}>
+                              ${precioM2.toFixed(2)}/m²
+                            </span>
+                          )}
+                        </button>
+                      )
+                    })}
                   </div>
-                )}
-                {usarPreciosCli && (
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label">Nivel de precio</label>
-                    <div style={{
-                      padding: '8px 12px', borderRadius: 8, background: '#ede9fe',
-                      border: '1.5px solid var(--accent)', fontSize: 13, color: 'var(--accent)', fontWeight: 600,
-                    }}>
-                      ✓ Precios especiales del cliente ({preciosCli.length} configurados)
+                  {usarPreciosCli && (
+                    <div className="form-hint" style={{ marginTop: 6 }}>
+                      ✓ Cliente con precios especiales ({preciosCli.length} configurados)
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label">Cliente (opcional)</label>
                   <select
@@ -1592,27 +2046,12 @@ export default function NuevaCotizacion() {
                       {/* Columna izquierda: m², ml, otros */}
                       {hasLeft && (
                         <div style={{ border: '1px solid var(--border)', borderRadius: 7, padding: '2px 2px', maxHeight: 200, overflowY: 'auto' }}>
-                          {procM2.length > 0 && (<>
-                            {groupLabel('m²')}
-                            {procM2.map(p => checkRow(p,
-                              procesosSeleccionados.some(s => s.id_proceso === p.id_proceso),
-                              () => toggleProceso(p), null, null
-                            ))}
-                          </>)}
-                          {procML.length > 0 && (<>
-                            {groupLabel('ml')}
-                            {procML.map(p => checkRow(p,
-                              procesosSeleccionados.some(s => s.id_proceso === p.id_proceso),
-                              () => toggleProceso(p), null, null
-                            ))}
-                          </>)}
-                          {procOtros.length > 0 && (<>
-                            {groupLabel('Otros')}
-                            {procOtros.map(p => checkRow(p,
-                              procesosSeleccionados.some(s => s.id_proceso === p.id_proceso),
-                              () => toggleProceso(p), null, null
-                            ))}
-                          </>)}
+                          <ProcesosPanelLeft
+                            procM2={procM2} procML={procML} procOtros={procOtros}
+                            seleccionados={procesosSeleccionados}
+                            onToggle={toggleProceso}
+                            onOpenConfig={(id, nombre, tipo) => setConfigModal({ id_proceso: id, nombre, tipo })}
+                          />
                         </div>
                       )}
 
@@ -1682,11 +2121,19 @@ export default function NuevaCotizacion() {
                   {preview.procesosCalc.length > 0 && (
                     <div style={{ marginTop: 8, borderTop: '1px solid var(--border)', paddingTop: 8 }}>
                       {preview.procesosCalc.map((pc, i) => (
-                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: pc.sinPrecio ? '#b45309' : 'var(--text-muted)' }}>
-                          <span>{pc.sinPrecio ? '⚠️' : '+'} {pc.nombre} ({pc.cantidad.toFixed(2)} {pc.unidad} × ${pc.precio_unitario.toFixed(2)}){pc.sinPrecio ? ' — sin precio' : ''}</span>
+                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: pc.configVacio ? '#dc2626' : pc.sinPrecio ? '#b45309' : 'var(--text-muted)' }}>
+                          <span>
+                            {pc.configVacio ? '🚫' : pc.sinPrecio ? '⚠️' : '+'} {pc.nombre} ({pc.cantidad.toFixed(2)} {pc.unidad} × ${pc.precio_unitario.toFixed(2)})
+                            {pc.configVacio ? ' — sin lados seleccionados' : pc.sinPrecio ? ' — sin precio' : ''}
+                          </span>
                           <span>${fmt5(pc.subtotal)}</span>
                         </div>
                       ))}
+                      {preview.procesosCalc.some(pc => pc.configVacio) && (
+                        <div style={{ marginTop: 6, padding: '5px 8px', borderRadius: 6, background: '#fef2f2', border: '1px solid #dc2626', fontSize: 12, color: '#991b1b' }}>
+                          🚫 Proceso con 0 lados seleccionados. Toca ⚙️ y selecciona al menos un lado.
+                        </div>
+                      )}
                       {preview.procesosCalc.some(pc => pc.sinPrecio) && (
                         <div style={{ marginTop: 6, padding: '5px 8px', borderRadius: 6, background: '#fffbeb', border: '1px solid #f59e0b', fontSize: 12, color: '#92400e' }}>
                           ⚠️ Hay procesos sin precio configurado para este nivel. Se cotizarán en $0.00 — configúralos en Catálogos → Procesos.
@@ -1755,7 +2202,7 @@ export default function NuevaCotizacion() {
                 className="btn btn-primary"
                 style={{ width: '100%', justifyContent: 'center', marginTop: 12 }}
                 onClick={handleAgregarPartida}
-                disabled={!notacion || !tipoVidrioId || (!nivelId && !usarPreciosCli)}
+                disabled={!notacion || !tipoVidrioId || (!nivelId && !usarPreciosCli) || preview?.procesosCalc?.some(pc => pc.configVacio)}
               >
                 ➕ Agregar vidrio
               </button>
@@ -1867,27 +2314,12 @@ export default function NuevaCotizacion() {
 
                           {hasLeft && (
                             <div style={{ border: '1px solid var(--border)', borderRadius: 7, padding: '2px 2px', maxHeight: 200, overflowY: 'auto' }}>
-                              {procM2.length > 0 && (<>
-                                {groupLabel('m²')}
-                                {procM2.map(p => checkRow(p,
-                                  maqProcesosSelec.some(s => s.id_proceso === p.id_proceso),
-                                  () => toggleMaqProceso(p.id_proceso), null, null
-                                ))}
-                              </>)}
-                              {procML.length > 0 && (<>
-                                {groupLabel('ml')}
-                                {procML.map(p => checkRow(p,
-                                  maqProcesosSelec.some(s => s.id_proceso === p.id_proceso),
-                                  () => toggleMaqProceso(p.id_proceso), null, null
-                                ))}
-                              </>)}
-                              {procOtros.length > 0 && (<>
-                                {groupLabel('Otros')}
-                                {procOtros.map(p => checkRow(p,
-                                  maqProcesosSelec.some(s => s.id_proceso === p.id_proceso),
-                                  () => toggleMaqProceso(p.id_proceso), null, null
-                                ))}
-                              </>)}
+                              <ProcesosPanelLeft
+                                procM2={procM2} procML={procML} procOtros={procOtros}
+                                seleccionados={maqProcesosSelec}
+                                onToggle={toggleMaqProceso}
+                                onOpenConfig={(id, nombre, tipo) => setMaqConfigModal({ id_proceso: id, nombre, tipo })}
+                              />
                             </div>
                           )}
 
@@ -1952,16 +2384,22 @@ export default function NuevaCotizacion() {
                       {maqPreviewProcesos.length > 0 && (
                         <div style={{ marginTop: 8, borderTop: '1px solid var(--border)', paddingTop: 8 }}>
                           {maqPreviewProcesos.map((pc, i) => (
-                            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--text-muted)' }}>
+                            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: pc.configVacio ? '#dc2626' : 'var(--text-muted)' }}>
                               <span>
-                                + {pc.nombre}
+                                {pc.configVacio ? '🚫' : '+'} {pc.nombre}
                                 {pc.esPorM2
                                   ? ` (${pc.cantidad.toFixed(4)} m² × $${pc.precio_unitario.toFixed(2)})`
-                                  : ` (${pc.cantidad} × $${pc.precio_unitario.toFixed(2)})`}
+                                  : ` (${pc.cantidad.toFixed ? pc.cantidad.toFixed(2) : pc.cantidad} × $${pc.precio_unitario.toFixed(2)})`}
+                                {pc.configVacio ? ' — sin lados seleccionados' : ''}
                               </span>
                               <span>${fmt5(pc.subtotal)}</span>
                             </div>
                           ))}
+                          {maqPreviewProcesos.some(pc => pc.configVacio) && (
+                            <div style={{ marginTop: 6, padding: '5px 8px', borderRadius: 6, background: '#fef2f2', border: '1px solid #dc2626', fontSize: 12, color: '#991b1b' }}>
+                              🚫 Proceso con 0 lados seleccionados. Toca ⚙️ y selecciona al menos un lado.
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -1975,7 +2413,7 @@ export default function NuevaCotizacion() {
                     className="btn btn-primary"
                     style={{ width: '100%', justifyContent: 'center', marginTop: 4 }}
                     onClick={handleAgregarMaquila}
-                    disabled={!maqNotacion || !maqEspesorId || !maqProcesosSelec.length || !efectivoNivelId}
+                    disabled={!maqNotacion || !maqEspesorId || !maqProcesosSelec.length || !efectivoNivelId || maqPreviewProcesos.some(p => p.configVacio)}
                   >
                     🔧 Agregar maquila
                   </button>
@@ -2072,7 +2510,7 @@ export default function NuevaCotizacion() {
                             <div style={{ marginTop: 4 }}>
                               {p.procesos.map((pr, j) => (
                                 <div key={j} style={{ fontSize: 12, color: 'var(--text-muted)', paddingLeft: 10 }}>
-                                  + {pr.nombre} ({pr.cantidad.toFixed(2)} {pr.unidad}): ${fmt5(pr.subtotal)}
+                                  + {pr.nombre} ({pr.cantidad.toFixed(2)} {pr.unidad} × ${pr.precio_unitario.toFixed(2)}): ${fmt5(pr.subtotal)}
                                 </div>
                               ))}
                             </div>
@@ -2091,7 +2529,7 @@ export default function NuevaCotizacion() {
                           {p.descripcion && <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 2 }}>{p.descripcion}</div>}
                           {p.procesos_maq?.map((pr, j) => (
                             <div key={j} style={{ fontSize: 12, color: 'var(--text-muted)', paddingLeft: 8 }}>
-                              + {pr.nombre}: ${fmt5(pr.subtotal)}
+                              + {pr.nombre} ({Number(pr.cantidad).toFixed(2)} {pr.unidad} × ${Number(pr.precio_unitario).toFixed(2)}): ${fmt5(pr.subtotal)}
                             </div>
                           ))}
                         </>
@@ -2302,6 +2740,18 @@ export default function NuevaCotizacion() {
                   </div>
                 )}
 
+                <div className="form-group">
+                  <label className="form-label">Observaciones</label>
+                  <textarea
+                    className="form-input"
+                    rows={2}
+                    value={modalObservaciones}
+                    onChange={e => setModalObservaciones(e.target.value)}
+                    placeholder="Notas o indicaciones adicionales..."
+                    style={{ resize: 'vertical', minHeight: 56 }}
+                  />
+                </div>
+
                 {modalError && <div className="alert alert-error">❌ {modalError}</div>}
               </div>
 
@@ -2347,6 +2797,36 @@ export default function NuevaCotizacion() {
           </button>
         </div>
       )}
+
+      {configModal && (() => {
+        const sp = procesosSeleccionados.find(p => p.id_proceso === configModal.id_proceso)
+        return (
+          <ProcesoConfigModal
+            nombre={configModal.nombre}
+            tipo={configModal.tipo}
+            largo={preview?.largo ?? 0}
+            ancho={preview?.ancho ?? 0}
+            config={sp ?? {}}
+            onSave={cfg => updateProcesoConfig(configModal.id_proceso, cfg)}
+            onClose={() => setConfigModal(null)}
+          />
+        )
+      })()}
+
+      {maqConfigModal && (() => {
+        const sp = maqProcesosSelec.find(p => p.id_proceso === maqConfigModal.id_proceso)
+        return (
+          <ProcesoConfigModal
+            nombre={maqConfigModal.nombre}
+            tipo={maqConfigModal.tipo}
+            largo={maqParsed.error ? 0 : maqParsed.largo}
+            ancho={maqParsed.error ? 0 : maqParsed.ancho}
+            config={sp ?? {}}
+            onSave={cfg => updateMaqProcesoConfig(maqConfigModal.id_proceso, cfg)}
+            onClose={() => setMaqConfigModal(null)}
+          />
+        )
+      })()}
     </>
   )
 }

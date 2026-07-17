@@ -490,12 +490,8 @@ export default function Clientes() {
                       <div style={{ display: 'flex', gap: 2 }}>
                         <button className="btn-icon" title="Editar" onClick={() => setModal({ type: 'edit', data: c })}>✏️</button>
                         <button className="btn-icon" title="Precios especiales" onClick={() => setModal({ type: 'precios', data: c })}>💲</button>
-                        <button className="btn-icon" title="Vincular empresa" onClick={() => setModal({ type: 'vincular', data: c })}>🏢</button>
                         <button className="btn-icon" title={c.activo ? 'Desactivar' : 'Activar'} onClick={() => handleToggleActivo(c)}>
                           {c.activo ? '🔕' : '✅'}
-                        </button>
-                        <button className="btn-icon" title={c.credito_activo ? 'Quitar crédito' : 'Habilitar crédito'} onClick={() => handleToggleCredito(c)}>
-                          {c.credito_activo ? '💳' : '🚫'}
                         </button>
                       </div>
                     </td>

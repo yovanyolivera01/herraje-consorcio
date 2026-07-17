@@ -9,7 +9,7 @@ function err(res, e, status = 500) { res.status(status).json({ message: e.messag
 
 router.post('/pedidos/convertir', async (req, res) => {
   try {
-    const { id_cotizacion, tipo_pago, monto_anticipo, metodo_pago } = req.body
+    const { id_cotizacion, tipo_pago, monto_anticipo, metodo_pago, observaciones } = req.body
     const { rows } = await query(
       'SELECT * FROM sp_convertir_cotizacion_a_pedido($1, $2, $3)',
       [id_cotizacion, tipo_pago, Number(monto_anticipo)]
@@ -19,6 +19,7 @@ router.post('/pedidos/convertir', async (req, res) => {
       return res.status(400).json({ message: row?.out_mensaje ?? 'Error al convertir cotización' })
     }
     if (metodo_pago) await query('UPDATE pedido SET metodo_pago=$1 WHERE id_pedido=$2', [metodo_pago, row.out_id_pedido])
+    if (observaciones) await query('UPDATE pedido SET observaciones=$1 WHERE id_pedido=$2', [observaciones, row.out_id_pedido])
 
     // Descontar inventario de vidrio
     try {
@@ -36,7 +37,7 @@ router.post('/pedidos/convertir', async (req, res) => {
 
 router.post('/pedidos/directo', async (req, res) => {
   try {
-    const { id_cliente, id_nivel_precio, partidas, tipo_pago, monto_anticipo, metodo_pago } = req.body
+    const { id_cliente, id_nivel_precio, partidas, tipo_pago, monto_anticipo, metodo_pago, observaciones } = req.body
     const { rows } = await query(
       'SELECT * FROM sp_crear_pedido_directo($1, $2, $3, $4, $5)',
       [id_cliente ?? null, id_nivel_precio, tipo_pago, Number(monto_anticipo), JSON.stringify(partidas)]
@@ -46,6 +47,7 @@ router.post('/pedidos/directo', async (req, res) => {
       return res.status(400).json({ message: row?.out_mensaje ?? 'Error al crear el pedido' })
     }
     if (metodo_pago) await query('UPDATE pedido SET metodo_pago=$1 WHERE id_pedido=$2', [metodo_pago, row.out_id_pedido])
+    if (observaciones) await query('UPDATE pedido SET observaciones=$1 WHERE id_pedido=$2', [observaciones, row.out_id_pedido])
     try { await query('SELECT sp_insertar_pedidod($1)', [row.out_id_pedido]) } catch {}
     ok(res, { id_pedido: row.out_id_pedido, folio: row.out_folio })
   } catch (e) { err(res, e) }
@@ -55,7 +57,7 @@ router.post('/pedidos/directo', async (req, res) => {
 
 router.post('/pedidos/directo-con-extras', async (req, res) => {
   try {
-    const { id_cliente, id_nivel_precio, partidas, tipo_pago, monto_anticipo, extras, total, metodo_pago } = req.body
+    const { id_cliente, id_nivel_precio, partidas, tipo_pago, monto_anticipo, extras, total, metodo_pago, observaciones } = req.body
     let id_pedido, folio
 
     if ((partidas ?? []).length > 0) {
@@ -89,6 +91,7 @@ router.post('/pedidos/directo-con-extras', async (req, res) => {
     }
 
     if (metodo_pago) await query('UPDATE pedido SET metodo_pago=$1 WHERE id_pedido=$2', [metodo_pago, id_pedido])
+    if (observaciones) await query('UPDATE pedido SET observaciones=$1 WHERE id_pedido=$2', [observaciones, id_pedido])
     for (const extra of (extras ?? [])) {
       await query(
         `INSERT INTO partida_pedido_extra (id_pedido, tipo, descripcion, unidad, cantidad, precio_unitario, subtotal, id_producto_general, notas)

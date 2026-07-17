@@ -17,6 +17,8 @@ export function printTicketVidrio(detalle) {
     const cuVid   = Number(p.subtotal_vidrio ?? p.subtotal_partida) / pzas
     const totVid  = cuVid * pzas
     const hasProc = (p.procesos ?? []).length > 0
+    const procSubtotal = (p.procesos ?? []).reduce((s, pr) => s + Number(pr.subtotal), 0)
+    const exactSubtotal = Number(p.subtotal_vidrio ?? p.subtotal_partida) + procSubtotal
     const procRows = (p.procesos ?? []).map(pr => {
       const cuPr  = Number(pr.subtotal) / pzas
       const totPr = cuPr * pzas
@@ -34,8 +36,8 @@ export function printTicketVidrio(detalle) {
         <span class="c-cant"></span>
         <span class="c-med"></span>
         <span class="c-desc">Subtotal</span>
-        <span class="c-cu">$${(Number(p.subtotal_partida) / pzas).toFixed(2)}</span>
-        <span class="c-tot">$${Number(p.subtotal_partida).toFixed(2)}</span>
+        <span class="c-cu">$${(exactSubtotal / pzas).toFixed(2)}</span>
+        <span class="c-tot">$${exactSubtotal.toFixed(2)}</span>
       </div>` : ''
     return `
       <div class="partida">
@@ -112,7 +114,18 @@ export function printTicketVidrio(detalle) {
     <span style="width:50px;flex-shrink:0;text-align:right">Total</span>
   </div>`
 
-  const totalCalculado = detalle.partidas.reduce((sum, p) => sum + Number(p.subtotal_partida), 0)
+  const totalCalculado = detalle.partidas.reduce((sum, p) => {
+    if (p.tipo && p.tipo !== 'VIDRIO') return sum + Number(p.subtotal_partida)
+    const procSubtotal = (p.procesos ?? []).reduce((s, pr) => s + Number(pr.subtotal), 0)
+    return sum + Number(p.subtotal_vidrio ?? p.subtotal_partida) + procSubtotal
+  }, 0)
+
+  const totalPzasVidrio  = vidrios.reduce((s, p) => s + (p.piezas ?? p.cantidad ?? 1), 0)
+  const totalPzasMaquila = maquilas.reduce((s, p) => s + (p.piezas ?? p.cantidad ?? 1), 0)
+  const piezasResumen = [
+    totalPzasVidrio  > 0 ? `<div class="row" style="font-size:11px;color:#555"><span>Piezas vendidas:</span><span><strong>${totalPzasVidrio}</strong></span></div>`  : '',
+    totalPzasMaquila > 0 ? `<div class="row" style="font-size:11px;color:#555"><span>Piezas maquila recibidas:</span><span><strong>${totalPzasMaquila}</strong></span></div>` : '',
+  ].join('')
 
   let rows = ''
   if (vidrios.length)    rows += sectionLbl('Vidrio') + colHeader + vidrios.map(renderVidrio).join('')
@@ -203,8 +216,10 @@ export function printTicketVidrio(detalle) {
   ${detalle.hora ? `<div class="row"><span>Hora:</span><span>${detalle.hora}</span></div>` : ''}
   <div class="row"><span>Cliente:</span><span>${detalle.clienteNombre ?? 'Mostrador'}</span></div>
   <div class="row"><span>Nivel:</span><span>${detalle.nivelNombre ?? ''}</span></div>
+  ${detalle.observaciones ? `<div style="font-size:11px;margin-bottom:4px;display:flex;gap:4px"><span style="white-space:nowrap;color:#555">Obs:</span><span>${detalle.observaciones}</span></div>` : ''}
   <hr class="divider">
   ${rows}
+  ${piezasResumen}
   <hr class="divider">
   <div class="row total-row"><span>TOTAL:</span><span>$${totalCalculado.toFixed(2)}</span></div>
   ${pagoRows}
@@ -241,9 +256,20 @@ export function printTicketVidrio(detalle) {
 export function printPedidoPendiente(detalle) {
   const extras = detalle.extras ?? []
   const extrasTotal = extras.reduce((sum, e) => sum + Number(e.subtotal), 0)
-  const totalCalculado = detalle.partidas.reduce((sum, p) => sum + Number(p.subtotal_partida), 0) + extrasTotal
+  const totalCalculado = detalle.partidas.reduce((sum, p) => {
+    const procSubtotal = (p.procesos ?? []).reduce((s, pr) => s + Number(pr.subtotal), 0)
+    return sum + Number(p.subtotal_vidrio ?? p.subtotal_partida) + procSubtotal
+  }, 0) + extrasTotal
+  const totalPzasVidrio  = detalle.partidas.reduce((s, p) => s + Number(p.cantidad ?? 1), 0)
+  const totalPzasMaquila = extras.filter(e => e.tipo === 'MAQUILA').reduce((s, e) => s + Number(e.cantidad ?? 1), 0)
+  const piezasResumen = [
+    totalPzasVidrio  > 0 ? `<div class="row" style="font-size:11px;color:#555"><span>Piezas vendidas:</span><span><strong>${totalPzasVidrio}</strong></span></div>`  : '',
+    totalPzasMaquila > 0 ? `<div class="row" style="font-size:11px;color:#555"><span>Piezas maquila recibidas:</span><span><strong>${totalPzasMaquila}</strong></span></div>` : '',
+  ].join('')
   const rows = detalle.partidas.map((p, i) => {
     const cant = p.cantidad ?? 1
+    const procSubtotal = (p.procesos ?? []).reduce((s, pr) => s + Number(pr.subtotal), 0)
+    const exactSubtotal = Number(p.subtotal_vidrio ?? p.subtotal_partida) + procSubtotal
     const procRows = (p.procesos ?? []).map(pr => {
       const cantLabel = pr.cantidad && pr.cantidad !== 1 ? ` × ${pr.cantidad}` : ''
       return `<div class="row" style="padding-left:12px;font-size:11px;color:#444">
@@ -255,7 +281,7 @@ export function printPedidoPendiente(detalle) {
       <div class="partida">
         <div class="row" style="margin-bottom:2px">
           <span class="bold" style="font-size:13px">${cant}- ${p.largo_cm}×${p.ancho_cm} ${p.clave_vidrio}</span>
-          <span class="bold" style="font-size:13px">$${Number(p.subtotal_partida).toFixed(2)}</span>
+          <span class="bold" style="font-size:13px">$${exactSubtotal.toFixed(2)}</span>
         </div>
         <div style="font-size:11px;color:#444;margin-bottom:3px;padding-left:12px">
           ${p.clave_vidrio}${p.descripcion_vidrio ? ' — ' + p.descripcion_vidrio : ''} · ${Number(p.metros2).toFixed(4)} m²
@@ -327,6 +353,7 @@ export function printPedidoPendiente(detalle) {
   <hr class="divider">
   ${detalle.partidas.length > 0 ? `<div style="font-weight:700;font-size:11px;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px dashed #888;padding-bottom:2px">Vidrio</div>${rows}` : ''}
   ${extrasHtml}
+  ${piezasResumen}
   <hr class="divider">
   <div class="row total-row"><span>TOTAL</span><span>$${totalCalculado.toFixed(2)}</span></div>
   <hr class="divider-thin">
@@ -629,7 +656,19 @@ export function printPedidoA4(detalle) {
   const extrasProc = detalle.partidas.filter(p => p.tipo === 'EXTRA')
   const herrajes   = detalle.partidas.filter(p => p.tipo === 'HERRAJE' || p.tipo === 'PRODUCTO')
 
-  const totalCalculado = detalle.partidas.reduce((sum, p) => sum + Number(p.subtotal_partida), 0)
+  const totalCalculado = detalle.partidas.reduce((sum, p) => {
+    if (p.tipo && p.tipo !== 'VIDRIO') return sum + Number(p.subtotal_partida)
+    const procSubtotal = (p.procesos ?? []).reduce((s, pr) => s + Number(pr.subtotal), 0)
+    return sum + Number(p.subtotal_vidrio ?? p.subtotal_partida) + procSubtotal
+  }, 0)
+
+  const totalPzasVidrio  = vidrios.reduce((s, p) => s + (p.piezas ?? p.cantidad ?? 1), 0)
+  const totalPzasMaquila = maquilas.reduce((s, p) => s + (p.piezas ?? p.cantidad ?? 1), 0)
+  const piezasResumen = (totalPzasVidrio > 0 || totalPzasMaquila > 0) ? `
+    <div style="display:flex;gap:24px;font-size:12px;color:#444;margin-bottom:8px;margin-top:4px">
+      ${totalPzasVidrio  > 0 ? `<span>Piezas vendidas: <strong>${totalPzasVidrio}</strong></span>`  : ''}
+      ${totalPzasMaquila > 0 ? `<span>Piezas maquila recibidas: <strong>${totalPzasMaquila}</strong></span>` : ''}
+    </div>` : ''
 
   const vidrioRows = vidrios.map((p, idx) => {
     const pzas    = p.piezas ?? 1
@@ -638,6 +677,8 @@ export function printPedidoA4(detalle) {
     const m2      = ((pzas * Number(p.largo_cm) * Number(p.ancho_cm)) / 10000).toFixed(4)
     const bg      = idx % 2 === 0 ? '#fff' : '#fafafa'
     const hasProc = (p.procesos ?? []).length > 0
+    const procSubtotal = (p.procesos ?? []).reduce((s, pr) => s + Number(pr.subtotal), 0)
+    const exactSubtotal = Number(p.subtotal_vidrio ?? p.subtotal_partida) + procSubtotal
     const procSubRows = (p.procesos ?? []).map(pr => {
       const cuPr  = Number(pr.subtotal) / pzas
       const totPr = cuPr * pzas
@@ -654,8 +695,8 @@ export function printPedidoA4(detalle) {
       <tr style="background:${bg};border-top:1px dashed #ddd">
         <td></td><td></td>
         <td style="font-size:11px;font-weight:700;padding-left:12px">Subtotal</td>
-        <td style="text-align:right;font-size:11px;font-weight:700">$${(Number(p.subtotal_partida)/pzas).toFixed(2)}</td>
-        <td style="text-align:right;font-weight:700">$${Number(p.subtotal_partida).toFixed(2)}</td>
+        <td style="text-align:right;font-size:11px;font-weight:700">$${(exactSubtotal/pzas).toFixed(2)}</td>
+        <td style="text-align:right;font-weight:700">$${exactSubtotal.toFixed(2)}</td>
         <td></td>
       </tr>` : ''
     return `
@@ -845,6 +886,7 @@ export function printPedidoA4(detalle) {
   <div class="cliente-box">
     <div class="c-nombre">${detalle.clienteNombre ?? 'Mostrador'}</div>
     <div class="c-detail">${detalle.nivelNombre ? `Nivel: ${detalle.nivelNombre}` : ''}</div>
+    ${detalle.observaciones ? `<div class="c-detail" style="margin-top:2px"><em>Obs: ${detalle.observaciones}</em></div>` : ''}
   </div>
 
   ${vidrioSection}
@@ -852,6 +894,7 @@ export function printPedidoA4(detalle) {
   ${extraProcSection}
   ${herrajeSection}
 
+  ${piezasResumen}
   <div class="total-box">
     <div class="total-inner">TOTAL: $${totalCalculado.toFixed(2)}</div>
   </div>

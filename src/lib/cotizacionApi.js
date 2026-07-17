@@ -165,8 +165,8 @@ export const getDetalleCotizacion = async (id) => {
   const row = await apiFetch(`/cotizaciones/${id}`)
   const { fecha, hora } = formatearFechaHora(row.fecha)
   return {
-    id:            data.id_cotizacion,
-    folio:         data.folio,
+    id:            row.id_cotizacion,
+    folio:         row.folio,
     fecha,
     hora,
     fechaISO:      row.fecha,
