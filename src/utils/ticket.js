@@ -37,7 +37,7 @@ export function printTicketVidrio(detalle) {
     const totVid  = cuVid * pzas
     const hasProc = (p.procesos ?? []).length > 0
     const procSubtotal = (p.procesos ?? []).reduce((s, pr) => s + Number(pr.subtotal), 0)
-    const exactSubtotal = Number(p.subtotal_vidrio ?? p.subtotal_partida) + procSubtotal
+    const exactSubtotal = Number(p.subtotal_partida)
     const procRows = (p.procesos ?? []).map(pr => {
       const cuPr  = Number(pr.subtotal) / pzas
       const totPr = cuPr * pzas
@@ -154,11 +154,7 @@ export function printTicketVidrio(detalle) {
     <span style="width:50px;flex-shrink:0;text-align:right">Total</span>
   </div>`
 
-  const totalCalculado = detalle.partidas.reduce((sum, p) => {
-    if (p.tipo && p.tipo !== 'VIDRIO') return sum + Number(p.subtotal_partida)
-    const procSubtotal = (p.procesos ?? []).reduce((s, pr) => s + Number(pr.subtotal), 0)
-    return sum + Number(p.subtotal_vidrio ?? p.subtotal_partida) + procSubtotal
-  }, 0)
+  const totalCalculado = detalle.partidas.reduce((sum, p) => sum + Number(p.subtotal_partida), 0)
 
   const totalPzasVidrio  = vidrios.reduce((s, p) => s + Number(p.piezas ?? p.cantidad ?? 1), 0)
   const totalPzasMaquila = maquilas.reduce((s, p) => s + Number(p.piezas ?? p.cantidad ?? 1), 0)
@@ -696,11 +692,7 @@ export function printPedidoA4(detalle) {
   const extrasProc = detalle.partidas.filter(p => p.tipo === 'EXTRA')
   const herrajes   = detalle.partidas.filter(p => p.tipo === 'HERRAJE' || p.tipo === 'PRODUCTO')
 
-  const totalCalculado = detalle.partidas.reduce((sum, p) => {
-    if (p.tipo && p.tipo !== 'VIDRIO') return sum + Number(p.subtotal_partida)
-    const procSubtotal = (p.procesos ?? []).reduce((s, pr) => s + Number(pr.subtotal), 0)
-    return sum + Number(p.subtotal_vidrio ?? p.subtotal_partida) + procSubtotal
-  }, 0)
+  const totalCalculado = detalle.partidas.reduce((sum, p) => sum + Number(p.subtotal_partida), 0)
 
   const totalPzasVidrio  = vidrios.reduce((s, p) => s + Number(p.piezas ?? p.cantidad ?? 1), 0)
   const totalPzasMaquila = maquilas.reduce((s, p) => s + Number(p.piezas ?? p.cantidad ?? 1), 0)
@@ -718,7 +710,7 @@ export function printPedidoA4(detalle) {
     const bg      = idx % 2 === 0 ? '#fff' : '#fafafa'
     const hasProc = (p.procesos ?? []).length > 0
     const procSubtotal = (p.procesos ?? []).reduce((s, pr) => s + Number(pr.subtotal), 0)
-    const exactSubtotal = Number(p.subtotal_vidrio ?? p.subtotal_partida) + procSubtotal
+    const exactSubtotal = Number(p.subtotal_partida)
     const procSubRows = (p.procesos ?? []).map(pr => {
       const cuPr  = Number(pr.subtotal) / pzas
       const totPr = cuPr * pzas

@@ -47,12 +47,19 @@ echo.
 netsh advfirewall firewall delete rule name="Herraje Consorcio Dev" >nul 2>&1
 netsh advfirewall firewall add rule name="Herraje Consorcio Dev" dir=in action=allow protocol=TCP localport=5173 >nul 2>&1
 
-:: Instalar dependencias si faltan
+:: Instalar dependencias frontend si faltan
 if not exist "node_modules" (
-    echo  Instalando dependencias por primera vez...
-    echo  Esto puede tardar unos minutos.
-    echo.
+    echo  Instalando dependencias frontend por primera vez...
     call npm install
+    echo.
+)
+
+:: Instalar dependencias backend si faltan
+if not exist "backend\node_modules" (
+    echo  Instalando dependencias backend por primera vez...
+    cd backend
+    call npm install
+    cd ..
     echo.
 )
 
@@ -74,7 +81,15 @@ echo.
 :: Abrir navegador
 start "" cmd /c "timeout /t 3 >nul && start http://localhost:5173"
 
-:: Iniciar servidor
+:: Iniciar backend en ventana separada
+echo  Iniciando backend (puerto 3001)...
+start "Herraje - Backend" cmd /k "cd /d "%~dp0backend" && node server.js"
+
+:: Esperar un momento para que el backend levante
+timeout /t 2 >nul
+
+:: Iniciar frontend
+echo  Iniciando frontend (puerto 5173)...
 npm run dev
 
 pause
