@@ -135,7 +135,7 @@ router.delete('/maquila/partidas/:id', async (req, res) => {
 
 router.post('/maquila/pedidos/convertir', async (req, res) => {
   try {
-    const { id_cotizacion, tipo_pago, monto_anticipo } = req.body
+    const { id_cotizacion, tipo_pago, monto_anticipo, metodo_pago } = req.body
     const { rows } = await query(
       'SELECT * FROM sp_convertir_maquila_a_pedido($1, $2, $3)',
       [id_cotizacion, tipo_pago, Number(monto_anticipo)]
@@ -143,8 +143,53 @@ router.post('/maquila/pedidos/convertir', async (req, res) => {
     const row = rows[0]
     if (!row || row.p_id_pedido === 0)
       return res.status(400).json({ message: row?.p_mensaje ?? 'Error al convertir a pedido' })
+    // Garantizar tipo_pedido correcto independiente de la versión del SP en DB
+    await query("UPDATE pedido SET tipo_pedido = 'MAQUILA' WHERE id_pedido = $1", [row.p_id_pedido])
+    if (metodo_pago) await query('UPDATE pedido SET metodo_pago=$1 WHERE id_pedido=$2', [metodo_pago, row.p_id_pedido])
     ok(res, { id_pedido: row.p_id_pedido, folio: row.p_folio_pedido })
   } catch (e) { err(res, e) }
+})
+
+// Igual que /convertir pero desvincula la cotizacion intermedia del pedido
+// para que quede como un pedido directo (id_cotizacion = NULL).
+router.post('/maquila/pedidos/convertir-directo', async (req, res) => {
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    const { id_cotizacion, tipo_pago, monto_anticipo, metodo_pago } = req.body
+    const { rows } = await client.query(
+      'SELECT * FROM sp_convertir_maquila_a_pedido($1, $2, $3)',
+      [id_cotizacion, tipo_pago, Number(monto_anticipo)]
+    )
+    const row = rows[0]
+    if (!row || row.p_id_pedido === 0) {
+      await client.query('ROLLBACK')
+      return res.status(400).json({ message: row?.p_mensaje ?? 'Error al crear pedido directo' })
+    }
+    // Desvincular cotizacion intermedia y garantizar tipo_pedido correcto
+    await client.query(
+      "UPDATE pedido SET id_cotizacion = NULL, tipo_pedido = 'MAQUILA' WHERE id_pedido = $1",
+      [row.p_id_pedido]
+    )
+    if (metodo_pago) await client.query('UPDATE pedido SET metodo_pago=$1 WHERE id_pedido=$2', [metodo_pago, row.p_id_pedido])
+    // Para LIQUIDADO: marcar entregado inmediatamente
+    if (tipo_pago === 'LIQUIDADO') {
+      await client.query(
+        "UPDATE pedido SET estatus = 'ENTREGADO', fecha_entrega = NOW() WHERE id_pedido = $1",
+        [row.p_id_pedido]
+      )
+      await client.query(
+        "UPDATE partida_pedido_maquila SET estatus_entrega = 'ENTREGADO', fecha_entrega_real = NOW() WHERE id_pedido = $1",
+        [row.p_id_pedido]
+      )
+    }
+    await client.query('COMMIT')
+    try { await query('SELECT sp_insertar_pedidod($1)', [row.p_id_pedido]) } catch {}
+    ok(res, { id_pedido: row.p_id_pedido, folio: row.p_folio_pedido })
+  } catch (e) {
+    await client.query('ROLLBACK')
+    err(res, e)
+  } finally { client.release() }
 })
 
 router.get('/maquila/pedidos/pendientes', async (req, res) => {
@@ -167,8 +212,8 @@ router.get('/maquila/pedidos/historial', async (req, res) => {
       LEFT JOIN cliente c ON c.id_cliente = p.id_cliente
       WHERE p.tipo_pedido = 'MAQUILA'
         AND p.estatus = 'ENTREGADO'
-        AND ($1::date IS NULL OR p.fecha_entrega >= $1::date)
-        AND ($2::date IS NULL OR p.fecha_entrega <= $2::date)
+        AND ($1::timestamptz IS NULL OR p.fecha_entrega >= $1::timestamptz)
+        AND ($2::timestamptz IS NULL OR p.fecha_entrega <= $2::timestamptz)
       ORDER BY p.fecha_entrega DESC
     `, [fecha_inicio || null, fecha_fin || null])
     ok(res, rows)
@@ -207,7 +252,35 @@ router.get('/maquila/pedidos/:id', async (req, res) => {
       `, [id]),
     ])
     if (!pedRes.rows.length) return res.status(404).json({ message: 'Pedido no encontrado' })
-    ok(res, { ...pedRes.rows[0], partidas: partidasRes.rows })
+
+    let partidas = partidasRes.rows
+
+    // Si no hay snapshot en partida_pedido_maquila, leer desde partida_maquila via id_cotizacion
+    if (partidas.length === 0 && pedRes.rows[0].id_cotizacion) {
+      const fallback = await query(`
+        SELECT pm.id_partida_maquila AS id_partida_ped_maq,
+               pm.descripcion, pm.largo_cm, pm.ancho_cm, pm.cantidad,
+               pm.metros2, pm.subtotal_partida, 'PENDIENTE' AS estatus_entrega,
+               NULL AS fecha_entrega_real,
+          json_agg(json_build_object(
+            'nombre',            pr.nombre,
+            'unidad',            uc.nombre,
+            'cantidad_unidades', ppm.cantidad_unidades,
+            'precio_unitario',   ppm.precio_unitario,
+            'subtotal',          ppm.subtotal
+          )) FILTER (WHERE ppm.id_proceso_pm IS NOT NULL) AS procesos
+        FROM partida_maquila pm
+        LEFT JOIN proceso_partida_maquila ppm ON ppm.id_partida_maquila = pm.id_partida_maquila
+        LEFT JOIN proceso      pr ON pr.id_proceso      = ppm.id_proceso
+        LEFT JOIN unidad_cobro uc ON uc.id_unidad_cobro = pr.id_unidad_cobro
+        WHERE pm.id_cotizacion = $1
+        GROUP BY pm.id_partida_maquila
+        ORDER BY pm.id_partida_maquila
+      `, [pedRes.rows[0].id_cotizacion])
+      partidas = fallback.rows
+    }
+
+    ok(res, { ...pedRes.rows[0], partidas })
   } catch (e) { err(res, e) }
 })
 

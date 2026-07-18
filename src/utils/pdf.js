@@ -1,6 +1,5 @@
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
-import { r5 } from '../lib/utils'
 
 function buildCotizacionHTML(detalle) {
   const titulo    = detalle.tipo === 'pedido' ? 'PEDIDO DE VIDRIO' : 'COTIZACIÓN DE VIDRIO'
@@ -19,7 +18,7 @@ function buildCotizacionHTML(detalle) {
         <td style="color:#555;font-size:11px">${procesos}</td>
         <td style="color:#555;font-size:11px;text-align:center">${m2} m²</td>
         <td style="text-align:right;font-size:11px">$${precioPza}</td>
-        <td style="text-align:right;font-weight:600">$${r5(Number(p.subtotal_partida)).toFixed(2)}</td>
+        <td style="text-align:right;font-weight:600">$${Number(p.subtotal_partida).toFixed(2)}</td>
       </tr>`
   }).join('')
 
@@ -78,9 +77,9 @@ function buildCotizacionHTML(detalle) {
   <div class="brand">
     <div class="oval-l"></div><div class="oval-r"></div>
     <div class="diamond"></div>
-    <h1>TEMPLADOS</h1>
-    <div class="consorcio">C O N S O R C I O</div>
-    <div class="slogan">Arte en Vidrio</div>
+    <h1 style="font-size:22px">VIDRIO TEMPLADO Y ALUMINIO ROSALES</h1>
+    <div class="slogan">Rosales #35 C.P. 55270, Granjas Valle de Guadalupe · Ecatepec de Morelos, Estado de Mexico</div>
+    <div class="slogan" style="margin-top:3px">Tel: 5523134256, 5522161432, 5547912671 · rosalesvidriotempladofernando@gmail.com</div>
   </div>
   <div class="marcas">
     <div class="marcas-lbl">Marcas que distribuimos</div>
@@ -104,9 +103,9 @@ function buildCotizacionHTML(detalle) {
     <tbody>${filas}</tbody>
   </table>
   <div class="total-box">
-    <div class="total-inner">TOTAL: $${r5(Number(detalle.total)).toFixed(2)}</div>
+    <div class="total-inner">TOTAL: $${Number(detalle.total).toFixed(2)}</div>
   </div>
-  <div class="footer">${pie}<br>Templados Consorcio · Arte en Vidrio</div>
+  <div class="footer">${pie}<br>Vidrio Templado y Aluminio Rosales · Tel: 5523134256, 5522161432, 5547912671</div>
 </body></html>`
 }
 
@@ -124,7 +123,7 @@ export async function exportCotizacionPDF(detalle) {
       logging: false,
     })
 
-    const pdf    = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' })
+    const pdf    = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
     const pageW  = pdf.internal.pageSize.getWidth()
     const pageH  = pdf.internal.pageSize.getHeight()
     const margin = 10

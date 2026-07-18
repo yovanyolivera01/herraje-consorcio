@@ -1,12 +1,9 @@
-import { createClient } from '@supabase/supabase-js'
+// Supabase ya no se usa — el frontend llama al backend local.
+// Se exportan los símbolos para no romper imports existentes.
 
-const url = import.meta.env.VITE_SUPABASE_URL
-const key = import.meta.env.VITE_SUPABASE_ANON_KEY
+export const supabaseConfigured = true
 
-export const supabaseConfigured = Boolean(url && key)
-
-// Si faltan variables se exporta un cliente ficticio para que el módulo cargue;
-// el AppContext detecta supabaseConfigured=false y muestra la pantalla de setup.
-export const supabase = supabaseConfigured
-  ? createClient(url, key)
-  : createClient('https://placeholder.supabase.co', 'placeholder')
+export const supabase = {
+  from: () => { throw new Error('Supabase no disponible — usa el backend local') },
+  rpc:  () => { throw new Error('Supabase no disponible — usa el backend local') },
+}

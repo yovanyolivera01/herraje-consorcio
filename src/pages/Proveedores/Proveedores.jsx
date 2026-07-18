@@ -52,6 +52,7 @@ function ProveedorModal({ proveedor, onClose, onSave }) {
                 onChange={set('nombre')}
                 placeholder="Nombre del proveedor"
                 autoFocus
+                maxLength={30}
               />
               {errors.nombre && <div className="form-error">{errors.nombre}</div>}
             </div>
@@ -60,13 +61,11 @@ function ProveedorModal({ proveedor, onClose, onSave }) {
               <input
                 className={`form-input${errors.telefono ? ' error' : ''}`}
                 value={form.telefono}
-                onChange={e => {
-                  const val = e.target.value.replace(/[a-zA-ZáéíóúÁÉÍÓÚñÑ]/g, '')
-                  setForm(f => ({ ...f, telefono: val }))
-                }}
+                onChange={e => setForm(f => ({ ...f, telefono: e.target.value.replace(/\D/g, '') }))}
+
                 placeholder="Ej. 55 1234-5678"
                 inputMode="tel"
-                maxLength={20}
+                maxLength={10}
               />
               {errors.telefono && <div className="form-error">{errors.telefono}</div>}
             </div>

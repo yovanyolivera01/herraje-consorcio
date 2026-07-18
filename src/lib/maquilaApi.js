@@ -1,7 +1,20 @@
-import { supabase } from './supabase'
 import { mxDayBound } from './utils'
 
-// ── Helper de fecha ──────────────────────────────────────────────────────────
+const API = import.meta.env.VITE_API_URL || ''
+
+async function apiFetch(path, options = {}) {
+  const { method = 'GET', body } = options
+  const res = await fetch(`${API}/api${path}`, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data.message ?? `HTTP ${res.status}`)
+  return data
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 const TZ = 'America/Mexico_City'
 function formatearFechaHora(isoString) {
@@ -14,100 +27,33 @@ function formatearFechaHora(isoString) {
   }
 }
 
-// ── Helper para validar respuesta de SP con p_mensaje ────────────────────────
-
-function assertSP(row, errKeyword = null) {
-  const msg = row?.p_mensaje ?? ''
-  const isError = errKeyword
-    ? msg.includes(errKeyword)
-    : msg.toLowerCase().startsWith('error') || msg.includes('no encontrad') || msg.includes('no se puede') || msg.includes('no válid') || msg.includes('no está en')
-  if (isError) throw new Error(msg)
-}
-
 // ============================================================================
 //  COTIZACIONES DE MAQUILA
 // ============================================================================
 
-// ── Crear cabecera (US-07) ───────────────────────────────────────────────────
+export const iniciarCotizacionMaquila = async ({ id_cliente, id_nivel_precio, observaciones }) =>
+  apiFetch('/maquila/cotizaciones', { method: 'POST', body: { id_cliente: id_cliente ?? null, id_nivel_precio, observaciones: observaciones ?? null } })
 
-export const iniciarCotizacionMaquila = async ({ id_cliente, id_nivel_precio, observaciones }) => {
-  const { data, error } = await supabase.rpc('sp_iniciar_cotizacion_maquila', {
-    p_id_cliente:      id_cliente      ?? null,
-    p_id_nivel_precio: id_nivel_precio,
-    p_observaciones:   observaciones   ?? null,
+export const agregarPartidaMaquila = async ({ id_cotizacion, descripcion, largo_cm, ancho_cm, cantidad, procesos }) =>
+  apiFetch(`/maquila/cotizaciones/${id_cotizacion}/partidas`, {
+    method: 'POST',
+    body: { descripcion: descripcion ?? null, largo_cm: Number(largo_cm), ancho_cm: Number(ancho_cm), cantidad: Number(cantidad), procesos: procesos ?? [] },
   })
-  if (error) throw error
-  const row = Array.isArray(data) ? data[0] : data
-  if (!row || row.p_id_cotizacion === 0) throw new Error(row?.p_mensaje ?? 'Error al iniciar cotización')
-  return { id_cotizacion: row.p_id_cotizacion, folio: row.p_folio }
-}
 
-// ── Agregar partida con procesos (US-07 / US-08) ─────────────────────────────
-// procesos: [{ id_proceso, cantidad? }] — cantidad en null = SP la calcula
-
-export const agregarPartidaMaquila = async ({ id_cotizacion, descripcion, largo_cm, ancho_cm, cantidad, procesos }) => {
-  const { data, error } = await supabase.rpc('sp_agregar_partida_maquila', {
-    p_id_cotizacion: id_cotizacion,
-    p_descripcion:   descripcion ?? null,
-    p_largo_cm:      Number(largo_cm),
-    p_ancho_cm:      Number(ancho_cm),
-    p_cantidad:      Number(cantidad),
-    p_procesos:      procesos ?? [],
-  })
-  if (error) throw error
-  const row = Array.isArray(data) ? data[0] : data
-  if (!row || row.p_id_partida === 0) throw new Error(row?.p_mensaje ?? 'Error al agregar partida')
-  return { id_partida: row.p_id_partida, subtotal: Number(row.p_subtotal) }
-}
-
-// ── Eliminar partida (US-08) ─────────────────────────────────────────────────
-
-export const eliminarPartidaMaquila = async (id_partida_maquila) => {
-  const { data, error } = await supabase.rpc('sp_eliminar_partida_maquila', {
-    p_id_partida_maquila: id_partida_maquila,
-  })
-  if (error) throw error
-  const row = Array.isArray(data) ? data[0] : data
-  if (row?.p_mensaje === 'Partida no encontrada.') throw new Error(row.p_mensaje)
-}
-
-// ── Finalizar cotización (US-09) ─────────────────────────────────────────────
+export const eliminarPartidaMaquila = async (id_partida_maquila) =>
+  apiFetch(`/maquila/partidas/${id_partida_maquila}`, { method: 'DELETE' })
 
 export const finalizarCotizacionMaquila = async (id_cotizacion) => {
-  const { data, error } = await supabase.rpc('sp_finalizar_cotizacion_maquila', {
-    p_id_cotizacion: id_cotizacion,
-  })
-  if (error) throw error
-  const row = Array.isArray(data) ? data[0] : data
-  if (!row || (row.p_total === 0 && row.p_mensaje !== 'OK')) {
-    const msg = row?.p_mensaje ?? 'Error al finalizar cotización'
-    if (!msg.includes('finalizada')) throw new Error(msg)
-  }
-  return Number(row.p_total)
+  const data = await apiFetch(`/maquila/cotizaciones/${id_cotizacion}/finalizar`, { method: 'POST', body: {} })
+  return Number(data.total ?? 0)
 }
 
-// ── Ticket de maquila (US-10) ────────────────────────────────────────────────
-// Retorna filas planas agrupables por id_partida
-
-export const getTicketMaquila = async (id_cotizacion) => {
-  const { data, error } = await supabase.rpc('sp_obtener_ticket_maquila', {
-    p_id_cotizacion: id_cotizacion,
-  })
-  if (error) throw error
-  return data ?? []
-}
-
-// ── Historial de cotizaciones de maquila ─────────────────────────────────────
+export const getTicketMaquila = async (id_cotizacion) =>
+  apiFetch(`/maquila/cotizaciones/${id_cotizacion}/ticket`)
 
 export const getCotizacionesMaquila = async () => {
-  const { data, error } = await supabase
-    .from('cotizacion')
-    .select('*, cliente(id_cliente, nombre), nivel_precio(id_nivel_precio, nombre)')
-    .eq('tipo_cotizacion', 'MAQUILA')
-    .neq('estatus', 'CONVERTIDA')
-    .order('fecha', { ascending: false })
-  if (error) throw error
-  return (data ?? []).map(row => {
+  const rows = await apiFetch('/maquila/cotizaciones')
+  return rows.map(row => {
     const { fecha, hora } = formatearFechaHora(row.fecha)
     return {
       id:            row.id_cotizacion,
@@ -115,159 +61,102 @@ export const getCotizacionesMaquila = async () => {
       fecha,
       hora,
       fechaISO:      row.fecha,
-      clienteNombre: row.cliente?.nombre ?? 'Mostrador',
-      nivelNombre:   row.nivel_precio?.nombre ?? '',
+      clienteNombre: row.cliente_nombre ?? 'Mostrador',
+      nivelNombre:   row.nivel_nombre ?? '',
       total:         Number(row.total ?? 0),
       estatus:       row.estatus,
-      observaciones: row.observaciones ?? '',
+      observaciones: row.observaciones  ?? '',
     }
   })
 }
 
-// ── Detalle completo de cotización (partidas + procesos) ─────────────────────
-
 export const getDetalleCotizacionMaquila = async (id_cotizacion) => {
-  const [cotRes, partidasRes] = await Promise.all([
-    supabase
-      .from('cotizacion')
-      .select('*, cliente(id_cliente, nombre, telefono), nivel_precio(id_nivel_precio, nombre)')
-      .eq('id_cotizacion', id_cotizacion)
-      .single(),
-    supabase
-      .from('partida_maquila')
-      .select('*, proceso_partida_maquila(*, proceso(id_proceso, nombre, unidad_cobro(nombre)))')
-      .eq('id_cotizacion', id_cotizacion)
-      .order('id_partida_maquila'),
-  ])
-  if (cotRes.error)     throw cotRes.error
-  if (partidasRes.error) throw partidasRes.error
-
-  const row = cotRes.data
+  const row = await apiFetch(`/maquila/cotizaciones/${id_cotizacion}`)
   const { fecha, hora } = formatearFechaHora(row.fecha)
   return {
-    id:            row.id_cotizacion,
-    folio:         row.folio,
+    id:            data.id_cotizacion,
+    folio:         data.folio,
     fecha,
     hora,
     fechaISO:      row.fecha,
     cliente:       row.cliente,
-    nivel:         row.nivel_precio,
+    nivel:         row.nivel,
     total:         Number(row.total ?? 0),
     estatus:       row.estatus,
     observaciones: row.observaciones ?? '',
-    partidas: (partidasRes.data ?? []).map(p => ({
-      id:                 p.id_partida_maquila,
-      descripcion:        p.descripcion ?? '',
-      largo_cm:           Number(p.largo_cm),
-      ancho_cm:           Number(p.ancho_cm),
-      cantidad:           p.cantidad,
-      metros2:            Number(p.metros2),
-      subtotal_procesos:  Number(p.subtotal_procesos),
-      subtotal_partida:   Number(p.subtotal_partida),
-      procesos: (p.proceso_partida_maquila ?? []).map(pp => ({
-        id:               pp.id_proceso_pm,
-        id_proceso:       pp.id_proceso,
-        nombre:           pp.proceso?.nombre ?? '',
-        unidad:           pp.proceso?.unidad_cobro?.nombre ?? '',
+    partidas: (row.partidas ?? []).map(p => ({
+      id:                p.id_partida_maquila,
+      descripcion:       p.descripcion ?? '',
+      largo_cm:          Number(p.largo_cm),
+      ancho_cm:          Number(p.ancho_cm),
+      cantidad:          p.cantidad,
+      metros2:           Number(p.metros2),
+      subtotal_procesos: Number(p.subtotal_procesos),
+      subtotal_partida:  Number(p.subtotal_partida),
+      procesos: (p.procesos ?? []).map(pp => ({
+        id:                pp.id_proceso_pm,
+        id_proceso:        pp.id_proceso,
+        nombre:            pp.nombre ?? '',
+        unidad:            pp.unidad ?? '',
         cantidad_unidades: Number(pp.cantidad_unidades),
-        precio_unitario:  Number(pp.precio_unitario),
-        subtotal:         Number(pp.subtotal),
+        precio_unitario:   Number(pp.precio_unitario),
+        subtotal:          Number(pp.subtotal),
       })),
     })),
   }
 }
 
-// ── Reabrir cotización FINALIZADA para edición (US-06) ───────────────────────
-// Aplica a cotizaciones VIDRIO y MAQUILA
+export const reabrirCotizacion = async (id_cotizacion) =>
+  apiFetch(`/maquila/cotizaciones/${id_cotizacion}/reabrir`, { method: 'POST', body: {} })
 
-export const reabrirCotizacion = async (id_cotizacion) => {
-  const { data, error } = await supabase.rpc('sp_reabrir_cotizacion', {
-    p_id_cotizacion: id_cotizacion,
-  })
-  if (error) throw error
-  const row = Array.isArray(data) ? data[0] : data
-  assertSP(row)
-  return true
-}
+export const convertirMaquilaAPedido = async ({ id_cotizacion, tipo_pago, monto_anticipo, metodo_pago }) =>
+  apiFetch('/maquila/pedidos/convertir', { method: 'POST', body: { id_cotizacion, tipo_pago, monto_anticipo: Number(monto_anticipo), metodo_pago: metodo_pago || null } })
 
-// ── Convertir a pedido (US-12) ───────────────────────────────────────────────
-
-export const convertirMaquilaAPedido = async ({ id_cotizacion, tipo_pago, monto_anticipo }) => {
-  const { data, error } = await supabase.rpc('sp_convertir_maquila_a_pedido', {
-    p_id_cotizacion:  id_cotizacion,
-    p_tipo_pago:      tipo_pago,
-    p_monto_anticipo: Number(monto_anticipo),
-  })
-  if (error) throw error
-  const row = Array.isArray(data) ? data[0] : data
-  if (!row || row.p_id_pedido === 0) throw new Error(row?.p_mensaje ?? 'Error al convertir a pedido')
-  return { id_pedido: row.p_id_pedido, folio: row.p_folio_pedido }
-}
+export const convertirMaquilaAPedidoDirecto = async ({ id_cotizacion, tipo_pago, monto_anticipo, metodo_pago }) =>
+  apiFetch('/maquila/pedidos/convertir-directo', { method: 'POST', body: { id_cotizacion, tipo_pago, monto_anticipo: Number(monto_anticipo), metodo_pago: metodo_pago || null } })
 
 // ============================================================================
 //  PEDIDOS DE MAQUILA
 // ============================================================================
 
-// ── Pedidos pendientes filtrados por tipo MAQUILA ────────────────────────────
-
 export const getPedidosPendientesMaquila = async () => {
-  const { data, error } = await supabase.rpc('sp_obtener_pedidos_pendientes', {
-    p_tipo_pedido: 'MAQUILA',
-  })
-  if (error) throw error
-  return (data ?? []).map(row => {
+  const rows = await apiFetch('/maquila/pedidos/pendientes')
+  return rows.map(row => {
     const { fecha, hora } = formatearFechaHora(row.fecha_pedido)
     return {
-      id:                  row.id_pedido,
-      folio:               row.folio,
+      id:                 row.id_pedido,
+      folio:              row.folio,
       fecha,
       hora,
-      fechaPedidoISO:      row.fecha_pedido,
-      clienteNombre:       row.cliente ?? 'Mostrador',
-      total:               Number(row.total),
-      anticipo:            Number(row.monto_anticipo),
-      saldo:               Number(row.saldo_pendiente),
-      estatus:             row.estatus,
-      partidasPendientes:  Number(row.partidas_pendientes ?? 0),
-      numPartidas:         Number(row.partidas_total     ?? 0),
+      fechaPedidoISO:     row.fecha_pedido,
+      clienteNombre:      row.cliente        ?? 'Mostrador',
+      total:              Number(row.total),
+      anticipo:           Number(row.monto_anticipo),
+      saldo:              Number(row.saldo_pendiente),
+      estatus:            row.estatus,
+      partidasPendientes: Number(row.partidas_pendientes ?? 0),
+      numPartidas:        Number(row.partidas_total      ?? 0),
     }
   })
 }
 
-// ── Detalle de pedido de maquila (partidas + procesos snapshot) ──────────────
-
 export const getDetallePedidoMaquila = async (id_pedido) => {
-  const [pedRes, partidasRes] = await Promise.all([
-    supabase
-      .from('pedido')
-      .select('*, cliente(id_cliente, nombre, telefono), cotizacion(folio)')
-      .eq('id_pedido', id_pedido)
-      .single(),
-    supabase
-      .from('partida_pedido_maquila')
-      .select('*, proceso_partida_pedido_maquila(*, proceso(nombre, unidad_cobro(nombre)))')
-      .eq('id_pedido', id_pedido)
-      .order('id_partida_ped_maq'),
-  ])
-  if (pedRes.error)     throw pedRes.error
-  if (partidasRes.error) throw partidasRes.error
-
-  const p = pedRes.data
-  const { fecha, hora } = formatearFechaHora(p.fecha_pedido)
+  const row = await apiFetch(`/maquila/pedidos/${id_pedido}`)
+  const { fecha, hora } = formatearFechaHora(row.fecha_pedido)
   return {
-    id:               p.id_pedido,
-    folio:            p.folio,
-    folioCotizacion:  p.cotizacion?.folio ?? '',
+    id:              row.id_pedido,
+    folio:           row.folio,
+    folioCotizacion: row.folio_cotizacion ?? '',
     fecha,
     hora,
-    fechaPedidoISO:   p.fecha_pedido,
-    cliente:          p.cliente,
-    total:            Number(p.total),
-    tipo_pago:        p.tipo_pago,
-    anticipo:         Number(p.monto_anticipo),
-    saldo:            Number(p.saldo_pendiente),
-    estatus:          p.estatus,
-    partidas: (partidasRes.data ?? []).map(pm => ({
+    fechaPedidoISO:  row.fecha_pedido,
+    cliente:         row.cliente,
+    total:           Number(row.total),
+    tipo_pago:       row.tipo_pago,
+    anticipo:        Number(row.monto_anticipo),
+    saldo:           Number(row.saldo_pendiente),
+    estatus:         row.estatus,
+    partidas: (row.partidas ?? []).map(pm => ({
       id:                pm.id_partida_ped_maq,
       descripcion:       pm.descripcion       ?? '',
       largo_cm:          Number(pm.largo_cm),
@@ -277,9 +166,9 @@ export const getDetallePedidoMaquila = async (id_pedido) => {
       subtotal_partida:  Number(pm.subtotal_partida),
       estatus_entrega:   pm.estatus_entrega,
       fecha_entrega_real: pm.fecha_entrega_real ?? null,
-      procesos: (pm.proceso_partida_pedido_maquila ?? []).map(pp => ({
-        nombre:            pp.proceso?.nombre             ?? '',
-        unidad:            pp.proceso?.unidad_cobro?.nombre ?? '',
+      procesos: (pm.procesos ?? []).map(pp => ({
+        nombre:            pp.nombre             ?? '',
+        unidad:            pp.unidad             ?? '',
         cantidad_unidades: Number(pp.cantidad_unidades),
         precio_unitario:   Number(pp.precio_unitario),
         subtotal:          Number(pp.subtotal),
@@ -288,62 +177,15 @@ export const getDetallePedidoMaquila = async (id_pedido) => {
   }
 }
 
-// ── Entregar una línea de pedido maquila ─────────────────────────────────────
-// Actualiza estatus_entrega y recalcula estatus del pedido padre
-
-export const entregarPartidaMaquila = async (id_partida_ped_maq) => {
-  const { data: pm, error: pmErr } = await supabase
-    .from('partida_pedido_maquila')
-    .update({ estatus_entrega: 'ENTREGADO', fecha_entrega_real: new Date().toISOString() })
-    .eq('id_partida_ped_maq', id_partida_ped_maq)
-    .select('id_pedido')
-    .single()
-  if (pmErr) throw pmErr
-
-  const id_pedido = pm.id_pedido
-  const { data: todas, error: todasErr } = await supabase
-    .from('partida_pedido_maquila')
-    .select('estatus_entrega')
-    .eq('id_pedido', id_pedido)
-  if (todasErr) throw todasErr
-
-  const total      = todas.length
-  const entregadas = todas.filter(r => r.estatus_entrega === 'ENTREGADO').length
-  const nuevoEstatus =
-    entregadas === total ? 'ENTREGADO' :
-    entregadas > 0       ? 'PARCIAL'   : null
-
-  if (nuevoEstatus) {
-    const { error: pedErr } = await supabase
-      .from('pedido')
-      .update({
-        estatus:       nuevoEstatus,
-        ...(nuevoEstatus === 'ENTREGADO' ? { fecha_entrega: new Date().toISOString() } : {}),
-      })
-      .eq('id_pedido', id_pedido)
-    if (pedErr) throw pedErr
-  }
-
-  return true
-}
-
-// ── Pedidos de maquila entregados (historial) ────────────────────────────────
+export const entregarPartidaMaquila = async (id_partida_ped_maq) =>
+  apiFetch(`/maquila/partidas-pedido/${id_partida_ped_maq}/entregar`, { method: 'POST', body: {} })
 
 export const getPedidosEntregadosMaquila = async (fechaDesde, fechaHasta) => {
-  let query = supabase
-    .from('pedido')
-    .select('*, cliente(id_cliente, nombre)')
-    .eq('tipo_pedido', 'MAQUILA')
-    .eq('estatus', 'ENTREGADO')
-    .order('fecha_entrega', { ascending: false })
-
-  if (fechaDesde) query = query.gte('fecha_entrega', mxDayBound(fechaDesde))
-  if (fechaHasta) query = query.lte('fecha_entrega', mxDayBound(fechaHasta, true))
-
-  const { data, error } = await query
-  if (error) throw error
-
-  return (data ?? []).map(row => {
+  const params = new URLSearchParams()
+  if (fechaDesde) params.set('fecha_inicio', mxDayBound(fechaDesde))
+  if (fechaHasta) params.set('fecha_fin',    mxDayBound(fechaHasta, true))
+  const rows = await apiFetch(`/maquila/pedidos/historial?${params}`)
+  return rows.map(row => {
     const { fecha }           = formatearFechaHora(row.fecha_pedido)
     const { fecha: fechaEnt } = row.fecha_entrega ? formatearFechaHora(row.fecha_entrega) : { fecha: '—' }
     return {
@@ -352,7 +194,7 @@ export const getPedidosEntregadosMaquila = async (fechaDesde, fechaHasta) => {
       fecha,
       fechaEntrega:    fechaEnt,
       fechaEntregaISO: row.fecha_entrega,
-      clienteNombre:   row.cliente?.nombre ?? 'Mostrador',
+      clienteNombre:   row.cliente_nombre ?? 'Mostrador',
       total:           Number(row.total ?? 0),
       tipo_pago:       row.tipo_pago,
       anticipo:        Number(row.monto_anticipo ?? 0),
@@ -360,14 +202,5 @@ export const getPedidosEntregadosMaquila = async (fechaDesde, fechaHasta) => {
   })
 }
 
-// ── Marcar anticipo como liquidado (US-12) ───────────────────────────────────
-
-export const marcarAnticipoLiquidado = async (id_pedido) => {
-  const { data, error } = await supabase.rpc('sp_marcar_anticipo_liquidado', {
-    p_id_pedido: id_pedido,
-  })
-  if (error) throw error
-  const row = Array.isArray(data) ? data[0] : data
-  assertSP(row, 'no encontrado')
-  return true
-}
+export const marcarAnticipoLiquidado = async (id_pedido) =>
+  apiFetch(`/maquila/pedidos/${id_pedido}/liquidar`, { method: 'POST', body: {} })

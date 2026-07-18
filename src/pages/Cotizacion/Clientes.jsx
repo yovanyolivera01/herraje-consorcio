@@ -10,6 +10,7 @@ function ClienteModal({ cliente, onClose, onSave }) {
     telefono:        cliente?.telefono        ?? '',
     correo:          cliente?.correo          ?? '',
     id_nivel_precio: cliente?.id_nivel_precio ?? vidrieroId,
+    credito_activo:  cliente?.credito_activo  ?? false,
   })
   const [errors, setErrors] = useState({})
   const [saving, setSaving] = useState(false)
@@ -34,6 +35,7 @@ function ClienteModal({ cliente, onClose, onSave }) {
       telefono:        form.telefono.trim() || null,
       correo:          form.correo.trim()   || null,
       id_nivel_precio: form.id_nivel_precio ? Number(form.id_nivel_precio) : null,
+      credito_activo:  form.credito_activo,
     })
     setSaving(false)
   }
@@ -99,6 +101,18 @@ function ClienteModal({ cliente, onClose, onSave }) {
               </select>
               <div className="form-hint">Se aplicara automaticamente al crear una cotizacion para este cliente</div>
             </div>
+            <div className="form-group">
+              <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={form.credito_activo}
+                  onChange={e => setForm(f => ({ ...f, credito_activo: e.target.checked }))}
+                />
+                <span className="form-label" style={{ margin: 0 }}>Crédito activo</span>
+              </label>
+              <div className="form-hint">Marca al cliente como cliente de crédito frecuente</div>
+            </div>
+
           </div>
           <div className="modal-footer">
             <button type="button" className="btn btn-outline" onClick={onClose}>Cancelar</button>
@@ -380,6 +394,12 @@ export default function Clientes() {
     else showToast(cliente.activo ? 'Cliente desactivado' : 'Cliente activado ✅')
   }
 
+  const handleToggleCredito = async (cliente) => {
+    const { error } = await editCliente(cliente.id_cliente, { credito_activo: !cliente.credito_activo })
+    if (error) showToast(error, 'error')
+    else showToast(cliente.credito_activo ? 'Crédito desactivado' : 'Crédito habilitado 💳')
+  }
+
   const filtered = clientes
     .filter(c => filtroActivo === 'todos' || (filtroActivo === 'activos' ? c.activo : !c.activo))
     .filter(c =>
@@ -457,15 +477,19 @@ export default function Clientes() {
                       )}
                     </td>
                     <td data-label="Estado">
-                      <span className={`badge ${c.activo ? 'badge-green' : 'badge-gray'}`}>
-                        {c.activo ? 'Activo' : 'Inactivo'}
-                      </span>
+                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                        <span className={`badge ${c.activo ? 'badge-green' : 'badge-gray'}`}>
+                          {c.activo ? 'Activo' : 'Inactivo'}
+                        </span>
+                        {c.credito_activo && (
+                          <span className="badge badge-blue">Crédito</span>
+                        )}
+                      </div>
                     </td>
                     <td data-label="">
                       <div style={{ display: 'flex', gap: 2 }}>
                         <button className="btn-icon" title="Editar" onClick={() => setModal({ type: 'edit', data: c })}>✏️</button>
                         <button className="btn-icon" title="Precios especiales" onClick={() => setModal({ type: 'precios', data: c })}>💲</button>
-                        <button className="btn-icon" title="Vincular empresa" onClick={() => setModal({ type: 'vincular', data: c })}>🏢</button>
                         <button className="btn-icon" title={c.activo ? 'Desactivar' : 'Activar'} onClick={() => handleToggleActivo(c)}>
                           {c.activo ? '🔕' : '✅'}
                         </button>

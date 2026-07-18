@@ -88,7 +88,7 @@ function ProcesoModal({ proceso, onClose, onSave }) {
                   onChange={set('id_unidad_cobro')}
                 >
                   <option value="">-- Seleccionar --</option>
-                  {unidades.map(u => (
+                  {unidades.filter(u => ['M2', 'ML'].includes(u.nombre?.toUpperCase())).map(u => (
                     <option key={u.id_unidad_cobro} value={u.id_unidad_cobro}>{u.nombre} — {u.descripcion}</option>
                   ))}
                 </select>

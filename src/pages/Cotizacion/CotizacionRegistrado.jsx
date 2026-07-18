@@ -10,7 +10,7 @@ import { exportCotizacionPDF } from '../../utils/pdf'
 function parseNotacion(texto) {
   if (!texto?.trim()) return { error: 'Ingresa una medida (ej. 3-22x45)' }
   const limpio = texto.trim().replace(/\s/g, '')
-  const match  = limpio.match(/^(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)[xX](\d+(?:\.\d+)?)$/)
+  const match  = limpio.match(/^(\d+)-(\d+(?:\.\d+)?)[xX](\d+(?:\.\d+)?)$/)
   if (!match) return { error: 'Formato invalido. Usa: {piezas}-{largo}x{ancho} — ej. 3-22x45' }
   const piezas = Number(match[1]); const largo = Number(match[2]); const ancho = Number(match[3])
   if (piezas <= 0) return { error: 'Piezas debe ser mayor a 0' }
@@ -24,7 +24,7 @@ function TicketCotizacion({ cot }) {
   return (
     <div className="ticket-preview">
       <div className="ticket-header">
-        <h2>TEMPLADOS CONSORCIO</h2>
+        <h2>VIDRIO TEMPLADO Y ALUMINIO ROSALES</h2>
         <p style={{ fontWeight: 700 }}>ARTE EN VIDRIO</p>
         <p style={{ fontWeight: 600 }}>Cotizacion</p>
       </div>
@@ -93,10 +93,13 @@ function TicketCotizacion({ cot }) {
 
 // ── Modal convertir a pedido ──────────────────────────────────────────────
 function ConvertirModal({ cotizacion, onClose, onCreado }) {
-  const [formaPago, setFormaPago] = useState('LIQUIDADO')
-  const [anticipo,  setAnticipo]  = useState('')
-  const [saving,    setSaving]    = useState(false)
-  const [error,     setError]     = useState(null)
+  const { tiposPago, clientes, metodosPago } = useCotizacion()
+  const clienteSeleccionado = clientes.find(c => c.id_cliente === cotizacion.id_cliente)
+  const [formaPago,   setFormaPago]   = useState('LIQUIDADO')
+  const [anticipo,    setAnticipo]    = useState('')
+  const [metodoPago,  setMetodoPago]  = useState('EFECTIVO')
+  const [saving,      setSaving]      = useState(false)
+  const [error,       setError]       = useState(null)
   const { addVenta } = useApp()
 
   const anticipoNum = parseFloat(anticipo) || 0
@@ -110,11 +113,12 @@ function ConvertirModal({ cotizacion, onClose, onCreado }) {
     }
     setSaving(true); setError(null)
     try {
-      const monto    = formaPago === 'LIQUIDADO' ? cotizacion.total : parseFloat(anticipo)
-      const idPedido = await convertirCotizacionAPedido(cotizacion.id, formaPago, monto)
+      const monto = formaPago === 'LIQUIDADO' ? cotizacion.total : formaPago === 'POR COBRAR' ? 0 : parseFloat(anticipo)
+
+      const idPedido = await convertirCotizacionAPedido(cotizacion.id, formaPago, monto, metodoPago)
 
       // Registrar productos herraje como venta en historial de ventas
-      if (formaPago === 'LIQUIDADO') {
+      if (formaPago === 'LIQUIDADO' || formaPago === 'POR COBRAR') {
         const prodExtras = (cotizacion.partidas ?? []).filter(p => p.tipo === 'PRODUCTO')
         if (prodExtras.length > 0) {
           const ventaPartidas = prodExtras.map(p => ({
@@ -157,12 +161,22 @@ function ConvertirModal({ cotizacion, onClose, onCreado }) {
         </div>
         <div className="modal-body">
           <div className="form-group">
+            <label className="form-label required">Método de pago</label>
+            <select className="form-input" value={metodoPago} onChange={e => setMetodoPago(e.target.value)}>
+              {metodosPago.map(m => (
+                <option key={m.id_metodo_pago} value={m.descripcion}>
+                  {m.descripcion.charAt(0) + m.descripcion.slice(1).toLowerCase()}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="form-group">
             <label className="form-label required">Forma de pago</label>
             <div style={{ display: 'flex', gap: 16, marginTop: 6 }}>
-              {[['LIQUIDADO','Liquidado — pago total'],['ANTICIPO','Anticipo — pago parcial']].map(([val, lbl]) => (
-                <label key={val} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 14 }}>
-                  <input type="radio" name="fp" value={val} checked={formaPago === val} onChange={() => { setFormaPago(val); setError(null) }} />
-                  {lbl}
+              {tiposPago.map(tp => (
+                <label key={tp.id_tipo_pago} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 14 }}>
+                  <input type="radio" name="fp" value={tp.descripcion} checked={formaPago === tp.descripcion} onChange={() => { setFormaPago(tp.descripcion); setError(null) }} />
+                  {tp.descripcion === 'POR COBRAR' ? 'Por cobrar' : tp.descripcion.charAt(0) + tp.descripcion.slice(1).toLowerCase()}
                 </label>
               ))}
             </div>
@@ -496,6 +510,7 @@ export default function CotizacionRegistrado() {
       if (e3) throw new Error(e3)
       setCotCreada({
         id:            cot.id_cotizacion,
+        id_cliente:    clienteSeleccionado?.id_cliente ?? null,
         folio:         final?.folio ?? cot.folio,
         clienteNombre: clienteSeleccionado?.nombre ?? '',
         clienteTel:    clienteSeleccionado?.telefono ?? null,

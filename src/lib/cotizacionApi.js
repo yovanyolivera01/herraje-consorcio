@@ -1,413 +1,139 @@
-import { supabase } from './supabase'
+const API = import.meta.env.VITE_API_URL || ''
 
-// ── Helpers ───────────────────────────────────────────────────────────────
+async function apiFetch(path, options = {}) {
+  const { method = 'GET', body } = options
+  const res = await fetch(`${API}/api${path}`, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data.message ?? `HTTP ${res.status}`)
+  return data
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 const TZ = 'America/Mexico_City'
 function formatearFechaHora(isoString) {
-  const utc = /Z|[+-]\d{2}:?\d{2}$/.test(isoString ?? '') ? isoString : (isoString ?? '') + 'Z'
+  if (!isoString) return { fecha: '—', hora: '—' }
+  const utc = /Z|[+-]\d{2}:?\d{2}$/.test(isoString) ? isoString : isoString + 'Z'
   const d = new Date(utc)
-  const fechaFormatter = new Intl.DateTimeFormat('es-MX', {
-    year: 'numeric', month: '2-digit', day: '2-digit', timeZone: TZ,
-  })
-  const horaFormatter = new Intl.DateTimeFormat('es-MX', {
-    hour: '2-digit', minute: '2-digit', hour12: false, timeZone: TZ,
-  })
   return {
-    fecha: fechaFormatter.format(d),
-    hora:  horaFormatter.format(d).slice(0, 5),
+    fecha: new Intl.DateTimeFormat('es-MX', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: TZ }).format(d),
+    hora:  new Intl.DateTimeFormat('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: TZ }).format(d).slice(0, 5),
   }
 }
 
-// ── Tonos ─────────────────────────────────────────────────────────────────
+// ── Tonos ─────────────────────────────────────────────────────────────────────
 
-export const getTonos = async () => {
-  const { data, error } = await supabase
-    .from('tono')
-    .select('*')
-    .order('nombre', { ascending: true })
-  if (error) throw error
-  return data ?? []
-}
+export const getTonos = async () => apiFetch('/tonos')
 
-export const createTono = async ({ nombre }) => {
-  const { data, error } = await supabase
-    .from('tono')
-    .insert({ nombre })
-    .select()
-    .single()
-  if (error) throw error
-  return data
-}
+export const createTono = async ({ nombre }) =>
+  apiFetch('/tonos', { method: 'POST', body: { nombre } })
 
-export const updateTono = async (id_tono, campos) => {
-  const { data, error } = await supabase
-    .from('tono')
-    .update(campos)
-    .eq('id_tono', id_tono)
-    .select()
-    .single()
-  if (error) throw error
-  return data
-}
+export const updateTono = async (id_tono, campos) =>
+  apiFetch(`/tonos/${id_tono}`, { method: 'PUT', body: campos })
 
-// ── Espesores ─────────────────────────────────────────────────────────────
+// ── Espesores ─────────────────────────────────────────────────────────────────
 
-export const getEspesores = async () => {
-  const { data, error } = await supabase
-    .from('espesor')
-    .select('*')
-    .order('valor_mm', { ascending: true })
-  if (error) throw error
-  return data ?? []
-}
+export const getEspesores = async () => apiFetch('/espesores')
 
-export const createEspesor = async ({ valor_mm, etiqueta }) => {
-  const { data, error } = await supabase
-    .from('espesor')
-    .insert({ valor_mm: Number(valor_mm), etiqueta })
-    .select()
-    .single()
-  if (error) throw error
-  return data
-}
+export const createEspesor = async ({ valor_mm, etiqueta }) =>
+  apiFetch('/espesores', { method: 'POST', body: { valor_mm: Number(valor_mm), etiqueta } })
 
-export const updateEspesor = async (id_espesor, campos) => {
-  const { data, error } = await supabase
-    .from('espesor')
-    .update(campos)
-    .eq('id_espesor', id_espesor)
-    .select()
-    .single()
-  if (error) throw error
-  return data
-}
+export const updateEspesor = async (id_espesor, campos) =>
+  apiFetch(`/espesores/${id_espesor}`, { method: 'PUT', body: campos })
 
-// ── Tipos de vidrio ───────────────────────────────────────────────────────
+// ── Tipos de vidrio ───────────────────────────────────────────────────────────
 
-export const getTiposVidrio = async () => {
-  const { data, error } = await supabase
-    .from('tipo_vidrio')
-    .select('*, tono(id_tono, nombre), espesor(id_espesor, valor_mm, etiqueta)')
-    .order('clave', { ascending: true })
-  if (error) throw error
-  return data ?? []
-}
+export const getTiposVidrio = async () => apiFetch('/tipos-vidrio')
 
-export const createTipoVidrio = async ({ id_tono, id_espesor, clave, descripcion }) => {
-  const { data, error } = await supabase
-    .from('tipo_vidrio')
-    .insert({ id_tono, id_espesor, clave, descripcion })
-    .select('*, tono(id_tono, nombre), espesor(id_espesor, valor_mm, etiqueta)')
-    .single()
-  if (error) throw error
-  return data
-}
+export const createTipoVidrio = async ({ id_tono, id_espesor, clave, descripcion }) =>
+  apiFetch('/tipos-vidrio', { method: 'POST', body: { id_tono, id_espesor, clave, descripcion } })
 
-export const updateTipoVidrio = async (id_tipo_vidrio, campos) => {
-  const { data, error } = await supabase
-    .from('tipo_vidrio')
-    .update(campos)
-    .eq('id_tipo_vidrio', id_tipo_vidrio)
-    .select('*, tono(id_tono, nombre), espesor(id_espesor, valor_mm, etiqueta)')
-    .single()
-  if (error) throw error
-  return data
-}
+export const updateTipoVidrio = async (id_tipo_vidrio, campos) =>
+  apiFetch(`/tipos-vidrio/${id_tipo_vidrio}`, { method: 'PUT', body: campos })
 
-// ── Niveles de precio ─────────────────────────────────────────────────────
+// ── Niveles de precio ─────────────────────────────────────────────────────────
 
-export const getNivelesPrecio = async () => {
-  const { data, error } = await supabase
-    .from('nivel_precio')
-    .select('*')
-    .eq('activo', true)
-    .order('id_nivel_precio', { ascending: true })
-  if (error) throw error
-  return data ?? []
-}
+export const getNivelesPrecio = async () => apiFetch('/niveles-precio')
 
-// ── Precios de vidrio ─────────────────────────────────────────────────────
+// ── Precios de vidrio ─────────────────────────────────────────────────────────
 
-export const getPreciosVidrio = async () => {
-  const { data, error } = await supabase
-    .from('precio_vidrio')
-    .select('*')
-  if (error) throw error
-  return data ?? []
-}
+export const getPreciosVidrio = async () => apiFetch('/precios-vidrio')
 
-export const guardarPrecio = async ({ id_tipo_vidrio, id_nivel_precio, precio_m2 }) => {
-  const { data, error } = await supabase
-    .from('precio_vidrio')
-    .upsert(
-      { id_tipo_vidrio, id_nivel_precio, precio_m2: Number(precio_m2) },
-      { onConflict: 'id_tipo_vidrio,id_nivel_precio' }
-    )
-    .select()
-    .single()
-  if (error) throw error
-  return data
-}
+export const guardarPrecio = async ({ id_tipo_vidrio, id_nivel_precio, precio_m2 }) =>
+  apiFetch('/precios-vidrio', { method: 'POST', body: { id_tipo_vidrio, id_nivel_precio, precio_m2: Number(precio_m2) } })
 
-// ── Clientes ──────────────────────────────────────────────────────────────
+// ── Clientes ──────────────────────────────────────────────────────────────────
 
-export const getClientes = async () => {
-  const { data, error } = await supabase
-    .from('cliente')
-    .select('*, nivel_precio(id_nivel_precio, nombre)')
-    .order('nombre', { ascending: true })
-  if (error) throw error
-  return data ?? []
-}
+export const getClientes = async () => apiFetch('/clientes')
 
-export const createCliente = async ({ nombre, telefono, correo, id_nivel_precio }) => {
-  const { data, error } = await supabase
-    .from('cliente')
-    .insert({ nombre, telefono: telefono || null, correo: correo || null, id_nivel_precio: id_nivel_precio || null })
-    .select('*, nivel_precio(id_nivel_precio, nombre)')
-    .single()
-  if (error) throw error
-  return data
-}
+export const createCliente = async ({ nombre, telefono, correo, id_nivel_precio }) =>
+  apiFetch('/clientes', { method: 'POST', body: { nombre, telefono: telefono || null, correo: correo || null, id_nivel_precio: id_nivel_precio || null } })
 
-export const updateCliente = async (id_cliente, campos) => {
-  const { data, error } = await supabase
-    .from('cliente')
-    .update(campos)
-    .eq('id_cliente', id_cliente)
-    .select('*, nivel_precio(id_nivel_precio, nombre)')
-    .single()
-  if (error) throw error
-  return data
-}
+export const updateCliente = async (id_cliente, campos) =>
+  apiFetch(`/clientes/${id_cliente}`, { method: 'PUT', body: campos })
 
-// ── Procesos ──────────────────────────────────────────────────────────────
+// ── Procesos ──────────────────────────────────────────────────────────────────
 
-export const getProcesos = async () => {
-  const { data, error } = await supabase
-    .from('proceso')
-    .select('*, unidad_cobro(id_unidad_cobro, nombre, descripcion)')
-    .order('nombre', { ascending: true })
-  if (error) throw error
-  return data ?? []
-}
+export const getProcesos = async () => apiFetch('/procesos')
 
-export const createProceso = async ({ nombre, id_unidad_cobro, precio_unitario = 0, tipo = 'PROCESO', diametro_mm = null }) => {
-  const { data, error } = await supabase
-    .from('proceso')
-    .insert({ nombre, id_unidad_cobro, precio_unitario: Number(precio_unitario), tipo, diametro_mm: diametro_mm ?? null })
-    .select('*, unidad_cobro(id_unidad_cobro, nombre, descripcion)')
-    .single()
-  if (error) throw error
-  return data
-}
+export const createProceso = async ({ nombre, id_unidad_cobro, precio_unitario = 0, tipo = 'PROCESO', diametro_mm = null }) =>
+  apiFetch('/procesos', { method: 'POST', body: { nombre, id_unidad_cobro, precio_unitario: Number(precio_unitario), tipo, diametro_mm: diametro_mm ?? null } })
 
-export const updateProceso = async (id_proceso, campos) => {
-  const { data, error } = await supabase
-    .from('proceso')
-    .update(campos)
-    .eq('id_proceso', id_proceso)
-    .select('*, unidad_cobro(id_unidad_cobro, nombre, descripcion)')
-    .single()
-  if (error) throw error
-  return data
-}
+export const updateProceso = async (id_proceso, campos) =>
+  apiFetch(`/procesos/${id_proceso}`, { method: 'PUT', body: campos })
 
-// ── Precios de proceso por nivel ─────────────────────────────────────────
+// ── Precios de proceso por nivel ──────────────────────────────────────────────
 
-export const getPreciosProceso = async () => {
-  const { data, error } = await supabase
-    .from('precio_proceso')
-    .select('*')
-  if (error) throw error
-  return data ?? []
-}
+export const getPreciosProceso = async () => apiFetch('/precios-proceso')
 
 export const guardarPreciosProceso = async (id_proceso, precios) => {
   if (!precios.length) return []
-  const rows = precios.map(p => ({
-    id_proceso,
-    id_nivel_precio: p.id_nivel_precio,
-    id_espesor:      p.id_espesor,
-    precio_unitario: Number(p.precio_unitario),
-  }))
-  const { data, error } = await supabase
-    .from('precio_proceso')
-    .upsert(rows, { onConflict: 'id_proceso,id_nivel_precio,id_espesor' })
-    .select()
-  if (error) throw error
-  return data ?? []
+  return apiFetch('/precios-proceso', { method: 'POST', body: { id_proceso, precios } })
 }
 
-// ── Precios especiales (Barrenos / Saque) ─────────────────────────────────
+// ── Precios especiales (Barrenos / Saque) ─────────────────────────────────────
 
-export const getPreciosProcesoEspecial = async () => {
-  const { data, error } = await supabase
-    .from('precio_proceso_especial')
-    .select('*')
-  if (error) throw error
-  return data ?? []
-}
+export const getPreciosProcesoEspecial = async () => apiFetch('/precios-proceso-especial')
 
 export const guardarPreciosProcesoEspecial = async (id_proceso, precios) => {
   if (!precios.length) return []
-  const rows = precios.map(p => ({
-    id_proceso,
-    id_nivel_precio: p.id_nivel_precio,
-    precio_unitario: Number(p.precio_unitario),
-  }))
-  const { data, error } = await supabase
-    .from('precio_proceso_especial')
-    .upsert(rows, { onConflict: 'id_proceso,id_nivel_precio' })
-    .select()
-  if (error) throw error
-  return data ?? []
+  return apiFetch('/precios-proceso-especial', { method: 'POST', body: { id_proceso, precios } })
 }
 
-// ── Unidades de cobro ─────────────────────────────────────────────────────
+// ── Unidades de cobro ─────────────────────────────────────────────────────────
 
-export const getUnidadesCobro = async () => {
-  const { data, error } = await supabase
-    .from('unidad_cobro')
-    .select('*')
-    .order('id_unidad_cobro', { ascending: true })
-  if (error) throw error
-  return data ?? []
-}
+export const getUnidadesCobro = async () => apiFetch('/unidades-cobro')
 
-// ── Cotizaciones ──────────────────────────────────────────────────────────
+export const getTiposPago    = async () => apiFetch('/tipos-pago')
+export const getMetodosPago  = async () => apiFetch('/metodos-pago')
 
-export const iniciarCotizacion = async ({ id_nivel_precio, id_cliente = null, observaciones = null }) => {
-  // Insertar con folio temporal
-  const { data: cot, error: cotErr } = await supabase
-    .from('cotizacion')
-    .insert({
-      folio:          'COT-00000',
-      id_nivel_precio,
-      id_cliente:     id_cliente || null,
-      observaciones:  observaciones || null,
-      fecha:          new Date().toISOString(),
-    })
-    .select()
-    .single()
-  if (cotErr) throw cotErr
+// ── Cotizaciones ──────────────────────────────────────────────────────────────
 
-  // Actualizar folio usando el id generado
-  const folio = `COT-${String(cot.id_cotizacion).padStart(5, '0')}`
-  const { data, error } = await supabase
-    .from('cotizacion')
-    .update({ folio })
-    .eq('id_cotizacion', cot.id_cotizacion)
-    .select()
-    .single()
-  if (error) throw error
-  return data
-}
+export const iniciarCotizacion = async ({ id_nivel_precio, id_cliente = null, observaciones = null }) =>
+  apiFetch('/cotizaciones', { method: 'POST', body: { id_nivel_precio, id_cliente: id_cliente || null, observaciones: observaciones || null } })
 
-export const agregarPartida = async (id_cotizacion, partida) => {
-  // metros2 ya incluye el número de piezas: piezas × (largo × ancho / 10000)
-  const { data: p, error: pErr } = await supabase
-    .from('partida_cotizacion')
-    .insert({
-      id_cotizacion,
-      id_tipo_vidrio:     partida.id_tipo_vidrio,
-      largo_cm:           partida.largo_cm,
-      ancho_cm:           partida.ancho_cm,
-      metros2:            partida.metros2,
-      precio_m2_aplicado: partida.precio_m2_aplicado,
-      subtotal_vidrio:    partida.subtotal_vidrio,
-      subtotal_procesos:  partida.subtotal_procesos ?? 0,
-      subtotal_partida:   partida.subtotal_partida,
-      es_hoja_completa:   partida.es_hoja_completa ?? false,
-    })
-    .select()
-    .single()
-  if (pErr) throw pErr
+export const agregarPartida = async (id_cotizacion, partida) =>
+  apiFetch(`/cotizaciones/${id_cotizacion}/partidas`, { method: 'POST', body: partida })
 
-  // Insertar procesos si los hay
-  if (partida.procesos && partida.procesos.length > 0) {
-    const rows = partida.procesos.map(proc => ({
-      id_partida:      p.id_partida,
-      id_proceso:      proc.id_proceso,
-      id_unidad_cobro: proc.id_unidad_cobro,
-      cantidad:        proc.cantidad,
-      precio_unitario: proc.precio_unitario,
-      subtotal:        proc.subtotal,
-    }))
-    const { error: prErr } = await supabase
-      .from('partida_proceso')
-      .insert(rows)
-    if (prErr) throw prErr
-  }
+export const actualizarCotizacion = async (id_cotizacion, { id_nivel_precio, id_cliente, partidas, total }) =>
+  apiFetch(`/cotizaciones/${id_cotizacion}/actualizar`, { method: 'PUT', body: { id_nivel_precio, id_cliente, partidas, total } })
 
-  return p
-}
+export const finalizarCotizacion = async (id_cotizacion, total) =>
+  apiFetch(`/cotizaciones/${id_cotizacion}`, { method: 'PUT', body: { total: Number(total), estatus: 'FINALIZADA' } })
 
-export const actualizarCotizacion = async (id_cotizacion, { id_nivel_precio, id_cliente, partidas, total }) => {
-  // 1. Borrar procesos de las partidas existentes
-  const { data: existentes } = await supabase
-    .from('partida_cotizacion')
-    .select('id_partida')
-    .eq('id_cotizacion', id_cotizacion)
-  if (existentes?.length) {
-    const ids = existentes.map(p => p.id_partida)
-    const { error: delProcErr } = await supabase
-      .from('partida_proceso')
-      .delete()
-      .in('id_partida', ids)
-    if (delProcErr) throw delProcErr
-  }
+export const cancelarCotizacion = async (id_cotizacion) =>
+  apiFetch(`/cotizaciones/${id_cotizacion}`, { method: 'PUT', body: { estatus: 'CANCELADA' } })
 
-  // 2. Borrar partidas existentes
-  const { error: delErr } = await supabase
-    .from('partida_cotizacion')
-    .delete()
-    .eq('id_cotizacion', id_cotizacion)
-  if (delErr) throw delErr
-
-  // 3. Actualizar cabecera + total
-  const { error: headErr } = await supabase
-    .from('cotizacion')
-    .update({ id_nivel_precio, id_cliente: id_cliente || null, total: Number(total), estatus: 'FINALIZADA' })
-    .eq('id_cotizacion', id_cotizacion)
-  if (headErr) throw headErr
-
-  // 4. Re-insertar partidas con sus procesos
-  for (const partida of partidas) {
-    await agregarPartida(id_cotizacion, partida)
-  }
-}
-
-export const finalizarCotizacion = async (id_cotizacion, total) => {
-  const { data, error } = await supabase
-    .from('cotizacion')
-    .update({ total: Number(total), estatus: 'FINALIZADA' })
-    .eq('id_cotizacion', id_cotizacion)
-    .select()
-    .single()
-  if (error) throw error
-  return data
-}
-
-export const cancelarCotizacion = async (id_cotizacion) => {
-  const { data, error } = await supabase
-    .from('cotizacion')
-    .update({ estatus: 'CANCELADA' })
-    .eq('id_cotizacion', id_cotizacion)
-    .select()
-    .single()
-  if (error) throw error
-  return data
-}
+export const borrarCotizacion = async (id_cotizacion) =>
+  apiFetch(`/cotizaciones/${id_cotizacion}`, { method: 'DELETE' })
 
 export const getCotizaciones = async () => {
-  const { data, error } = await supabase
-    .from('cotizacion')
-    .select('*, cliente(id_cliente, nombre), nivel_precio(id_nivel_precio, nombre, es_hoja_completa)')
-    .neq('estatus', 'CONVERTIDA')
-    .order('fecha', { ascending: false })
-  if (error) throw error
-  return (data ?? []).map(row => {
+  const rows = await apiFetch('/cotizaciones')
+  return rows.map(row => {
     const { fecha, hora } = formatearFechaHora(row.fecha)
     return {
       id:            row.id_cotizacion,
@@ -424,69 +150,19 @@ export const getCotizaciones = async () => {
   })
 }
 
-// ── Partidas extra (maquila / productos generales) ────────────────────────
+// ── Partidas extra (maquila / productos generales) ────────────────────────────
 
-export const agregarPartidaExtra = async (id_cotizacion, partida) => {
-  const { data, error } = await supabase
-    .from('partida_cotizacion_extra')
-    .insert({
-      id_cotizacion,
-      tipo:                partida.tipo,
-      descripcion:         partida.descripcion,
-      unidad:              partida.unidad ?? 'pza',
-      cantidad:            Number(partida.cantidad),
-      precio_unitario:     Number(partida.precio_unitario),
-      subtotal:            Number(partida.subtotal),
-      id_producto_general: partida.id_producto_general ?? null,
-      notas:               partida.notas ?? null,
-    })
-    .select()
-    .single()
-  if (error) throw error
-  return data
-}
+export const agregarPartidaExtra = async (id_cotizacion, partida) =>
+  apiFetch(`/cotizaciones/${id_cotizacion}/extras`, { method: 'POST', body: partida })
 
-export const getPartidasExtra = async (id_cotizacion) => {
-  const { data, error } = await supabase
-    .from('partida_cotizacion_extra')
-    .select('*')
-    .eq('id_cotizacion', id_cotizacion)
-    .order('id_partida_extra')
-  if (error) throw error
-  return data ?? []
-}
+export const getPartidasExtra = async (id_cotizacion) =>
+  apiFetch(`/cotizaciones/${id_cotizacion}/extras`)
 
-export const deletePartidasExtra = async (id_cotizacion) => {
-  const { error } = await supabase
-    .from('partida_cotizacion_extra')
-    .delete()
-    .eq('id_cotizacion', id_cotizacion)
-  if (error) throw error
-}
+export const deletePartidasExtra = async (id_cotizacion) =>
+  apiFetch(`/cotizaciones/${id_cotizacion}/extras`, { method: 'DELETE' })
 
 export const getDetalleCotizacion = async (id) => {
-  const [cotRes, partidasRes, extrasRes] = await Promise.all([
-    supabase
-      .from('cotizacion')
-      .select('*, cliente(id_cliente, nombre, telefono), nivel_precio(id_nivel_precio, nombre, es_hoja_completa)')
-      .eq('id_cotizacion', id)
-      .single(),
-    supabase
-      .from('partida_cotizacion')
-      .select('*, tipo_vidrio(id_tipo_vidrio, clave, descripcion), partida_proceso(*, proceso(id_proceso, nombre, unidad_cobro(nombre)))')
-      .eq('id_cotizacion', id)
-      .order('id_partida', { ascending: true }),
-    supabase
-      .from('partida_cotizacion_extra')
-      .select('*')
-      .eq('id_cotizacion', id)
-      .order('id_partida_extra', { ascending: true }),
-  ])
-  if (cotRes.error) throw cotRes.error
-  if (partidasRes.error) throw partidasRes.error
-  if (extrasRes.error) throw extrasRes.error
-
-  const row = cotRes.data
+  const row = await apiFetch(`/cotizaciones/${id}`)
   const { fecha, hora } = formatearFechaHora(row.fecha)
   return {
     id:            row.id_cotizacion,
@@ -495,11 +171,11 @@ export const getDetalleCotizacion = async (id) => {
     hora,
     fechaISO:      row.fecha,
     cliente:       row.cliente,
-    nivel:         row.nivel_precio,
+    nivel:         row.nivel,
     total:         Number(row.total),
     estatus:       row.estatus,
     observaciones: row.observaciones,
-    partidas: (partidasRes.data ?? []).map(p => ({
+    partidas: (row.partidas ?? []).map(p => ({
       id:                 p.id_partida,
       tipoVidrio:         p.tipo_vidrio,
       piezas:             Number(p.piezas ?? 1),
@@ -522,7 +198,7 @@ export const getDetalleCotizacion = async (id) => {
         subtotal:        Number(pp.subtotal),
       })),
     })),
-    extras: (extrasRes.data ?? []).map(e => ({
+    extras: (row.extras ?? []).map(e => ({
       id:                  e.id_partida_extra,
       tipo:                e.tipo,
       descripcion:         e.descripcion ?? '',

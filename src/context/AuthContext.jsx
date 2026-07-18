@@ -1,11 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 
-const USUARIOS = {
-  '129': { role: 'admin',    nombre: 'Super Usuario' },
-  '130': { role: 'vendedor', nombre: 'Vendedor' },
-  '131': { role: 'almacen',  nombre: 'Almacén' },
-}
-
 // ── Rutas permitidas por rol (null = acceso total) ─────────────────────────
 export const PERMISOS = {
   admin: null,
@@ -38,13 +32,19 @@ export const PERMISOS = {
     '/cot/clientes',
   ],
 
+  rh: [
+    '/personal',
+  ],
 }
 
 export const HOME_POR_ROL = {
   admin:    '/proveedores',
   vendedor: '/cot/nueva',
   almacen:  '/cot/nueva',
+  rh:       '/personal/empleados',
 }
+
+const SESSION_KEY = 'hc_user_v2'
 
 const AuthContext = createContext()
 
@@ -54,27 +54,34 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const saved = sessionStorage.getItem('hc_user')
+    const saved = sessionStorage.getItem(SESSION_KEY)
     if (saved) {
       const parsed = JSON.parse(saved)
       setUser(parsed)
-      setRole(parsed.role)
+      setRole(parsed.rol)
     }
     setLoading(false)
   }, [])
 
-  const login = (usuario, password) => {
-    const u = USUARIOS[usuario]
-    if (!u || password !== usuario) throw new Error('Credenciales incorrectas')
-    const session = { usuario, ...u }
-    sessionStorage.setItem('hc_user', JSON.stringify(session))
-    setUser(session)
-    setRole(u.role)
-    return session
+  const login = async (username, password) => {
+    const res = await fetch('/api/login', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ username, password }),
+    })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      throw new Error(data.message ?? 'Credenciales incorrectas')
+    }
+    const userData = await res.json()
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify(userData))
+    setUser(userData)
+    setRole(userData.rol)
+    return userData
   }
 
   const logout = () => {
-    sessionStorage.removeItem('hc_user')
+    sessionStorage.removeItem(SESSION_KEY)
     setUser(null)
     setRole(null)
   }

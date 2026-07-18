@@ -114,14 +114,34 @@ router.get('/clientes/:id/precios', async (req, res) => {
 router.post('/clientes/:id/precios', async (req, res) => {
   try {
     const { id_tipo_vidrio, id_proceso, precio_m2 } = req.body
-    const { rows } = await query(
-      `INSERT INTO precio_cliente_registrado (id_cliente, id_tipo_vidrio, id_proceso, precio_m2)
-       VALUES ($1,$2,$3,$4)
-       ON CONFLICT (id_cliente, id_tipo_vidrio, id_proceso)
-       DO UPDATE SET precio_m2=EXCLUDED.precio_m2, activo=true, actualizado_en=NOW()
-       RETURNING *`,
-      [req.params.id, id_tipo_vidrio, id_proceso ?? null, Number(precio_m2)]
-    )
+    const vid = id_tipo_vidrio ?? null
+    const proc = id_proceso ?? null
+    let sql, params
+
+    if (vid && proc) {
+      sql = `INSERT INTO precio_cliente_registrado (id_cliente, id_tipo_vidrio, id_proceso, precio_m2, activo)
+             VALUES ($1,$2,$3,$4,true)
+             ON CONFLICT (id_cliente, id_tipo_vidrio, id_proceso) WHERE id_tipo_vidrio IS NOT NULL AND id_proceso IS NOT NULL
+             DO UPDATE SET precio_m2=EXCLUDED.precio_m2, activo=true, actualizado_en=NOW()
+             RETURNING *`
+      params = [req.params.id, vid, proc, Number(precio_m2)]
+    } else if (vid) {
+      sql = `INSERT INTO precio_cliente_registrado (id_cliente, id_tipo_vidrio, precio_m2, activo)
+             VALUES ($1,$2,$3,true)
+             ON CONFLICT (id_cliente, id_tipo_vidrio) WHERE id_proceso IS NULL
+             DO UPDATE SET precio_m2=EXCLUDED.precio_m2, activo=true, actualizado_en=NOW()
+             RETURNING *`
+      params = [req.params.id, vid, Number(precio_m2)]
+    } else {
+      sql = `INSERT INTO precio_cliente_registrado (id_cliente, id_proceso, precio_m2, activo)
+             VALUES ($1,$2,$3,true)
+             ON CONFLICT (id_cliente, id_proceso) WHERE id_tipo_vidrio IS NULL
+             DO UPDATE SET precio_m2=EXCLUDED.precio_m2, activo=true, actualizado_en=NOW()
+             RETURNING *`
+      params = [req.params.id, proc, Number(precio_m2)]
+    }
+
+    const { rows } = await query(sql, params)
     ok(res, rows[0])
   } catch (e) { err(res, e) }
 })

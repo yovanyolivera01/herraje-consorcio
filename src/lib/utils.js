@@ -5,7 +5,7 @@ export function r5(precio) {
 }
 
 export function fmt5(precio) {
-  return r5(precio).toFixed(2)
+  return Number(precio).toFixed(2)
 }
 
 // ── Helpers de fecha en zona horaria de México ────────────────────────────

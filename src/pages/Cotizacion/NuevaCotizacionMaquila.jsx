@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { fmt5 } from '../../lib/utils'
 import { useCotizacion } from '../../context/CotizacionContext'
+import { printTicketVidrio, printPedidoA4 } from '../../utils/ticket'
 
 // ── Ticket preview ────────────────────────────────────────────────────────
 function TicketMaquila({ detalle, onConvertir, convirtiendo }) {
@@ -8,7 +9,7 @@ function TicketMaquila({ detalle, onConvertir, convirtiendo }) {
     <div style={{ maxWidth: 380, margin: '0 auto' }}>
       <div className="ticket-preview">
         <div className="ticket-header">
-          <h2>TEMPLADOS CONSORCIO</h2>
+          <h2>VIDRIO TEMPLADO Y ALUMINIO ROSALES</h2>
           <p style={{ fontWeight: 700 }}>COTIZACION MAQUILA</p>
         </div>
         <hr className="ticket-divider" />
@@ -50,39 +51,67 @@ function TicketMaquila({ detalle, onConvertir, convirtiendo }) {
         <hr className="ticket-divider" />
         <div className="ticket-total">
           <span>TOTAL</span>
-          <span>${fmt5(detalle.total)}</span>
+          <span>${fmt5(detalle.partidas.reduce((s, p) => s + Number(p.subtotal_partida), 0))}</span>
         </div>
       </div>
-      <button
-        className="btn btn-primary"
-        style={{ width: '100%', marginTop: 16 }}
-        onClick={onConvertir}
-        disabled={convirtiendo}
-      >
-        {convirtiendo ? 'Procesando...' : '📋 Convertir a pedido'}
-      </button>
+      <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+        <button
+          className="btn btn-outline"
+          style={{ flex: 1 }}
+          onClick={() => printTicketVidrio({
+            tipo:          'cotizacion',
+            folio:         detalle.folio,
+            fecha:         detalle.fecha,
+            hora:          detalle.hora ?? '',
+            clienteNombre: detalle.cliente?.nombre ?? 'Mostrador',
+            nivelNombre:   detalle.nivel?.nombre ?? '',
+            partidas:      detalle.partidas.map(p => ({
+              tipo:             'MAQUILA',
+              piezas:           p.cantidad ?? 1,
+              cantidad:         p.cantidad ?? 1,
+              largo_cm:         p.largo_cm,
+              ancho_cm:         p.ancho_cm,
+              clave:            p.descripcion || `${p.largo_cm}×${p.ancho_cm}cm`,
+              descripcion:      p.descripcion,
+              subtotal_partida: p.subtotal_partida,
+              subtotal_vidrio:  null,
+              procesos:         (p.procesos ?? []).map(pr => ({ nombre: pr.nombre, subtotal: pr.subtotal })),
+            })),
+          })}
+        >🖨️ Imprimir</button>
+        <button
+          className="btn btn-primary"
+          style={{ flex: 1 }}
+          onClick={onConvertir}
+          disabled={convirtiendo}
+        >
+          {convirtiendo ? 'Procesando...' : '📋 Convertir a pedido'}
+        </button>
+      </div>
     </div>
   )
 }
 
 // ── Modal: convertir a pedido ─────────────────────────────────────────────
 function ConvertirModal({ cotizacion, onClose, onConvertido }) {
-  const { convertirMaquilaAPedido } = useCotizacion()
-  const [tipoPago,  setTipoPago]  = useState('ANTICIPO')
-  const [anticipo,  setAnticipo]  = useState('')
-  const [saving,    setSaving]    = useState(false)
-  const [error,     setError]     = useState(null)
+  const { convertirMaquilaAPedido, metodosPago } = useCotizacion()
+  const [tipoPago,   setTipoPago]   = useState('ANTICIPO')
+  const [anticipo,   setAnticipo]   = useState('')
+  const [metodoPago, setMetodoPago] = useState('EFECTIVO')
+  const [saving,     setSaving]     = useState(false)
+  const [error,      setError]      = useState(null)
 
   const handleConfirm = async () => {
-    const montAnt = tipoPago === 'CONTADO' ? cotizacion.total : Number(anticipo)
+    const montAnt = tipoPago === 'LIQUIDADO' ? cotizacion.total : Number(anticipo)
     if (tipoPago === 'ANTICIPO' && (isNaN(montAnt) || montAnt < 0)) {
       setError('Ingresa un monto de anticipo válido'); return
     }
     setSaving(true); setError(null)
     const res = await convertirMaquilaAPedido({
-      id_cotizacion: cotizacion.id,
-      tipo_pago:     tipoPago,
+      id_cotizacion:  cotizacion.id,
+      tipo_pago:      tipoPago,
       monto_anticipo: montAnt,
+      metodo_pago:    metodoPago,
     })
     setSaving(false)
     if (res.error) { setError(res.error); return }
@@ -102,10 +131,21 @@ function ConvertirModal({ cotizacion, onClose, onConvertido }) {
             <div style={{ fontWeight: 700, fontSize: 22 }}>${fmt5(cotizacion.total)}</div>
           </div>
           <div className="form-group">
+            <label className="form-label">Método de pago</label>
+            <select className="form-input" value={metodoPago} onChange={e => setMetodoPago(e.target.value)}>
+              {metodosPago.map(m => (
+                <option key={m.id_metodo_pago} value={m.descripcion}>
+                  {m.descripcion.charAt(0) + m.descripcion.slice(1).toLowerCase()}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="form-group">
             <label className="form-label">Tipo de pago</label>
             <select className="form-input" value={tipoPago} onChange={e => setTipoPago(e.target.value)}>
               <option value="ANTICIPO">Anticipo</option>
-              <option value="CONTADO">Contado (pago total)</option>
+              <option value="LIQUIDADO">Liquidado (pago total)</option>
+              <option value="POR COBRAR">Por cobrar</option>
             </select>
           </div>
           {tipoPago === 'ANTICIPO' && (
@@ -265,7 +305,7 @@ export default function NuevaCotizacionMaquila() {
   const [error,       setError]       = useState(null)
   const [modalConv,   setModalConv]   = useState(false)
 
-  const totalParcial = partidas.reduce((s, p) => s + p.subtotal, 0)
+  const totalParcial = partidas.reduce((s, p) => s + Number(p.subtotal ?? 0), 0)
 
   const handleIniciar = async () => {
     if (!nivelId) { setError('Selecciona el nivel de precio'); return }
@@ -325,6 +365,36 @@ export default function NuevaCotizacionMaquila() {
             ✅ Pedido <strong>{pedidoCreado.folio}</strong> creado exitosamente.
           </div>
           <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
+            {detalle && (() => {
+              const detallePed = {
+                tipo:          'pedido',
+                folio:         pedidoCreado.folio,
+                fecha:         new Date().toLocaleDateString('es-MX'),
+                hora:          new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }),
+                clienteNombre: detalle.cliente?.nombre ?? 'Mostrador',
+                nivelNombre:   detalle.nivel?.nombre ?? '',
+                formaPago:     'CONTADO',
+                anticipo:      0,
+                saldo:         0,
+                esEntregado:   false,
+                partidas:      detalle.partidas.map(p => ({
+                  tipo:             'MAQUILA',
+                  piezas:           p.cantidad ?? 1,
+                  cantidad:         p.cantidad ?? 1,
+                  largo_cm:         p.largo_cm,
+                  ancho_cm:         p.ancho_cm,
+                  clave:            p.descripcion || null,
+                  descripcion:      p.descripcion,
+                  subtotal_partida: p.subtotal_partida,
+                  subtotal_vidrio:  null,
+                  procesos:         (p.procesos ?? []).map(pr => ({ nombre: pr.nombre, subtotal: pr.subtotal })),
+                })),
+              }
+              return (<>
+                <button className="btn btn-outline" onClick={() => printTicketVidrio(detallePed)}>🖨️ Ticket</button>
+                <button className="btn btn-outline" onClick={() => printPedidoA4(detallePed)}>🖨️ Hoja</button>
+              </>)
+            })()}
             <button className="btn btn-primary" onClick={handleReset}>+ Nueva cotización</button>
           </div>
         </div>

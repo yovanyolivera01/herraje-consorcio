@@ -1,14 +1,15 @@
 import { useState, useEffect, useCallback } from 'react'
 import { fmt5, hoyMX, lunesMX } from '../../lib/utils'
 import * as XLSX from 'xlsx'
-import { getPedidosEntregados, getDetallePedido, getPedidosParaExport } from '../../lib/pedidosApi'
+import { getPedidosEntregados, getDetallePedido, getPedidosParaExport, getPedidosCancelados } from '../../lib/pedidosApi'
+import { printTicketVidrio, printPedidoA4 } from '../../utils/ticket'
 
 // ── Ticket de pedido entregado ────────────────────────────────────────────
 function TicketVenta({ detalle }) {
   return (
     <div className="ticket-preview">
       <div className="ticket-header">
-        <h2>TEMPLADOS CONSORCIO</h2>
+        <h2>VIDRIO TEMPLADO Y ALUMINIO ROSALES</h2>
         <p style={{ fontWeight: 700 }}>COMPROBANTE DE VENTA</p>
       </div>
       <hr className="ticket-divider" />
@@ -19,19 +20,22 @@ function TicketVenta({ detalle }) {
       <hr className="ticket-divider" />
 
       {detalle.partidas.length === 0 && (detalle.extras ?? []).length === 0 && (
-        <div style={{ fontSize:12, color:'var(--text-muted)', textAlign:'center', padding:'6px 0' }}>
+        <div style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', padding: '6px 0' }}>
           Sin partidas registradas
         </div>
       )}
 
       {detalle.partidas.map((p, i) => (
         <div key={p.id} style={{ marginBottom: 10 }}>
-          <div className="ticket-row" style={{ fontWeight:700, fontSize:12 }}>
+          <div className="ticket-row" style={{ fontWeight: 700, fontSize: 12 }}>
             <span>{p.cantidad} - {p.clave_vidrio}</span>
             <span>${fmt5(p.subtotal_partida)}</span>
           </div>
+          <div className="ticket-row" style={{ fontSize: 11, color: 'var(--text-muted)', paddingLeft: 10 }}>
+            <span>{p.largo_cm} × {p.ancho_cm} cm</span>
+          </div>
           {p.procesos.map((pr, j) => (
-            <div key={j} className="ticket-row" style={{ fontSize:11, paddingLeft:10 }}>
+            <div key={j} className="ticket-row" style={{ fontSize: 11, paddingLeft: 10 }}>
               <span>+ {pr.nombre}</span>
               <span>${fmt5(pr.subtotal)}</span>
             </div>
@@ -42,18 +46,18 @@ function TicketVenta({ detalle }) {
       {(detalle.extras ?? []).length > 0 && (
         <>
           {detalle.partidas.length > 0 && <hr className="ticket-divider" />}
-          <div style={{ fontSize:11, fontWeight:700, color:'var(--text-muted)', marginBottom:6, textTransform:'uppercase', letterSpacing:1 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 1 }}>
             {detalle.extras.some(e => e.tipo === 'MAQUILA') && detalle.extras.some(e => e.tipo === 'PRODUCTO')
               ? 'Maquila / Productos'
               : detalle.extras[0].tipo === 'MAQUILA' ? 'Maquila' : 'Productos'}
           </div>
           {detalle.extras.map((e, i) => (
-            <div key={i} style={{ marginBottom:8 }}>
-              <div className="ticket-row" style={{ fontWeight:600, fontSize:12 }}>
+            <div key={i} style={{ marginBottom: 8 }}>
+              <div className="ticket-row" style={{ fontWeight: 600, fontSize: 12 }}>
                 <span>{e.cantidad} {e.unidad} — {e.descripcion}</span>
                 <span>${fmt5(Number(e.subtotal))}</span>
               </div>
-              <div style={{ fontSize:11, color:'var(--text-muted)', paddingLeft:14 }}>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', paddingLeft: 14 }}>
                 ${Number(e.precio_unitario).toFixed(2)}/u
                 {e.notas ? ` · ${e.notas}` : ''}
               </div>
@@ -66,20 +70,20 @@ function TicketVenta({ detalle }) {
       <div className="ticket-total"><span>TOTAL</span><span>${fmt5(detalle.total)}</span></div>
       {detalle.forma_pago === 'ANTICIPO' && (
         <>
-          <div className="ticket-row" style={{ marginTop:6 }}>
+          <div className="ticket-row" style={{ marginTop: 6 }}>
             <span>Anticipo previo:</span>
             <span>${detalle.anticipo.toFixed(2)}</span>
           </div>
           {detalle.saldo_cobrado != null && (
             <div className="ticket-row">
               <span>Saldo cobrado:</span>
-              <span style={{ fontWeight:700 }}>${detalle.saldo_cobrado.toFixed(2)}</span>
+              <span style={{ fontWeight: 700 }}>${detalle.saldo_cobrado.toFixed(2)}</span>
             </div>
           )}
         </>
       )}
       <hr className="ticket-divider" />
-      <div style={{ textAlign:'center', fontSize:11, color:'var(--text-muted)', marginTop:8 }}>
+      <div style={{ textAlign: 'center', fontSize: 11, color: 'var(--text-muted)', marginTop: 8 }}>
         ¡Gracias por su compra!
       </div>
     </div>
@@ -90,7 +94,7 @@ function TicketVenta({ detalle }) {
 function DetalleVentaModal({ resumen, onClose }) {
   const [detalle, setDetalle] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [error,   setError]   = useState(null)
+  const [error, setError] = useState(null)
 
   useEffect(() => {
     getDetallePedido(resumen.id)
@@ -104,7 +108,7 @@ function DetalleVentaModal({ resumen, onClose }) {
         <div className="modal-header">
           <div>
             <div className="modal-title">Venta — {resumen.folio}</div>
-            <div style={{ fontSize:12, color:'var(--text-muted)', marginTop:2 }}>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
               Entregado: {resumen.fechaEntrega} · {resumen.clienteNombre}
             </div>
           </div>
@@ -112,16 +116,58 @@ function DetalleVentaModal({ resumen, onClose }) {
         </div>
         <div className="modal-body">
           {loading && (
-            <div style={{ textAlign:'center', padding:'40px 0', color:'var(--text-muted)' }}>Cargando...</div>
+            <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>Cargando...</div>
           )}
-          {error  && <div className="alert alert-error">❌ {error}</div>}
+          {error && <div className="alert alert-error">❌ {error}</div>}
           {detalle && <TicketVenta detalle={detalle} />}
         </div>
         <div className="modal-footer">
           <button className="btn btn-outline" onClick={onClose}>Cerrar</button>
-          {detalle && (
-            <button className="btn btn-primary" onClick={() => window.print()}>🖨️ Imprimir</button>
-          )}
+          {detalle && (() => {
+            const normalizado = {
+              tipo:          'pedido',
+              folio:         detalle.folio,
+              fecha:         detalle.fecha,
+              hora:          detalle.hora ?? '',
+              clienteNombre: detalle.cliente?.nombre ?? 'Mostrador',
+              nivelNombre:   detalle.nivel?.nombre ?? '',
+              formaPago:     detalle.forma_pago,
+              metodoPago:    detalle.metodo_pago ?? null,
+              anticipo:      detalle.anticipo,
+              saldo:         detalle.saldo,
+              saldo_cobrado: detalle.saldo_cobrado,
+              esEntregado:   true,
+              esReimpresion: true,
+              esCancelado:   resumen.esCancelado ?? false,
+              total:         detalle.total,
+              partidas: [
+                ...(detalle.partidas ?? []).map(p => ({
+                  tipo:            'VIDRIO',
+                  piezas:          p.cantidad ?? 1,
+                  clave:           p.clave_vidrio,
+                  largo_cm:        p.largo_cm,
+                  ancho_cm:        p.ancho_cm,
+                  subtotal_vidrio: p.subtotal_vidrio,
+                  subtotal_partida: p.subtotal_partida,
+                  procesos:        p.procesos ?? [],
+                })),
+                ...(detalle.extras ?? []).map(e => ({
+                  tipo:             e.tipo === 'PRODUCTO' ? 'HERRAJE' : e.tipo,
+                  descripcion:      e.descripcion,
+                  cantidad:         e.cantidad,
+                  precio_unitario:  e.precio_unitario,
+                  subtotal_partida: Number(e.subtotal),
+                  procesos:         [],
+                })),
+              ],
+            }
+            return (
+              <>
+                <button className="btn btn-outline" onClick={() => printTicketVidrio(normalizado)}>🖨️ Ticket</button>
+                <button className="btn btn-primary" onClick={() => printPedidoA4(normalizado)}>🖨️ Hoja A4</button>
+              </>
+            )
+          })()}
         </div>
       </div>
     </div>
@@ -142,15 +188,15 @@ async function exportarExcel(fechaDesde, fechaHasta) {
     if (!vistos.has(row['Folio'])) {
       vistos.add(row['Folio'])
       resumen.push({
-        'Folio':            row['Folio'],
-        'Fecha entrega':    row['Fecha entrega'],
-        'Cliente':          row['Cliente'],
-        'Forma de pago':    row['Forma de pago'],
-        'Total':            Number(row['Total pedido']),
-        'Anticipo':         Number(row['Anticipo']),
-        'Cobrado entrega':  Number(row['Cobrado entrega']),
-        'Total recibido':   Number(row['Total cobrado']),
-        'Observaciones':    row['Observaciones'] ?? '',
+        'Folio': row['Folio'],
+        'Fecha entrega': row['Fecha entrega'],
+        'Cliente': row['Cliente'],
+        'Forma de pago': row['Forma de pago'],
+        'Total': Number(row['Total pedido']),
+        'Anticipo': Number(row['Anticipo']),
+        'Cobrado entrega': Number(row['Cobrado entrega']),
+        'Total recibido': Number(row['Total cobrado']),
+        'Observaciones': row['Observaciones'] ?? '',
       })
     }
   }
@@ -158,34 +204,34 @@ async function exportarExcel(fechaDesde, fechaHasta) {
   // Fila de totales al final de la hoja Ventas
   const sum = (col) => resumen.reduce((s, r) => s + (r[col] ?? 0), 0)
   resumen.push({
-    'Folio':           'TOTAL',
-    'Fecha entrega':   '',
-    'Cliente':         '',
-    'Forma de pago':   '',
-    'Total':           sum('Total'),
-    'Anticipo':        sum('Anticipo'),
+    'Folio': 'TOTAL',
+    'Fecha entrega': '',
+    'Cliente': '',
+    'Forma de pago': '',
+    'Total': sum('Total'),
+    'Anticipo': sum('Anticipo'),
     'Cobrado entrega': sum('Cobrado entrega'),
-    'Total recibido':  sum('Total recibido'),
-    'Observaciones':   '',
+    'Total recibido': sum('Total recibido'),
+    'Observaciones': '',
   })
 
   // Hoja 2: partidas tal como las devuelve el SP
   const partidas = raw.map(row => ({
-    'Folio':             row['Folio'],
-    'Cliente':           row['Cliente'],
-    'Tipo vidrio':       row['Tipo vidrio'],
-    'Largo (cm)':        Number(row['Largo (cm)']),
-    'Ancho (cm)':        Number(row['Ancho (cm)']),
-    'm²':                Number(row['m2']),
-    'Cantidad':          Number(row['Cantidad']),
-    'Precio m²':         Number(row['Precio m2']),
-    'Subtotal vidrio':   Number(row['Subtotal vidrio']),
+    'Folio': row['Folio'],
+    'Cliente': row['Cliente'],
+    'Tipo vidrio': row['Tipo vidrio'],
+    'Largo (cm)': Number(row['Largo (cm)']),
+    'Ancho (cm)': Number(row['Ancho (cm)']),
+    'm²': Number(row['m2']),
+    'Cantidad': Number(row['Cantidad']),
+    'Precio m²': Number(row['Precio m2']),
+    'Subtotal vidrio': Number(row['Subtotal vidrio']),
     'Subtotal procesos': Number(row['Subtotal procesos']),
-    'Total partida':     Number(row['Total partida']),
+    'Total partida': Number(row['Total partida']),
   }))
 
   const wb = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(resumen),  'Ventas')
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(resumen), 'Ventas')
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(partidas), 'Partidas')
 
   const nombre = `ventas_${fechaDesde || 'inicio'}_${fechaHasta || 'hoy'}.xlsx`
@@ -194,13 +240,39 @@ async function exportarExcel(fechaDesde, fechaHasta) {
 
 // ── Página Historial de Ventas ────────────────────────────────────────────
 export default function HistorialVentas() {
-  const [pedidos,      setPedidos]      = useState([])
-  const [loading,      setLoading]      = useState(true)
-  const [error,        setError]        = useState(null)
-  const [fechaDesde,   setFechaDesde]   = useState(lunesMX)
-  const [fechaHasta,   setFechaHasta]   = useState(hoyMX)
+  const [tab, setTab] = useState('entregados')
+
+  // ── estado entregados ─────────────────────────────────────────────────────
+  const [pedidos, setPedidos] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [fechaDesde, setFechaDesde] = useState(lunesMX)
+  const [fechaHasta, setFechaHasta] = useState(hoyMX)
   const [seleccionado, setSeleccionado] = useState(null)
-  const [exporting,    setExporting]    = useState(false)
+  const [exporting, setExporting] = useState(false)
+  const [busqueda, setBusqueda] = useState('')
+  const [filtroPago, setFiltroPago] = useState(null)
+
+  // ── estado cancelados ─────────────────────────────────────────────────────
+  const [cancelados, setCancelados] = useState([])
+  const [loadingCan, setLoadingCan] = useState(false)
+  const [errorCan, setErrorCan] = useState(null)
+  const [busquedaCan, setBusquedaCan] = useState('')
+  const [canceladosLoaded, setCanceladosLoaded] = useState(false)
+
+  const q = busqueda.trim().toLowerCase()
+  const filteredFinal = pedidos
+    .filter(v => !filtroPago || v.forma_pago === filtroPago)
+    .filter(v => !q || (
+      v.folio?.toLowerCase().includes(q) ||
+      v.fecha.toLowerCase().includes(q) ||
+      v.clienteNombre?.toLowerCase().includes(q)
+    ))
+
+  const qCan = busquedaCan.trim().toLowerCase()
+  const filteredCan = cancelados.filter(v =>
+    !qCan || v.folio?.toLowerCase().includes(qCan) || v.clienteNombre?.toLowerCase().includes(qCan)
+  )
 
   const cargar = useCallback(async () => {
     setLoading(true)
@@ -216,9 +288,29 @@ export default function HistorialVentas() {
     }
   }, [fechaDesde, fechaHasta])
 
+  const cargarCancelados = useCallback(async () => {
+    setLoadingCan(true)
+    setErrorCan(null)
+    try {
+      const data = await getPedidosCancelados(fechaDesde, fechaHasta)
+      setCancelados(data)
+      setCanceladosLoaded(true)
+    } catch (err) {
+      setErrorCan(err.message)
+    } finally {
+      setLoadingCan(false)
+    }
+  }, [fechaDesde, fechaHasta])
+
   useEffect(() => { cargar() }, [cargar])
 
-  const totalAcumulado = pedidos.reduce((s, p) => s + p.total, 0)
+  useEffect(() => {
+    if (tab === 'cancelados') cargarCancelados()
+    else setCanceladosLoaded(false)
+  }, [tab, cargarCancelados])
+
+  const totalAcumulado = filteredFinal.reduce((s, p) => s + p.total, 0)
+  const totalCancelado = filteredCan.reduce((s, p) => s + p.total, 0)
 
   const handleExportar = async () => {
     setExporting(true)
@@ -232,35 +324,74 @@ export default function HistorialVentas() {
   }
 
   const formaPagoBadge = (fp) =>
-    fp === 'LIQUIDADO'
-      ? <span className="badge badge-green">Liquidado</span>
-      : <span className="badge badge-orange">Anticipo</span>
+    fp === 'LIQUIDADO' ? <span className="badge badge-green">Liquidado</span>
+    : fp === 'POR COBRAR' ? <span className="badge badge-blue">Por cobrar</span>
+    : <span className="badge badge-orange">Anticipo</span>
+
+  const tabStyle = (t) => ({
+    padding: '6px 18px',
+    borderRadius: 6,
+    border: 'none',
+    cursor: 'pointer',
+    fontWeight: 600,
+    fontSize: 13,
+    background: tab === t ? 'var(--accent)' : 'transparent',
+    color: tab === t ? '#fff' : 'var(--text-muted)',
+    borderBottom: tab === t ? '2px solid var(--accent)' : '2px solid transparent',
+  })
 
   return (
     <>
       <div className="page-header">
         <div>
           <div className="page-title">Historial de Ventas</div>
-          <div className="page-subtitle">Pedidos entregados</div>
+          <div style={{ display: 'flex', gap: 4, marginTop: 6 }}>
+            <button style={tabStyle('entregados')} onClick={() => setTab('entregados')}>Entregados</button>
+            <button style={tabStyle('cancelados')} onClick={() => setTab('cancelados')}>Cancelados</button>
+          </div>
         </div>
-        <div style={{ display:'flex', gap:8 }}>
-          <button className="btn btn-outline" onClick={cargar} disabled={loading}>↻ Actualizar</button>
-          <button className="btn btn-primary" onClick={handleExportar} disabled={exporting || pedidos.length === 0}>
-            {exporting ? 'Exportando...' : '⬇ Excel'}
-          </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {tab === 'entregados' ? (
+            <>
+              <input
+                type="text"
+                className="filter-select"
+                placeholder="Buscar folio, cliente..."
+                value={busqueda}
+                onChange={e => setBusqueda(e.target.value)}
+                style={{ minWidth: 200 }}
+              />
+              <button className="btn btn-outline" onClick={cargar} disabled={loading}>↻ Actualizar</button>
+              <button className="btn btn-primary" onClick={handleExportar} disabled={exporting || pedidos.length === 0}>
+                {exporting ? 'Exportando...' : '⬇ Excel'}
+              </button>
+            </>
+          ) : (
+            <>
+              <input
+                type="text"
+                className="filter-select"
+                placeholder="Buscar folio, cliente..."
+                value={busquedaCan}
+                onChange={e => setBusquedaCan(e.target.value)}
+                style={{ minWidth: 200 }}
+              />
+              <button className="btn btn-outline" onClick={cargarCancelados} disabled={loadingCan}>↻ Actualizar</button>
+            </>
+          )}
         </div>
       </div>
 
       <div className="page-body">
         {/* Filtros de fecha */}
-        <div className="filter-bar" style={{ marginBottom:20 }}>
-          <span style={{ fontSize:13, color:'var(--text-muted)' }}>Desde:</span>
+        <div className="filter-bar" style={{ marginBottom: 20 }}>
+          <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Desde:</span>
           <input
             type="date" className="filter-select"
             value={fechaDesde}
             onChange={e => setFechaDesde(e.target.value)}
           />
-          <span style={{ fontSize:13, color:'var(--text-muted)' }}>Hasta:</span>
+          <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Hasta:</span>
           <input
             type="date" className="filter-select"
             value={fechaHasta}
@@ -272,99 +403,192 @@ export default function HistorialVentas() {
           >
             Esta semana
           </button>
-        </div>
-
-        {/* Stats */}
-        <div className="stats-row">
-          <div className="stat-card">
-            <div className="stat-label">Ventas en periodo</div>
-            <div className="stat-value">{pedidos.length}</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-label">Total acumulado</div>
-            <div className="stat-value" style={{ fontSize:18, color:'var(--accent)' }}>
-              ${fmt5(totalAcumulado)}
-            </div>
-          </div>
-        </div>
-
-        {/* Lista */}
-        {loading ? (
-          <div style={{ textAlign:'center', padding:'40px 0', color:'var(--text-muted)' }}>
-            Cargando ventas...
-          </div>
-        ) : error ? (
-          <div className="alert alert-error">❌ {error}</div>
-        ) : pedidos.length === 0 ? (
-          <div className="empty-state">
-            <div className="empty-state-icon">📊</div>
-            <h3>Sin ventas en el periodo</h3>
-            <p>Ajusta el rango de fechas para ver resultados</p>
-          </div>
-        ) : (
-          <>
-            {/* ── Tabla (desktop) ── */}
-            <div className="hist-desktop">
-              <div className="table-container">
-                <table className="table">
-                  <thead>
-                    <tr>
-                      <th>Folio</th>
-                      <th>Entregado</th>
-                      <th>Cliente</th>
-                      <th>Pago</th>
-                      <th style={{ textAlign:'right' }}>Total</th>
-                      <th style={{ width:100 }}></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {pedidos.map(p => (
-                      <tr key={p.id} style={{ cursor:'pointer' }} onClick={() => setSeleccionado(p)}>
-                        <td><span className="badge badge-blue">{p.folio}</span></td>
-                        <td style={{ fontSize:14, color:'var(--text-muted)' }}>{p.fechaEntrega}</td>
-                        <td style={{ fontWeight:500 }}>{p.clienteNombre}</td>
-                        <td>{formaPagoBadge(p.forma_pago)}</td>
-                        <td style={{ textAlign:'right', fontWeight:700, color:'var(--accent)' }}>${fmt5(p.total)}</td>
-                        <td>
-                          <button className="btn btn-outline btn-sm" onClick={e => { e.stopPropagation(); setSeleccionado(p) }}>
-                            Ver detalle
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                <div style={{ padding:'12px 18px', textAlign:'right', fontWeight:700, fontSize:15, borderTop:'1px solid var(--border)', color:'var(--accent)' }}>
-                  Total del periodo: ${fmt5(totalAcumulado)}
-                </div>
-              </div>
-            </div>
-
-            {/* ── Tarjetas (tablet / móvil) ── */}
-            <div className="hist-mobile">
-              {pedidos.map(p => (
-                <div key={p.id} className="hist-card" onClick={() => setSeleccionado(p)}>
-                  <div className="hist-card-header">
-                    <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                      <span className="badge badge-blue">{p.folio}</span>
-                      {formaPagoBadge(p.forma_pago)}
-                    </div>
-                    <span style={{ fontWeight:700, fontSize:17, color:'var(--accent)' }}>${fmt5(p.total)}</span>
-                  </div>
-                  <div className="hist-card-body">
-                    <div style={{ fontWeight:600, fontSize:15 }}>{p.clienteNombre}</div>
-                    <div style={{ fontSize:13, color:'var(--text-muted)', marginTop:3 }}>Entregado: {p.fechaEntrega}</div>
-                  </div>
-                  <div className="hist-card-footer">
-                    <span style={{ fontSize:12, color:'var(--text-muted)' }}>{p.fecha}</span>
-                    <button className="btn btn-outline btn-sm" onClick={e => { e.stopPropagation(); setSeleccionado(p) }}>Ver detalle</button>
-                  </div>
-                </div>
+          {tab === 'entregados' && (
+            <>
+              <div style={{ width: 1, background: 'var(--border)', alignSelf: 'stretch', margin: '0 4px' }} />
+              {[{ val: null, label: 'Todos' }, { val: 'LIQUIDADO', label: 'Liquidado' }, { val: 'ANTICIPO', label: 'Anticipo' }].map(({ val, label }) => (
+                <button
+                  key={label}
+                  className={filtroPago === val ? 'btn btn-primary btn-sm' : 'btn btn-outline btn-sm'}
+                  onClick={() => setFiltroPago(val)}
+                >
+                  {label}
+                </button>
               ))}
-              <div style={{ padding:'10px 0', textAlign:'right', fontWeight:700, fontSize:15, borderTop:'1px solid var(--border)', color:'var(--accent)' }}>
-                Total del periodo: ${fmt5(totalAcumulado)}
+            </>
+          )}
+        </div>
+
+        {/* ── TAB: ENTREGADOS ── */}
+        {tab === 'entregados' && (
+          <>
+            <div className="stats-row">
+              <div className="stat-card">
+                <div className="stat-label">Ventas en periodo</div>
+                <div className="stat-value">{filteredFinal.length}</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-label">Total acumulado</div>
+                <div className="stat-value" style={{ fontSize: 18, color: 'var(--accent)' }}>
+                  ${fmt5(totalAcumulado)}
+                </div>
               </div>
             </div>
+
+            {loading ? (
+              <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>Cargando ventas...</div>
+            ) : error ? (
+              <div className="alert alert-error">❌ {error}</div>
+            ) : filteredFinal.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-state-icon">📊</div>
+                <h3>Sin ventas en el periodo</h3>
+                <p>Ajusta el rango de fechas para ver resultados</p>
+              </div>
+            ) : (
+              <>
+                <div className="hist-desktop">
+                  <div className="table-container">
+                    <table className="table">
+                      <thead>
+                        <tr>
+                          <th>Folio</th>
+                          <th>Entregado</th>
+                          <th>Cliente</th>
+                          <th>Pago</th>
+                          <th style={{ textAlign: 'right' }}>Total</th>
+                          <th style={{ width: 100 }}></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredFinal.map(p => (
+                          <tr key={p.id} style={{ cursor: 'pointer' }} onClick={() => setSeleccionado(p)}>
+                            <td><span className="badge badge-blue">{p.folio}</span></td>
+                            <td style={{ fontSize: 14, color: 'var(--text-muted)' }}>{p.fechaEntrega}</td>
+                            <td style={{ fontWeight: 500 }}>{p.clienteNombre}</td>
+                            <td>{formaPagoBadge(p.forma_pago)}</td>
+                            <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--accent)' }}>${fmt5(p.total)}</td>
+                            <td>
+                              <button className="btn btn-outline btn-sm" onClick={e => { e.stopPropagation(); setSeleccionado(p) }}>
+                                Ver detalle
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    <div style={{ padding: '12px 18px', textAlign: 'right', fontWeight: 700, fontSize: 15, borderTop: '1px solid var(--border)', color: 'var(--accent)' }}>
+                      Total del periodo: ${fmt5(totalAcumulado)}
+                    </div>
+                  </div>
+                </div>
+                <div className="hist-mobile">
+                  {filteredFinal.map(p => (
+                    <div key={p.id} className="hist-card" onClick={() => setSeleccionado(p)}>
+                      <div className="hist-card-header">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span className="badge badge-blue">{p.folio}</span>
+                          {formaPagoBadge(p.forma_pago)}
+                        </div>
+                        <span style={{ fontWeight: 700, fontSize: 17, color: 'var(--accent)' }}>${fmt5(p.total)}</span>
+                      </div>
+                      <div className="hist-card-body">
+                        <div style={{ fontWeight: 600, fontSize: 15 }}>{p.clienteNombre}</div>
+                        <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 3 }}>Entregado: {p.fechaEntrega}</div>
+                      </div>
+                      <div className="hist-card-footer">
+                        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{p.fecha}</span>
+                        <button className="btn btn-outline btn-sm" onClick={e => { e.stopPropagation(); setSeleccionado(p) }}>Ver detalle</button>
+                      </div>
+                    </div>
+                  ))}
+                  <div style={{ padding: '10px 0', textAlign: 'right', fontWeight: 700, fontSize: 15, borderTop: '1px solid var(--border)', color: 'var(--accent)' }}>
+                    Total del periodo: ${fmt5(totalAcumulado)}
+                  </div>
+                </div>
+              </>
+            )}
+          </>
+        )}
+
+        {/* ── TAB: CANCELADOS ── */}
+        {tab === 'cancelados' && (
+          <>
+            <div className="stats-row">
+              <div className="stat-card">
+                <div className="stat-label">Cancelados en periodo</div>
+                <div className="stat-value">{filteredCan.length}</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-label">Total cancelado</div>
+                <div className="stat-value" style={{ fontSize: 18, color: '#dc2626' }}>
+                  ${fmt5(totalCancelado)}
+                </div>
+              </div>
+            </div>
+
+            {loadingCan ? (
+              <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>Cargando cancelados...</div>
+            ) : errorCan ? (
+              <div className="alert alert-error">❌ {errorCan}</div>
+            ) : filteredCan.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-state-icon">✅</div>
+                <h3>Sin pedidos cancelados en el periodo</h3>
+                <p>Ajusta el rango de fechas para ver resultados</p>
+              </div>
+            ) : (
+              <>
+                <div className="hist-desktop">
+                  <div className="table-container">
+                    <table className="table">
+                      <thead>
+                        <tr>
+                          <th>Folio</th>
+                          <th>Fecha creación</th>
+                          <th>Cliente</th>
+                          <th style={{ textAlign: 'right' }}>Total</th>
+                          <th style={{ width: 100 }}></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredCan.map(p => (
+                          <tr key={p.id} style={{ cursor: 'pointer' }} onClick={() => setSeleccionado(p)}>
+                            <td><span className="badge" style={{ background:'#fef2f2', color:'#991b1b', border:'1px solid #fca5a5' }}>{p.folio}</span></td>
+                            <td style={{ fontSize: 14, color: 'var(--text-muted)' }}>{p.fecha}</td>
+                            <td style={{ fontWeight: 500 }}>{p.clienteNombre}</td>
+                            <td style={{ textAlign: 'right', fontWeight: 700, color: '#dc2626' }}>${fmt5(p.total)}</td>
+                            <td>
+                              <button className="btn btn-outline btn-sm" onClick={e => { e.stopPropagation(); setSeleccionado(p) }}>
+                                Ver detalle
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+                <div className="hist-mobile">
+                  {filteredCan.map(p => (
+                    <div key={p.id} className="hist-card" onClick={() => setSeleccionado(p)}>
+                      <div className="hist-card-header">
+                        <span className="badge" style={{ background:'#fef2f2', color:'#991b1b', border:'1px solid #fca5a5' }}>{p.folio}</span>
+                        <span style={{ fontWeight: 700, fontSize: 17, color: '#dc2626' }}>${fmt5(p.total)}</span>
+                      </div>
+                      <div className="hist-card-body">
+                        <div style={{ fontWeight: 600, fontSize: 15 }}>{p.clienteNombre}</div>
+                        <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 3 }}>Creado: {p.fecha}</div>
+                      </div>
+                      <div className="hist-card-footer">
+                        <span className="badge" style={{ background:'#fef2f2', color:'#991b1b', border:'1px solid #fca5a5', fontSize:11 }}>CANCELADO</span>
+                        <button className="btn btn-outline btn-sm" onClick={e => { e.stopPropagation(); setSeleccionado(p) }}>Ver detalle</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
           </>
         )}
       </div>

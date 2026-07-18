@@ -199,10 +199,10 @@ router.get('/procesos', async (req, res) => {
 
 router.post('/procesos', async (req, res) => {
   try {
-    const { nombre, id_unidad_cobro, precio_unitario = 0 } = req.body
+    const { nombre, id_unidad_cobro, precio_unitario = 0, tipo = 'PROCESO', diametro_mm = null } = req.body
     const { rows: ins } = await query(
-      'INSERT INTO proceso (nombre, id_unidad_cobro, precio_unitario) VALUES ($1,$2,$3) RETURNING id_proceso',
-      [nombre, id_unidad_cobro, Number(precio_unitario)]
+      'INSERT INTO proceso (nombre, id_unidad_cobro, precio_unitario, tipo, diametro_mm) VALUES ($1,$2,$3,$4,$5) RETURNING id_proceso',
+      [nombre, id_unidad_cobro, Number(precio_unitario), tipo, diametro_mm ?? null]
     )
     const { rows } = await query(`
       SELECT p.*,
@@ -263,6 +263,24 @@ router.post('/precios-proceso', async (req, res) => {
 router.get('/unidades-cobro', async (req, res) => {
   try {
     const { rows } = await query('SELECT * FROM unidad_cobro ORDER BY id_unidad_cobro ASC')
+    ok(res, rows)
+  } catch (e) { err(res, e) }
+})
+
+// ── Tipos de pago ──────────────────────────────────────────────────────────
+
+router.get('/tipos-pago', async (req, res) => {
+  try {
+    const { rows } = await query('SELECT * FROM tipo_pago ORDER BY id_tipo_pago ASC')
+    ok(res, rows)
+  } catch (e) { err(res, e) }
+})
+
+// ── Métodos de pago ───────────────────────────────────────────────────────
+
+router.get('/metodos-pago', async (req, res) => {
+  try {
+    const { rows } = await query('SELECT * FROM metodo_pago WHERE activo = TRUE ORDER BY id_metodo_pago ASC')
     ok(res, rows)
   } catch (e) { err(res, e) }
 })
@@ -513,13 +531,13 @@ router.get('/cotizaciones/:id/extras', async (req, res) => {
 
 router.post('/cotizaciones/:id/extras', async (req, res) => {
   try {
-    const { tipo, descripcion, unidad, cantidad, precio_unitario, subtotal, id_producto_general, notas } = req.body
+    const { tipo, descripcion, unidad, cantidad, precio_unitario, subtotal, id_producto_general, notas, observaciones } = req.body
     const { rows } = await query(
       `INSERT INTO partida_cotizacion_extra
-         (id_cotizacion, tipo, descripcion, unidad, cantidad, precio_unitario, subtotal, id_producto_general, notas)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+         (id_cotizacion, tipo, descripcion, unidad, cantidad, precio_unitario, subtotal, id_producto_general, notas, observaciones)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
       [req.params.id, tipo, descripcion, unidad ?? 'pza', Number(cantidad),
-       Number(precio_unitario), Number(subtotal), id_producto_general ?? null, notas ?? null]
+       Number(precio_unitario), Number(subtotal), id_producto_general ?? null, notas ?? null, observaciones ?? null]
     )
     ok(res, rows[0])
   } catch (e) { err(res, e) }
@@ -530,6 +548,31 @@ router.delete('/cotizaciones/:id/extras', async (req, res) => {
     await query('DELETE FROM partida_cotizacion_extra WHERE id_cotizacion=$1', [req.params.id])
     ok(res, { ok: true })
   } catch (e) { err(res, e) }
+})
+
+router.delete('/cotizaciones/:id', async (req, res) => {
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    const { rows } = await client.query(
+      'SELECT estatus FROM cotizacion WHERE id_cotizacion=$1', [req.params.id]
+    )
+    if (!rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ message: 'Cotización no encontrada' }) }
+    if (rows[0].estatus === 'CONVERTIDA') { await client.query('ROLLBACK'); return res.status(400).json({ message: 'No se puede borrar una cotización convertida en pedido' }) }
+    const { rows: partidas } = await client.query('SELECT id_partida FROM partida_cotizacion WHERE id_cotizacion=$1', [req.params.id])
+    if (partidas.length) {
+      const ids = partidas.map(p => p.id_partida)
+      await client.query('DELETE FROM partida_proceso WHERE id_partida = ANY($1::int[])', [ids])
+      await client.query('DELETE FROM partida_cotizacion WHERE id_cotizacion=$1', [req.params.id])
+    }
+    await client.query('DELETE FROM partida_cotizacion_extra WHERE id_cotizacion=$1', [req.params.id])
+    await client.query('DELETE FROM cotizacion WHERE id_cotizacion=$1', [req.params.id])
+    await client.query('COMMIT')
+    ok(res, { ok: true })
+  } catch (e) {
+    await client.query('ROLLBACK')
+    err(res, e)
+  } finally { client.release() }
 })
 
 // ── Precios de proceso especial (sin diferenciar espesor) ─────────────────

@@ -80,7 +80,7 @@ function PrecioCell({ idTipoVidrio, idNivel, precioActual, onSave }) {
     <td
       style={{
         padding: '8px 10px', cursor: 'pointer', textAlign: 'right', fontSize: 15,
-        background: saving ? '#f0f9ff' : precioActual != null ? 'white' : '#fafafa',
+        background: saving ? 'var(--accent-subtle, #eff6ff)' : 'var(--card)',
         color: precioActual != null ? 'var(--text)' : 'var(--text-muted)',
         userSelect: 'none',
       }}
@@ -97,7 +97,8 @@ function PrecioCell({ idTipoVidrio, idNivel, precioActual, onSave }) {
 
 // ── Pagina Precios ────────────────────────────────────────────────────────
 export default function Precios() {
-  const { tiposVidrio, nivelesPrecio, precios, guardarPrecio } = useCotizacion()
+  const { tiposVidrio, nivelesPrecio: nivelesRaw, precios, guardarPrecio } = useCotizacion()
+  const nivelesPrecio = [...(nivelesRaw ?? [])].sort((a, b) => (a.es_hoja_completa ? 1 : 0) - (b.es_hoja_completa ? 1 : 0))
   const [toast, setToast] = useState(null)
   const [search, setSearch] = useState('')
   const [soloActivos, setSoloActivos] = useState(true)

@@ -14,13 +14,13 @@ import Historial                from './pages/Ventas/Historial'
 import TiposVidrio              from './pages/Cotizacion/TiposVidrio'
 import Precios                  from './pages/Cotizacion/Precios'
 import Clientes                 from './pages/Cotizacion/Clientes'
+import Empresas                 from './pages/Cotizacion/Empresas'
 import Procesos                 from './pages/Cotizacion/Procesos'
 import NuevaCotizacion          from './pages/Cotizacion/NuevaCotizacion'
+import CotizacionRegistrado     from './pages/Cotizacion/CotizacionRegistrado'
 import HistorialCotizaciones    from './pages/Cotizacion/HistorialCotizaciones'
 import PedidosPendientes        from './pages/Cotizacion/PedidosPendientes'
 import HistorialVentas          from './pages/Cotizacion/HistorialVentas'
-import Empresas                 from './pages/Cotizacion/Empresas'
-import CotizacionRegistrado     from './pages/Cotizacion/CotizacionRegistrado'
 import Empleados                from './pages/Personal/Empleados'
 import RegistroSemanal          from './pages/Personal/RegistroSemanal'
 import ResumenSemanal           from './pages/Personal/ResumenSemanal'
@@ -28,22 +28,22 @@ import InventarioVidrio         from './pages/Cotizacion/InventarioVidrio'
 import HistorialMaquila         from './pages/Cotizacion/HistorialMaquila'
 import HistorialHerraje         from './pages/Herraje/HistorialHerraje'
 import ReporteVidrio            from './pages/Cotizacion/ReporteVidrio'
+import RegistrarEgreso          from './pages/Egresos/RegistrarEgreso'
+
 
 export default function App() {
   return (
     <ErrorBoundary>
-    <AppProvider>
-      <CotizacionProvider>
-        <PersonalProvider>
-          <BrowserRouter>
-            <AuthProvider>
-              <Routes>
-                {/* Ruta pública */}
-                <Route path="/login" element={<Login />} />
+      <AppProvider>
+        <CotizacionProvider>
+          <PersonalProvider>
+            <BrowserRouter>
+              <AuthProvider>
+                <Routes>
+                  <Route path="/login" element={<Login />} />
 
-                {/* Rutas protegidas */}
-                <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-                  <Route index element={<Navigate to="/proveedores" replace />} />
+                  <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+                    <Route index element={<Navigate to="/proveedores" replace />} />
 
                   {/* ── Sistema Templados Consorcio ── */}
                   <Route path="proveedores"      element={<Proveedores />} />
@@ -72,15 +72,16 @@ export default function App() {
                   <Route path="personal/empleados" element={<Empleados />} />
                   <Route path="personal/registro"  element={<RegistroSemanal />} />
                   <Route path="personal/resumen"   element={<ResumenSemanal />} />
+                  <Route path="admin/usuarios"     element={<RegistrarEgreso/>}/>
 
-                  <Route path="*" element={<Navigate to="/proveedores" replace />} />
-                </Route>
-              </Routes>
-            </AuthProvider>
-          </BrowserRouter>
-        </PersonalProvider>
-      </CotizacionProvider>
-    </AppProvider>
+                    <Route path="*" element={<Navigate to="/proveedores" replace />} />
+                  </Route>
+                </Routes>
+              </AuthProvider>
+            </BrowserRouter>
+          </PersonalProvider>
+        </CotizacionProvider>
+      </AppProvider>
     </ErrorBoundary>
   )
 }

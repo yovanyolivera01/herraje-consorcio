@@ -1,13 +1,51 @@
 import { useState, useEffect, useCallback } from 'react'
 import { fmt5 } from '../../lib/utils'
-import { Pencil, Eye, ArrowRightCircle } from 'lucide-react'
+import { Pencil, Eye, ArrowRightCircle, Trash2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useCotizacion } from '../../context/CotizacionContext'
 import { convertirCotizacionAPedido, getDetallePedido } from '../../lib/pedidosApi'
 import {
   connectPrinter, disconnectPrinter, isPrinterConnected, printThermalVidrio, isWebSerialSupported,
 } from '../../utils/thermalPrinter'
-import { printTicketVidrio } from '../../utils/ticket'
+import { printTicketVidrio, printPedidoA4 } from '../../utils/ticket'
+
+// ── Modal confirmar borrar cotización ────────────────────────────────────
+function ConfirmBorrarModal({ cotizacion, onConfirm, onClose, loading }) {
+  return (
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal" style={{ maxWidth: 420 }} onClick={e => e.stopPropagation()}>
+        <div className="modal-header">
+          <div className="modal-title" style={{ color: '#dc2626' }}>Borrar cotización</div>
+          <button className="btn-icon" onClick={onClose}>✕</button>
+        </div>
+        <div className="modal-body">
+          <div style={{ textAlign: 'center', padding: '8px 0 16px' }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>🗑️</div>
+            <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 8 }}>
+              ¿Borrar <span style={{ color: '#dc2626' }}>{cotizacion.folio}</span>?
+            </div>
+            <div style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.6 }}>
+              Cliente: <strong>{cotizacion.clienteNombre}</strong><br />
+              Total: <strong>${fmt5(cotizacion.total)}</strong><br />
+              Esta acción es permanente y no se puede deshacer.
+            </div>
+          </div>
+        </div>
+        <div className="modal-footer">
+          <button className="btn btn-outline" onClick={onClose} disabled={loading}>Cancelar</button>
+          <button
+            className="btn"
+            style={{ background: '#dc2626', color: '#fff' }}
+            onClick={onConfirm}
+            disabled={loading}
+          >
+            {loading ? 'Borrando...' : 'Sí, borrar'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 // ── Hook impresora térmica ────────────────────────────────────────────────
 function useThermal() {
@@ -40,7 +78,7 @@ function TicketPedido({ detalle }) {
   return (
     <div className="ticket-preview">
       <div className="ticket-header">
-        <h2>TEMPLADOS CONSORCIO</h2>
+        <h2>VIDRIO TEMPLADO Y ALUMINIO ROSALES</h2>
         <p style={{ fontWeight: 700 }}>ARTE EN VIDRIO</p>
         <p>Pedido vidrio</p>
       </div>
@@ -116,10 +154,12 @@ function TicketPedido({ detalle }) {
 
 // ── Modal: confirmar conversión a pedido ──────────────────────────────────
 function ConvertirPedidoModal({ cotizacion, onClose, onCreado }) {
-  const [formaPago,  setFormaPago]  = useState('LIQUIDADO')
-  const [anticipo,   setAnticipo]   = useState('')
-  const [saving,     setSaving]     = useState(false)
-  const [error,      setError]      = useState(null)
+  const { metodosPago } = useCotizacion()
+  const [formaPago,   setFormaPago]   = useState('LIQUIDADO')
+  const [anticipo,    setAnticipo]    = useState('')
+  const [metodoPago,  setMetodoPago]  = useState('EFECTIVO')
+  const [saving,      setSaving]      = useState(false)
+  const [error,       setError]       = useState(null)
 
   const anticopoNum = parseFloat(anticipo) || 0
   const saldo = formaPago === 'ANTICIPO' ? cotizacion.total - anticopoNum : 0
@@ -134,7 +174,7 @@ function ConvertirPedidoModal({ cotizacion, onClose, onCreado }) {
     setError(null)
     try {
       const montoAnticipo = formaPago === 'LIQUIDADO' ? cotizacion.total : parseFloat(anticipo)
-      const idPedido = await convertirCotizacionAPedido(cotizacion.id, formaPago, montoAnticipo)
+      const idPedido = await convertirCotizacionAPedido(cotizacion.id, formaPago, montoAnticipo, metodoPago)
       const detalle  = await getDetallePedido(idPedido)
       onCreado(detalle)
     } catch (err) {
@@ -170,9 +210,20 @@ function ConvertirPedidoModal({ cotizacion, onClose, onCreado }) {
           </div>
 
           <div className="form-group">
+            <label className="form-label required">Método de pago</label>
+            <select className="form-input" value={metodoPago} onChange={e => setMetodoPago(e.target.value)}>
+              {metodosPago.map(m => (
+                <option key={m.id_metodo_pago} value={m.descripcion}>
+                  {m.descripcion.charAt(0) + m.descripcion.slice(1).toLowerCase()}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="form-group">
             <label className="form-label required">Forma de pago</label>
             <div style={{ display:'flex', gap:16, marginTop:6 }}>
-              {[['LIQUIDADO','Liquidado — pago total'],['ANTICIPO','Anticipo — pago parcial']].map(([val, label]) => (
+              {[['LIQUIDADO','Liquidado — pago total'],['ANTICIPO','Anticipo — pago parcial'],['POR COBRAR','Por cobrar']].map(([val, label]) => (
                 <label key={val} style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', fontSize:14 }}>
                   <input
                     type="radio" name="formaPago" value={val}
@@ -242,20 +293,31 @@ function PedidoCreadoModal({ detalle, onClose }) {
     clienteNombre: detalle.cliente?.nombre ?? 'Mostrador',
     nivelNombre:   detalle.nivel?.es_hoja_completa ? 'POR HOJA' : (detalle.nivel?.nombre ?? ''),
     formaPago:     detalle.forma_pago,
+    metodoPago:    detalle.metodo_pago ?? null,
     anticipo:      detalle.anticipo,
     saldo:         detalle.saldo,
     saldo_cobrado: detalle.saldo_cobrado,
     esEntregado:   detalle.estado === 'ENTREGADO',
     total:         detalle.total,
-    partidas: detalle.partidas.map(p => ({
-      piezas:          p.cantidad,
-      clave:           p.clave_vidrio,
-      largo_cm:        p.largo_cm,
-      ancho_cm:        p.ancho_cm,
-      subtotal_vidrio: p.subtotal_vidrio,
-      procesos:        p.procesos,
-      subtotal_partida: p.subtotal_partida,
-    })),
+    partidas: [
+      ...detalle.partidas.map(p => ({
+        piezas:           p.cantidad,
+        clave:            p.clave_vidrio,
+        largo_cm:         p.largo_cm,
+        ancho_cm:         p.ancho_cm,
+        subtotal_vidrio:  p.subtotal_vidrio,
+        procesos:         p.procesos,
+        subtotal_partida: p.subtotal_partida,
+      })),
+      ...(detalle.extras ?? []).map(e => ({
+        tipo:             e.tipo === 'HERRAJE' || e.tipo === 'PRODUCTO' ? e.tipo : 'MAQUILA',
+        descripcion:      e.descripcion,
+        cantidad:         e.cantidad,
+        precio_unitario:  e.precio_unitario != null ? Number(e.precio_unitario) : null,
+        subtotal_partida: Number(e.subtotal),
+        procesos:         [],
+      })),
+    ],
   }
 
   return (
@@ -279,7 +341,8 @@ function PedidoCreadoModal({ detalle, onClose }) {
         </div>
         <div className="modal-footer">
           <button className="btn btn-outline" onClick={onClose}>Cerrar</button>
-          <button className="btn btn-outline" onClick={() => printTicketVidrio(normalizado)}>🖨️ Imprimir</button>
+          <button className="btn btn-outline" onClick={() => printTicketVidrio(normalizado)}>🖨️ Ticket</button>
+          <button className="btn btn-outline" onClick={() => printPedidoA4(normalizado)}>🖨️ Hoja</button>
           <button
             className="btn btn-outline"
             onClick={handleConnect}
@@ -308,7 +371,7 @@ function TicketDetalleCot({ detalle }) {
   return (
     <div className="ticket-preview">
       <div className="ticket-header">
-        <h2>TEMPLADOS CONSORCIO</h2>
+        <h2>VIDRIO TEMPLADO Y ALUMINIO ROSALES</h2>
         <p style={{ fontWeight: 700 }}>ARTE EN VIDRIO</p>
         <p>Pedido vidrio</p>
       </div>
@@ -460,7 +523,8 @@ function DetalleModal({ resumen, onClose, onConvertir, onEditar }) {
           <button className="btn btn-outline" onClick={onClose}>Cerrar</button>
           {detalle && (
             <>
-              <button className="btn btn-outline" onClick={() => printTicketVidrio(normalizado)}>🖨️ Imprimir</button>
+              <button className="btn btn-outline" onClick={() => printTicketVidrio(normalizado)}>🖨️ Ticket</button>
+              <button className="btn btn-outline" onClick={() => printPedidoA4(normalizado)}>🖨️ Hoja</button>
               {isWebSerialSupported() && (
                 <>
                   <button
@@ -514,15 +578,16 @@ const BADGE_MAQUILA = {
 
 // ── Modal detalle de cotizacion maquila ───────────────────────────────────
 function DetalleMaquilaModal({ cotId, onClose, onReopenOk, onConvertidoOk }) {
-  const { getDetalleCotizacionMaquila, reabrirCotizacion, convertirMaquilaAPedido } = useCotizacion()
+  const { getDetalleCotizacionMaquila, reabrirCotizacion, convertirMaquilaAPedido, metodosPago } = useCotizacion()
   const [detalle,  setDetalle]  = useState(null)
   const [loading,  setLoading]  = useState(true)
   const [error,    setError]    = useState(null)
   const [paso,     setPaso]     = useState('detalle')
-  const [tipoPago, setTipoPago] = useState('ANTICIPO')
-  const [anticipo, setAnticipo] = useState('')
-  const [saving,   setSaving]   = useState(false)
-  const [pedido,   setPedido]   = useState(null)
+  const [tipoPago,   setTipoPago]   = useState('ANTICIPO')
+  const [anticipo,   setAnticipo]   = useState('')
+  const [metodoPago, setMetodoPago] = useState('EFECTIVO')
+  const [saving,     setSaving]     = useState(false)
+  const [pedido,     setPedido]     = useState(null)
 
   useEffect(() => {
     getDetalleCotizacionMaquila(cotId).then(res => {
@@ -540,10 +605,10 @@ function DetalleMaquilaModal({ cotId, onClose, onReopenOk, onConvertidoOk }) {
   }
 
   const handleConvertir = async () => {
-    const montAnt = tipoPago === 'CONTADO' ? detalle.total : Number(anticipo)
+    const montAnt = tipoPago === 'LIQUIDADO' ? detalle.total : Number(anticipo)
     if (tipoPago === 'ANTICIPO' && (isNaN(montAnt) || montAnt < 0)) { setError('Ingresa un anticipo valido'); return }
     setSaving(true); setError(null)
-    const res = await convertirMaquilaAPedido({ id_cotizacion: cotId, tipo_pago: tipoPago, monto_anticipo: montAnt })
+    const res = await convertirMaquilaAPedido({ id_cotizacion: cotId, tipo_pago: tipoPago, monto_anticipo: montAnt, metodo_pago: metodoPago })
     setSaving(false)
     if (res.error) { setError(res.error); return }
     setPedido(res.data); setPaso('ok')
@@ -628,10 +693,21 @@ function DetalleMaquilaModal({ cotId, onClose, onReopenOk, onConvertidoOk }) {
                 <div style={{ fontWeight:700, fontSize:22 }}>${fmt5(detalle.total)}</div>
               </div>
               <div className="form-group">
+                <label className="form-label">Método de pago</label>
+                <select className="form-input" value={metodoPago} onChange={e => setMetodoPago(e.target.value)}>
+                  {metodosPago.map(m => (
+                    <option key={m.id_metodo_pago} value={m.descripcion}>
+                      {m.descripcion.charAt(0) + m.descripcion.slice(1).toLowerCase()}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group">
                 <label className="form-label">Tipo de pago</label>
                 <select className="form-input" value={tipoPago} onChange={e => setTipoPago(e.target.value)}>
                   <option value="ANTICIPO">Anticipo</option>
-                  <option value="CONTADO">Contado (pago total)</option>
+                  <option value="LIQUIDADO">Liquidado (pago total)</option>
+                  <option value="POR COBRAR">Por cobrar</option>
                 </select>
               </div>
               {tipoPago === 'ANTICIPO' && (
@@ -669,7 +745,7 @@ function DetalleMaquilaModal({ cotId, onClose, onReopenOk, onConvertidoOk }) {
 
 // ── Pagina Historial de Cotizaciones ──────────────────────────────────────
 export default function HistorialCotizaciones() {
-  const { getCotizaciones, getDetalleCotizacion, getCotizacionesMaquila } = useCotizacion()
+  const { getCotizaciones, getDetalleCotizacion, getCotizacionesMaquila, borrarCotizacion } = useCotizacion()
   const navigate = useNavigate()
 
   // ── Pestaña activa ────────────────────────────────────────────────────────
@@ -686,6 +762,11 @@ export default function HistorialCotizaciones() {
   const [convertirCot,   setConvertirCot]   = useState(null)
   const [pedidoCreado,   setPedidoCreado]   = useState(null)
   const [editandoId,     setEditandoId]     = useState(null)
+  const [borrandoId,     setBorrandoId]     = useState(null)
+  const [confirmBorrar,  setConfirmBorrar]  = useState(null)
+
+  // ── Estado pestaña maquila ───────────────────────────────────────────────
+  const [busqueda,      setBusqueda]      = useState('')
 
   // ── Estado pestaña maquila ───────────────────────────────────────────────
   const [cotsMaq,       setCotsMaq]       = useState([])
@@ -727,7 +808,19 @@ export default function HistorialCotizaciones() {
     navigate('/cot/nueva', { state: { cotEdit: data } })
   }
 
+  const handleBorrar = async () => {
+    if (!confirmBorrar) return
+    setBorrandoId(confirmBorrar.id)
+    const { error: err } = await borrarCotizacion(confirmBorrar.id)
+    setBorrandoId(null)
+    if (err) { alert('Error al borrar: ' + err); setConfirmBorrar(null); return }
+    setCotizaciones(prev => prev.filter(c => c.id !== confirmBorrar.id))
+    setConfirmBorrar(null)
+  }
+
   useEffect(() => { cargar() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const q = busqueda.trim().toLowerCase()
 
   const filtered = cotizaciones.filter(c => {
     if (filtroEstatus !== 'todos' && c.estatus !== filtroEstatus) return false
@@ -736,8 +829,23 @@ export default function HistorialCotizaciones() {
       if (fechaDesde && f < new Date(fechaDesde))              return false
       if (fechaHasta && f > new Date(fechaHasta + 'T23:59:59')) return false
     }
+    if (q) {
+      const hayMatch =
+        c.folio?.toLowerCase().includes(q) ||
+        c.clienteNombre?.toLowerCase().includes(q) ||
+        c.nivelNombre?.toLowerCase().includes(q)
+      if (!hayMatch) return false
+    }
     return true
   })
+
+  const filteredMaq = q
+    ? cotsMaq.filter(c =>
+        c.folio?.toLowerCase().includes(q) ||
+        c.clienteNombre?.toLowerCase().includes(q) ||
+        c.nivelNombre?.toLowerCase().includes(q)
+      )
+    : cotsMaq
 
   const totalPeriodo = filtered.reduce((s, c) => s + c.total, 0)
 
@@ -784,7 +892,7 @@ export default function HistorialCotizaciones() {
             <button key={t} onClick={() => setTab(t)} style={{
               padding:'7px 18px', borderRadius:8, fontSize:13, cursor:'pointer', fontWeight:600,
               border:`2px solid ${tab===t ? 'var(--accent)' : 'var(--border)'}`,
-              background: tab===t ? 'var(--accent)' : 'white',
+              background: tab===t ? 'var(--accent)' : 'var(--card)',
               color: tab===t ? 'white' : 'var(--text)',
               transition:'all 0.15s',
             }}>{label}</button>
@@ -796,14 +904,14 @@ export default function HistorialCotizaciones() {
           <>
             {loadingMaq && <div style={{ textAlign:'center', padding:'40px 0', color:'var(--text-muted)' }}>Cargando...</div>}
             {errorMaq && <div className="alert alert-error">❌ {errorMaq}</div>}
-            {!loadingMaq && !errorMaq && cotsMaq.length === 0 && (
+            {!loadingMaq && !errorMaq && filteredMaq.length === 0 && (
               <div className="empty-state">
                 <div className="empty-state-icon">🔨</div>
-                <h3>Sin cotizaciones de maquila</h3>
-                <p>Las cotizaciones convertidas a pedido no aparecen aqui</p>
+                <h3>{q ? 'Sin resultados' : 'Sin cotizaciones de maquila'}</h3>
+                <p>{q ? 'Intenta con otro término de búsqueda' : 'Las cotizaciones convertidas a pedido no aparecen aqui'}</p>
               </div>
             )}
-            {!loadingMaq && cotsMaq.length > 0 && (
+            {!loadingMaq && filteredMaq.length > 0 && (
               <>
                 {/* ── Tabla (desktop) ── */}
                 <div className="hist-desktop">
@@ -816,7 +924,7 @@ export default function HistorialCotizaciones() {
                         </tr>
                       </thead>
                       <tbody>
-                        {cotsMaq.map(c => {
+                        {filteredMaq.map(c => {
                           const badge = BADGE_MAQUILA[c.estatus] ?? { label: c.estatus, bg:'#e5e7eb', color:'#374151' }
                           return (
                             <tr key={c.id} style={{ cursor:'pointer' }} onClick={() => setSelIdMaq(c.id)}>
@@ -841,7 +949,7 @@ export default function HistorialCotizaciones() {
 
                 {/* ── Tarjetas (tablet / móvil) ── */}
                 <div className="hist-mobile">
-                  {cotsMaq.map(c => {
+                  {filteredMaq.map(c => {
                     const badge = BADGE_MAQUILA[c.estatus] ?? { label: c.estatus, bg:'#e5e7eb', color:'#374151' }
                     return (
                       <div key={c.id} className="hist-card" onClick={() => setSelIdMaq(c.id)}>
@@ -900,6 +1008,23 @@ export default function HistorialCotizaciones() {
             <div className="stat-label">Monto en periodo</div>
             <div className="stat-value" style={{ fontSize:18 }}>${fmt5(totalPeriodo)}</div>
           </div>
+        </div>
+
+        {/* Buscador */}
+        <div className="search-bar" style={{ marginBottom:12 }}>
+          <div className="search-input-wrap">
+            <span className="search-icon">🔍</span>
+            <input
+              className="search-input"
+              type="text"
+              placeholder="Buscar por folio, cliente o nivel..."
+              value={busqueda}
+              onChange={e => setBusqueda(e.target.value)}
+            />
+          </div>
+          {busqueda && (
+            <button className="btn btn-outline btn-sm" onClick={() => setBusqueda('')}>✕ Limpiar</button>
+          )}
         </div>
 
         {/* Filtros */}
@@ -970,6 +1095,11 @@ export default function HistorialCotizaciones() {
                               <ArrowRightCircle size={14} />
                             </button>
                           )}
+                          {c.estatus !== 'CONVERTIDA' && (
+                            <button className="btn btn-outline btn-sm" title="Borrar" onClick={() => setConfirmBorrar(c)} style={{ display:'flex', alignItems:'center', padding:'4px 8px', color:'#dc2626', borderColor:'#dc2626' }}>
+                              <Trash2 size={14} />
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -1010,6 +1140,11 @@ export default function HistorialCotizaciones() {
                         </button>
                       )}
                       <button className="btn btn-outline btn-sm" onClick={() => setSeleccionada(c)} style={{ padding:'5px 10px' }}>Ver</button>
+                      {c.estatus !== 'CONVERTIDA' && (
+                        <button className="btn btn-outline btn-sm" onClick={() => setConfirmBorrar(c)} style={{ display:'flex', alignItems:'center', gap:4, padding:'5px 10px', color:'#dc2626', borderColor:'#dc2626' }}>
+                          <Trash2 size={13} /> Borrar
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1049,6 +1184,14 @@ export default function HistorialCotizaciones() {
         <PedidoCreadoModal
           detalle={pedidoCreado}
           onClose={() => setPedidoCreado(null)}
+        />
+      )}
+      {confirmBorrar && (
+        <ConfirmBorrarModal
+          cotizacion={confirmBorrar}
+          onConfirm={handleBorrar}
+          onClose={() => setConfirmBorrar(null)}
+          loading={borrandoId === confirmBorrar.id}
         />
       )}
     </>

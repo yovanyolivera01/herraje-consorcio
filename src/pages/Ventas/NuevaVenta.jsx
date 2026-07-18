@@ -139,7 +139,7 @@ function TicketPreview({ venta }) {
   return (
     <div className="ticket-preview">
       <div className="ticket-header">
-        <h2>TEMPLADOS CONSORCIO</h2>
+        <h2>VIDRIO TEMPLADO Y ALUMINIO ROSALES</h2>
         <p style={{ fontWeight: 700 }}>ARTE EN VIDRIO</p>
       </div>
       <hr className="ticket-divider" />
@@ -338,7 +338,10 @@ export default function NuevaVenta() {
             )}
 
             <button className="btn btn-outline" onClick={() => printTicket(ventaCreada, '80mm')}>
-              🖨️ Imprimir
+              🖨️ Ticket
+            </button>
+            <button className="btn btn-outline" onClick={() => printTicket(ventaCreada, 'carta')}>
+              🖨️ Hoja
             </button>
             <button className="btn btn-primary" onClick={nuevaVenta}>
               + Nueva venta
