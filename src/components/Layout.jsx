@@ -10,7 +10,7 @@ import {
   LogOut, Menu, ChevronDown, ChevronLeft, ChevronRight, Crown, User,
   Frame, DoorOpen, Hammer, Warehouse, Box,
   ShoppingCart, TrendingUp, Archive,
-  CardSim, Moon, Sun,
+  CardSim, Moon, Sun, FileText,
 } from 'lucide-react'
 
 // ── Navegacion del sistema Herraje ────────────────────────────────────────
@@ -39,14 +39,14 @@ const ventasNavItems = [
   { section: 'Ventas', links: [
     { to: '/cot/nueva',              icon: <ClipboardList size={16} />,  label: 'Nueva cotizacion' },
   //  { to: '/cot/registrado',         icon: <ClipboardCheck size={16} />, label: 'Cliente registrado' },
-    { to: '/cot/pedidos-pendientes', icon: <Clock size={16} />,          label: 'Pendientes' },
+  //  { to: '/cot/pedidos-pendientes', icon: <Clock size={16} />,          label: 'Pendientes' },
   ]},
 ]
 
 const ventasNavEmpleado = [
   { section: 'Ventas', links: [
     { to: '/cot/nueva',              icon: <ClipboardList size={16} />,  label: 'Nueva cotizacion' },
-    { to: '/cot/pedidos-pendientes', icon: <Clock size={16} />,          label: 'Pendientes' },
+  //  { to: '/cot/pedidos-pendientes', icon: <Clock size={16} />,          label: 'Pendientes' },
   ]},
 ]
 
@@ -54,6 +54,7 @@ const ventasNavEmpleado = [
 const reportesNavItems = [
   { section: 'Reportes', links: [
     { to: '/cot/ventas',            icon: <CheckCircle2 size={16} />, label: 'Ventas netas' },
+    { to: '/cot/facturas',          icon: <FileText size={16} />,     label: 'Historial facturas' },
     { to: '/cot/reporte-vidrio',    icon: <Frame size={16} />,        label: 'Reporte Vidrio' },
     { to: '/cot/historial',         icon: <BarChart2 size={16} />,    label: 'Cotizaciones' },
     { to: '/cot/historial-maquila', icon: <Hammer size={16} />,       label: 'Historial de maquila' },
@@ -81,7 +82,7 @@ const ventasNavVendedor = [
   { section: 'Ventas', links: [
     { to: '/cot/nueva',              icon: <ClipboardList size={16} />,  label: 'Nueva cotizacion' },
     { to: '/cot/registrado',         icon: <ClipboardCheck size={16} />, label: 'Cliente registrado' },
-    { to: '/cot/pedidos-pendientes', icon: <Clock size={16} />,          label: 'Pendientes' },
+  //  { to: '/cot/pedidos-pendientes', icon: <Clock size={16} />,          label: 'Pendientes' },
   ]},
 ]
 
@@ -103,7 +104,7 @@ const ventasNavAlmacen = [
   { section: 'Ventas', links: [
     { to: '/cot/nueva',              icon: <ClipboardList size={16} />,  label: 'Nueva cotizacion' },
     { to: '/cot/registrado',         icon: <ClipboardCheck size={16} />, label: 'Cliente registrado' },
-    { to: '/cot/pedidos-pendientes', icon: <Clock size={16} />,          label: 'Pendientes' },
+  //  { to: '/cot/pedidos-pendientes', icon: <Clock size={16} />,          label: 'Pendientes' },
     { to: '/ventas/nueva',           icon: <ReceiptText size={16} />,    label: 'Nueva venta' },
     { to: '/ventas/historial',       icon: <BarChart2 size={16} />,      label: 'Historial ventas' },
     { to: '/cot/ventas',             icon: <CheckCircle2 size={16} />,   label: 'Ventas netas' },
@@ -175,7 +176,7 @@ export default function Layout() {
   const isPersonal = path.startsWith('/personal')
 
   const ventasRoutes     = ['/cot/nueva', '/cot/registrado', '/cot/pedidos-pendientes']
-  const reportesRoutes   = ['/cot/ventas', '/cot/reporte-vidrio', '/cot/historial', '/cot/historial-maquila', '/herraje/historial']
+  const reportesRoutes   = ['/cot/ventas', '/cot/facturas', '/cot/reporte-vidrio', '/cot/historial', '/cot/historial-maquila', '/herraje/historial']
   const inventariosRoutes= ['/cot/inventario', '/productos']
   const vidrioRoutes     = ['/cot/tipos-vidrio', '/cot/procesos', '/cot/empresas', '/cot/precios', '/cot/clientes']
 

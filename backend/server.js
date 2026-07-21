@@ -13,7 +13,8 @@ const inventarioRoutes       = require('./routes/inventario')
 const productosGeneralesRoutes = require('./routes/productosGenerales')
 const reportesRoutes         = require('./routes/reportes')
 const authRoutes             = require('./routes/auth')
-const egresosRoutes = require('./routes/egresos')
+const egresosRoutes    = require('./routes/egresos')
+const facturamaRoutes  = require('./routes/facturama')
 const app  = express()
 const PORT = process.env.PORT || 3001
 
@@ -31,7 +32,8 @@ app.use('/api', inventarioRoutes)
 app.use('/api', productosGeneralesRoutes)
 app.use('/api', reportesRoutes)
 app.use('/api', authRoutes)
-app.use('/api',egresosRoutes)
+app.use('/api', egresosRoutes)
+app.use('/api', facturamaRoutes)
 
 // Serve React build in production
 const distPath = path.join(__dirname, '..', 'dist')

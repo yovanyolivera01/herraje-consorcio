@@ -29,6 +29,15 @@ router.post('/pedidos/convertir', async (req, res) => {
     if (!row || row.out_mensaje?.startsWith('ERROR')) {
       return res.status(400).json({ message: row?.out_mensaje ?? 'Error al convertir cotización' })
     }
+    // Ensure id_cotizacion is always linked (SP may skip it when no vidrio partidas)
+    await query('UPDATE pedido SET id_cotizacion=$1 WHERE id_pedido=$2 AND id_cotizacion IS NULL', [id_cotizacion, row.out_id_pedido])
+    // If cotización had no vidrio partidas, mark pedido as MAQUILA
+    try {
+      const { rows: pcRows } = await query('SELECT COUNT(*) AS cnt FROM partida_cotizacion WHERE id_cotizacion=$1', [id_cotizacion])
+      if (Number(pcRows[0].cnt) === 0) {
+        await query("UPDATE pedido SET tipo_pedido='MAQUILA' WHERE id_pedido=$1", [row.out_id_pedido])
+      }
+    } catch {}
     if (metodo_pago) await query('UPDATE pedido SET metodo_pago=$1 WHERE id_pedido=$2', [metodo_pago, row.out_id_pedido])
     if (observaciones) await query('UPDATE pedido SET observaciones=$1 WHERE id_pedido=$2', [observaciones, row.out_id_pedido])
     await guardarObsPartidas(row.out_id_pedido, partidas_obs)
@@ -95,7 +104,7 @@ router.post('/pedidos/directo-con-extras', async (req, res) => {
       const saldo = Number(realTotal) - Number(monto_anticipo)
       const { rows: pRows } = await query(
         `INSERT INTO pedido (id_cliente, id_nivel_precio, total, tipo_pago, monto_anticipo, saldo_pendiente, estatus, tipo_pedido, folio)
-         VALUES ($1, $2, $3, $4, $5, $6, 'PENDIENTE', 'VIDRIO', 'TMP') RETURNING id_pedido`,
+         VALUES ($1, $2, $3, $4, $5, $6, 'PENDIENTE', 'MAQUILA', 'TMP') RETURNING id_pedido`,
         [id_cliente ?? null, id_nivel_precio ?? null, Number(realTotal), tipo_pago, Number(monto_anticipo), saldo]
       )
       id_pedido = pRows[0].id_pedido

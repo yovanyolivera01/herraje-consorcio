@@ -280,7 +280,30 @@ router.get('/maquila/pedidos/:id', async (req, res) => {
       partidas = fallback.rows
     }
 
-    ok(res, { ...pedRes.rows[0], partidas })
+    // Fetch extras when no maquila partidas found
+    let extras = []
+    if (partidas.length === 0) {
+      const idCot = pedRes.rows[0].id_cotizacion
+      try {
+        if (idCot) {
+          // Cotización-based pedido: extras in partida_cotizacion_extra
+          const extRes = await query(
+            'SELECT tipo, descripcion, unidad, cantidad, precio_unitario, subtotal, notas FROM partida_cotizacion_extra WHERE id_cotizacion=$1 ORDER BY id_partida_extra',
+            [idCot]
+          )
+          extras = extRes.rows
+        } else {
+          // Directo pedido: extras in partida_pedido_extra
+          const extRes = await query(
+            'SELECT tipo, descripcion, unidad, cantidad, precio_unitario, subtotal, notas FROM partida_pedido_extra WHERE id_pedido=$1 ORDER BY id_partida_extra',
+            [id]
+          )
+          extras = extRes.rows
+        }
+      } catch {}
+    }
+
+    ok(res, { ...pedRes.rows[0], partidas, extras })
   } catch (e) { err(res, e) }
 })
 

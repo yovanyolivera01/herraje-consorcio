@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { fmt5, hoyMX, lunesMX } from '../../lib/utils'
 import * as XLSX from 'xlsx'
-import { getPedidosEntregados, getDetallePedido, getPedidosParaExport, getPedidosCancelados } from '../../lib/pedidosApi'
+import { getPedidosEntregados, getDetallePedido, getPedidosParaExport, getPedidosCancelados, getPedidosPendientes, marcarComoEntregado } from '../../lib/pedidosApi'
+import { getPedidosPendientesMaquila } from '../../lib/maquilaApi'
+import { crearCFDI, getCFDIPdfUrl, getCFDIXmlUrl } from '../../lib/facturamaApi'
 import { printTicketVidrio, printPedidoA4 } from '../../utils/ticket'
 
 // ── Ticket de pedido entregado ────────────────────────────────────────────
@@ -91,7 +93,7 @@ function TicketVenta({ detalle }) {
 }
 
 // ── Modal detalle de venta ────────────────────────────────────────────────
-function DetalleVentaModal({ resumen, onClose }) {
+function DetalleVentaModal({ resumen, onClose, onFacturar }) {
   const [detalle, setDetalle] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -123,6 +125,11 @@ function DetalleVentaModal({ resumen, onClose }) {
         </div>
         <div className="modal-footer">
           <button className="btn btn-outline" onClick={onClose}>Cerrar</button>
+          {onFacturar && !resumen.esCancelado && (
+            <button className="btn btn-outline" style={{ borderColor: '#6366f1', color: '#6366f1' }} onClick={() => onFacturar(resumen)}>
+              🧾 Facturar
+            </button>
+          )}
           {detalle && (() => {
             const normalizado = {
               tipo:          'pedido',
@@ -142,14 +149,14 @@ function DetalleVentaModal({ resumen, onClose }) {
               total:         detalle.total,
               partidas: [
                 ...(detalle.partidas ?? []).map(p => ({
-                  tipo:            'VIDRIO',
-                  piezas:          p.cantidad ?? 1,
-                  clave:           p.clave_vidrio,
-                  largo_cm:        p.largo_cm,
-                  ancho_cm:        p.ancho_cm,
-                  subtotal_vidrio: p.subtotal_vidrio,
+                  tipo:             'VIDRIO',
+                  piezas:           p.cantidad ?? 1,
+                  clave:            p.clave_vidrio,
+                  largo_cm:         p.largo_cm,
+                  ancho_cm:         p.ancho_cm,
+                  subtotal_vidrio:  p.subtotal_vidrio,
                   subtotal_partida: p.subtotal_partida,
-                  procesos:        p.procesos ?? [],
+                  procesos:         p.procesos ?? [],
                 })),
                 ...(detalle.extras ?? []).map(e => ({
                   tipo:             e.tipo === 'PRODUCTO' ? 'HERRAJE' : e.tipo,
@@ -174,105 +181,417 @@ function DetalleVentaModal({ resumen, onClose }) {
   )
 }
 
+// ── Modal: generar CFDI via Facturama ────────────────────────────────────
+const REGIMENES = [
+  ['601','601 - General de Ley Personas Morales'],
+  ['603','603 - Personas Morales con Fines no Lucrativos'],
+  ['605','605 - Sueldos y Salarios'],
+  ['606','606 - Arrendamiento'],
+  ['608','608 - Demás ingresos'],
+  ['612','612 - Personas Físicas con Actividades Empresariales'],
+  ['616','616 - Sin obligaciones fiscales'],
+  ['621','621 - Incorporación Fiscal'],
+  ['626','626 - Régimen Simplificado de Confianza'],
+]
+
+const USOS_CFDI = [
+  ['G01','G01 - Adquisición de mercancias'],
+  ['G02','G02 - Devoluciones, descuentos o bonificaciones'],
+  ['G03','G03 - Gastos en general'],
+  ['I01','I01 - Construcciones'],
+  ['I03','I03 - Equipo de transporte'],
+  ['I04','I04 - Equipo de cómputo'],
+  ['P01','P01 - Por definir'],
+  ['S01','S01 - Sin efectos fiscales'],
+]
+
+const FORMAS_PAGO = [
+  ['01','01 - Efectivo'],
+  ['02','02 - Cheque nominativo'],
+  ['03','03 - Transferencia electrónica'],
+  ['04','04 - Tarjeta de crédito'],
+  ['28','28 - Tarjeta de débito'],
+  ['99','99 - Por definir'],
+]
+
+function FacturarModal({ resumen, onClose }) {
+  const [rfc,        setRfc]        = useState('XAXX010101000')
+  const [nombre,     setNombre]     = useState('PUBLICO EN GENERAL')
+  const [cpFiscal,   setCpFiscal]   = useState('')
+  const [regimen,    setRegimen]    = useState('616')
+  const [usoCfdi,    setUsoCfdi]    = useState('S01')
+  const [formaPago,  setFormaPago]  = useState('01')
+  const [metodoPago, setMetodoPago] = useState('PUE')
+
+  const [loading, setLoading] = useState(false)
+  const [error,   setError]   = useState(null)
+  const [cfdi,    setCfdi]    = useState(null)
+
+  const fillPublico = () => {
+    setRfc('XAXX010101000')
+    setNombre('PUBLICO EN GENERAL')
+    setRegimen('616')
+    setUsoCfdi('S01')
+  }
+
+  const handleGenerar = async () => {
+    if (!cpFiscal.trim() || cpFiscal.trim().length !== 5) {
+      setError('El código postal fiscal debe tener 5 dígitos')
+      return
+    }
+    setLoading(true)
+    setError(null)
+    try {
+      const result = await crearCFDI(resumen, { rfc, nombre, cpFiscal, regimen, usoCfdi, formaPago, metodoPago })
+      setCfdi(result)
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const base = Math.round((resumen.total / 1.16) * 100) / 100
+  const iva  = Math.round((resumen.total - base) * 100) / 100
+
+  if (cfdi) {
+    return (
+      <div className="modal-overlay">
+        <div className="modal" onClick={e => e.stopPropagation()}>
+          <div className="modal-header">
+            <div className="modal-title">✅ CFDI generado</div>
+            <button className="btn-icon" onClick={onClose}>✕</button>
+          </div>
+          <div className="modal-body">
+            <div style={{ background: '#f0fdf4', color: '#166534', border: '1px solid #bbf7d0', borderRadius: 8, padding: '14px 16px', marginBottom: 16 }}>
+              <div style={{ fontWeight: 700, marginBottom: 4 }}>Factura generada exitosamente</div>
+              <div style={{ fontSize: 13 }}>Folio fiscal: <strong>{cfdi.Id ?? cfdi.id ?? '—'}</strong></div>
+              {cfdi.Serie && <div style={{ fontSize: 13 }}>Serie/Folio: {cfdi.Serie}-{cfdi.Folio}</div>}
+            </div>
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+              <a
+                href={getCFDIPdfUrl(cfdi.Id ?? cfdi.id)}
+                target="_blank"
+                rel="noreferrer"
+                className="btn btn-outline"
+                style={{ textDecoration: 'none' }}
+              >
+                📄 Descargar PDF
+              </a>
+              <a
+                href={getCFDIXmlUrl(cfdi.Id ?? cfdi.id)}
+                target="_blank"
+                rel="noreferrer"
+                className="btn btn-outline"
+                style={{ textDecoration: 'none' }}
+              >
+                📋 Descargar XML
+              </a>
+            </div>
+          </div>
+          <div className="modal-footer">
+            <button className="btn btn-primary" onClick={onClose}>Cerrar</button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal modal-lg" onClick={e => e.stopPropagation()}>
+        <div className="modal-header">
+          <div>
+            <div className="modal-title">Generar CFDI — {resumen.folio}</div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+              {resumen.clienteNombre} · ${fmt5(resumen.total)}
+            </div>
+          </div>
+          <button className="btn-icon" onClick={onClose}>✕</button>
+        </div>
+        <div className="modal-body">
+          <button className="btn btn-outline btn-sm" style={{ marginBottom: 16 }} onClick={fillPublico}>
+            👤 Público en general
+          </button>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div className="form-group">
+              <label className="form-label required">RFC receptor</label>
+              <input className="form-input" value={rfc} onChange={e => setRfc(e.target.value.toUpperCase())} placeholder="XAXX010101000" />
+            </div>
+            <div className="form-group">
+              <label className="form-label required">C.P. fiscal receptor</label>
+              <input className="form-input" value={cpFiscal} onChange={e => setCpFiscal(e.target.value)} placeholder="00000" maxLength={5} />
+            </div>
+            <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+              <label className="form-label required">Nombre / Razón social</label>
+              <input className="form-input" value={nombre} onChange={e => setNombre(e.target.value.toUpperCase())} placeholder="NOMBRE COMPLETO O RAZÓN SOCIAL" />
+            </div>
+            <div className="form-group">
+              <label className="form-label required">Régimen fiscal receptor</label>
+              <select className="filter-select" value={regimen} onChange={e => setRegimen(e.target.value)}>
+                {REGIMENES.map(([val, label]) => <option key={val} value={val}>{label}</option>)}
+              </select>
+            </div>
+            <div className="form-group">
+              <label className="form-label required">Uso CFDI</label>
+              <select className="filter-select" value={usoCfdi} onChange={e => setUsoCfdi(e.target.value)}>
+                {USOS_CFDI.map(([val, label]) => <option key={val} value={val}>{label}</option>)}
+              </select>
+            </div>
+            <div className="form-group">
+              <label className="form-label required">Forma de pago</label>
+              <select className="filter-select" value={formaPago} onChange={e => setFormaPago(e.target.value)}>
+                {FORMAS_PAGO.map(([val, label]) => <option key={val} value={val}>{label}</option>)}
+              </select>
+            </div>
+            <div className="form-group">
+              <label className="form-label required">Método de pago</label>
+              <select className="filter-select" value={metodoPago} onChange={e => setMetodoPago(e.target.value)}>
+                <option value="PUE">PUE - Pago en una sola exhibición</option>
+                <option value="PPD">PPD - Pago en parcialidades o diferido</option>
+              </select>
+            </div>
+          </div>
+
+          <div style={{ borderTop: '1px solid var(--border)', marginTop: 16, paddingTop: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
+              {[
+                ['Subtotal (sin IVA)', `$${fmt5(base)}`],
+                ['IVA 16%',           `$${fmt5(iva)}`],
+                ['Total CFDI',        `$${fmt5(resumen.total)}`],
+              ].map(([label, val]) => (
+                <div key={label} style={{ textAlign: 'center', background: 'var(--bg)', borderRadius: 8, padding: '8px 4px' }}>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 3 }}>{label}</div>
+                  <div style={{ fontWeight: 700, fontSize: 14 }}>{val}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 8 }}>
+              * Los precios incluyen IVA 16%. El subtotal se calcula dividiendo el total entre 1.16.
+            </div>
+          </div>
+
+          {error && <div className="alert alert-error" style={{ marginTop: 12 }}>❌ {error}</div>}
+        </div>
+        <div className="modal-footer">
+          <button className="btn btn-outline" onClick={onClose} disabled={loading}>Cancelar</button>
+          <button className="btn btn-primary" onClick={handleGenerar} disabled={loading}>
+            {loading ? 'Generando...' : '🧾 Generar CFDI'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Modal: cobrar saldo pendiente ─────────────────────────────────────────
+function CobrarModal({ resumen, onClose, onSuccess }) {
+  const [detalle,      setDetalle]      = useState(null)
+  const [loadingDet,   setLoadingDet]   = useState(true)
+  const [saving,       setSaving]       = useState(false)
+  const [error,        setError]        = useState(null)
+  const [montoCobrado, setMontoCobrado] = useState('')
+
+  useEffect(() => {
+    getDetallePedido(resumen.id)
+      .then(d => { setDetalle(d); setLoadingDet(false) })
+      .catch(e => { setError(e.message); setLoadingDet(false) })
+  }, [resumen.id])
+
+  const saldo     = detalle ? detalle.saldo : 0
+  const montoNum  = Number(montoCobrado)
+  const montoValido = !isNaN(montoNum) && montoNum > 0 && montoNum === saldo
+
+  const handleConfirm = async () => {
+    if (!montoValido) return
+    setSaving(true)
+    setError(null)
+    try {
+      await marcarComoEntregado(detalle.id, montoNum)
+      onSuccess()
+    } catch (e) {
+      setError(e.message)
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal" onClick={e => e.stopPropagation()}>
+        <div className="modal-header">
+          <div>
+            <div className="modal-title">Entregar y cobrar — {resumen.folio}</div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{resumen.clienteNombre}</div>
+          </div>
+          <button className="btn-icon" onClick={onClose}>✕</button>
+        </div>
+        <div className="modal-body">
+          {loadingDet ? (
+            <div style={{ textAlign: 'center', padding: '30px 0', color: 'var(--text-muted)' }}>Cargando...</div>
+          ) : detalle ? (
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 14 }}>
+                {[
+                  ['Total pedido',    `$${fmt5(detalle.total)}`,        'var(--text)'],
+                  ['Anticipo pagado', `$${detalle.anticipo.toFixed(2)}`, 'var(--accent)'],
+                  ['Saldo a cobrar',  `$${saldo.toFixed(2)}`,            'var(--danger)'],
+                ].map(([label, val, color]) => (
+                  <div key={label} style={{ textAlign: 'center', background: 'var(--bg)', borderRadius: 8, padding: '10px 6px' }}>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>{label}</div>
+                    <div style={{ fontWeight: 700, fontSize: 16, color }}>{val}</div>
+                  </div>
+                ))}
+              </div>
+              <div className="form-group">
+                <label className="form-label required">Monto cobrado al cliente ($)</label>
+                <input
+                  className={`form-input${!montoValido && montoCobrado !== '' ? ' error' : ''}`}
+                  type="number" step="0.01" min="0.01"
+                  value={montoCobrado}
+                  onChange={e => setMontoCobrado(e.target.value)}
+                  placeholder={saldo.toFixed(2)}
+                  style={{ fontWeight: 700, fontSize: 16, color: 'var(--danger)' }}
+                  autoFocus
+                />
+                {!montoValido && montoCobrado !== '' && (
+                  <div className="form-error">El monto debe ser exactamente ${saldo.toFixed(2)}</div>
+                )}
+                <div className="form-hint">Escribe el saldo a cobrar para confirmar la entrega.</div>
+              </div>
+              <div className="alert alert-warning" style={{ marginTop: 8 }}>
+                ⚠️ Esta acción no se puede revertir. El pedido pasará al historial de ventas.
+              </div>
+            </>
+          ) : null}
+          {error && <div className="alert alert-error">❌ {error}</div>}
+        </div>
+        <div className="modal-footer">
+          <button className="btn btn-outline" onClick={onClose} disabled={saving}>Cancelar</button>
+          <button className="btn btn-primary" onClick={handleConfirm} disabled={saving || !montoValido || loadingDet}>
+            {saving ? 'Registrando...' : `✅ Confirmar — cobrar $${montoValido ? montoNum.toFixed(2) : '—'}`}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Exportar a Excel ──────────────────────────────────────────────────────
-//  sp_exportar_excel_ventas devuelve filas planas: una por partida.
-//  Hoja 1: resumen por pedido (deduplicado).
-//  Hoja 2: detalle de partidas (filas del SP directo).
 async function exportarExcel(fechaDesde, fechaHasta) {
   const raw = await getPedidosParaExport(fechaDesde, fechaHasta)
 
-  // Hoja 1: una fila por pedido (deduplicar por folio)
   const vistos = new Set()
   const resumen = []
   for (const row of raw) {
     if (!vistos.has(row['Folio'])) {
       vistos.add(row['Folio'])
       resumen.push({
-        'Folio': row['Folio'],
-        'Fecha entrega': row['Fecha entrega'],
-        'Cliente': row['Cliente'],
-        'Forma de pago': row['Forma de pago'],
-        'Total': Number(row['Total pedido']),
-        'Anticipo': Number(row['Anticipo']),
+        'Folio':           row['Folio'],
+        'Fecha entrega':   row['Fecha entrega'],
+        'Cliente':         row['Cliente'],
+        'Forma de pago':   row['Forma de pago'],
+        'Total':           Number(row['Total pedido']),
+        'Anticipo':        Number(row['Anticipo']),
         'Cobrado entrega': Number(row['Cobrado entrega']),
-        'Total recibido': Number(row['Total cobrado']),
-        'Observaciones': row['Observaciones'] ?? '',
+        'Total recibido':  Number(row['Total cobrado']),
+        'Observaciones':   row['Observaciones'] ?? '',
       })
     }
   }
 
-  // Fila de totales al final de la hoja Ventas
   const sum = (col) => resumen.reduce((s, r) => s + (r[col] ?? 0), 0)
   resumen.push({
-    'Folio': 'TOTAL',
-    'Fecha entrega': '',
-    'Cliente': '',
-    'Forma de pago': '',
-    'Total': sum('Total'),
-    'Anticipo': sum('Anticipo'),
-    'Cobrado entrega': sum('Cobrado entrega'),
-    'Total recibido': sum('Total recibido'),
-    'Observaciones': '',
+    'Folio': 'TOTAL', 'Fecha entrega': '', 'Cliente': '', 'Forma de pago': '',
+    'Total': sum('Total'), 'Anticipo': sum('Anticipo'),
+    'Cobrado entrega': sum('Cobrado entrega'), 'Total recibido': sum('Total recibido'), 'Observaciones': '',
   })
 
-  // Hoja 2: partidas tal como las devuelve el SP
   const partidas = raw.map(row => ({
-    'Folio': row['Folio'],
-    'Cliente': row['Cliente'],
-    'Tipo vidrio': row['Tipo vidrio'],
-    'Largo (cm)': Number(row['Largo (cm)']),
-    'Ancho (cm)': Number(row['Ancho (cm)']),
-    'm²': Number(row['m2']),
-    'Cantidad': Number(row['Cantidad']),
-    'Precio m²': Number(row['Precio m2']),
-    'Subtotal vidrio': Number(row['Subtotal vidrio']),
+    'Folio':             row['Folio'],
+    'Cliente':           row['Cliente'],
+    'Tipo vidrio':       row['Tipo vidrio'],
+    'Largo (cm)':        Number(row['Largo (cm)']),
+    'Ancho (cm)':        Number(row['Ancho (cm)']),
+    'm²':                Number(row['m2']),
+    'Cantidad':          Number(row['Cantidad']),
+    'Precio m²':         Number(row['Precio m2']),
+    'Subtotal vidrio':   Number(row['Subtotal vidrio']),
     'Subtotal procesos': Number(row['Subtotal procesos']),
-    'Total partida': Number(row['Total partida']),
+    'Total partida':     Number(row['Total partida']),
   }))
 
   const wb = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(resumen), 'Ventas')
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(partidas), 'Partidas')
-
-  const nombre = `ventas_${fechaDesde || 'inicio'}_${fechaHasta || 'hoy'}.xlsx`
-  XLSX.writeFile(wb, nombre)
+  XLSX.writeFile(wb, `ventas_${fechaDesde || 'inicio'}_${fechaHasta || 'hoy'}.xlsx`)
 }
 
 // ── Página Historial de Ventas ────────────────────────────────────────────
 export default function HistorialVentas() {
   const [tab, setTab] = useState('entregados')
 
-  // ── estado entregados ─────────────────────────────────────────────────────
-  const [pedidos, setPedidos] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-  const [fechaDesde, setFechaDesde] = useState(lunesMX)
-  const [fechaHasta, setFechaHasta] = useState(hoyMX)
+  // entregados
+  const [pedidos,      setPedidos]      = useState([])
+  const [loading,      setLoading]      = useState(true)
+  const [error,        setError]        = useState(null)
+  const [fechaDesde,   setFechaDesde]   = useState(lunesMX)
+  const [fechaHasta,   setFechaHasta]   = useState(hoyMX)
   const [seleccionado, setSeleccionado] = useState(null)
-  const [exporting, setExporting] = useState(false)
-  const [busqueda, setBusqueda] = useState('')
-  const [filtroPago, setFiltroPago] = useState(null)
+  const [cobrarPedido,   setCobrarPedido]   = useState(null)
+  const [facturarPedido, setFacturarPedido] = useState(null)
+  const [exporting,    setExporting]    = useState(false)
+  const [busqueda,     setBusqueda]     = useState('')
+  const [filtroPago,   setFiltroPago]   = useState(null)
 
-  // ── estado cancelados ─────────────────────────────────────────────────────
-  const [cancelados, setCancelados] = useState([])
-  const [loadingCan, setLoadingCan] = useState(false)
-  const [errorCan, setErrorCan] = useState(null)
-  const [busquedaCan, setBusquedaCan] = useState('')
+  // cancelados
+  const [cancelados,       setCancelados]       = useState([])
+  const [loadingCan,       setLoadingCan]       = useState(false)
+  const [errorCan,         setErrorCan]         = useState(null)
+  const [busquedaCan,      setBusquedaCan]      = useState('')
   const [canceladosLoaded, setCanceladosLoaded] = useState(false)
+
+  // por cobrar / anticipo
+  const [busquedaPorCobrar, setBusquedaPorCobrar] = useState('')
+  const [busquedaAnticipo,  setBusquedaAnticipo]  = useState('')
+
+  // pendientes
+  const [pendientes,      setPendientes]      = useState([])
+  const [loadingPend,     setLoadingPend]     = useState(false)
+  const [errorPend,       setErrorPend]       = useState(null)
+  const [busquedaPend,    setBusquedaPend]    = useState('')
+  const [pendientesLoaded, setPendientesLoaded] = useState(false)
+
+  // ── filtered lists ────────────────────────────────────────────────────────
 
   const q = busqueda.trim().toLowerCase()
   const filteredFinal = pedidos
     .filter(v => !filtroPago || v.forma_pago === filtroPago)
-    .filter(v => !q || (
-      v.folio?.toLowerCase().includes(q) ||
-      v.fecha.toLowerCase().includes(q) ||
-      v.clienteNombre?.toLowerCase().includes(q)
-    ))
+    .filter(v => !q || v.folio?.toLowerCase().includes(q) || v.fecha.toLowerCase().includes(q) || v.clienteNombre?.toLowerCase().includes(q))
 
   const qCan = busquedaCan.trim().toLowerCase()
   const filteredCan = cancelados.filter(v =>
     !qCan || v.folio?.toLowerCase().includes(qCan) || v.clienteNombre?.toLowerCase().includes(qCan)
   )
+
+  const qCob = busquedaPorCobrar.trim().toLowerCase()
+  const filteredCob = [
+    ...pendientes.filter(v => v.tipo_pago === 'POR COBRAR'),
+    ...pedidos.filter(v => v.forma_pago === 'POR COBRAR'),
+  ].filter(v => !qCob || v.folio?.toLowerCase().includes(qCob) || v.clienteNombre?.toLowerCase().includes(qCob))
+
+  const qAntic = busquedaAnticipo.trim().toLowerCase()
+  const filteredAntic = [
+    ...pendientes.filter(v => v.tipo_pago === 'ANTICIPO'),
+    ...pedidos.filter(v => v.forma_pago === 'ANTICIPO'),
+  ].filter(v => !qAntic || v.folio?.toLowerCase().includes(qAntic) || v.clienteNombre?.toLowerCase().includes(qAntic))
+
+  const qPend = busquedaPend.trim().toLowerCase()
+  const filteredPend = pendientes
+    .filter(v => v.tipo_pago === 'LIQUIDADO')
+    .filter(v => !qPend || v.folio?.toLowerCase().includes(qPend) || v.clienteNombre?.toLowerCase().includes(qPend))
+
+  // ── loaders ───────────────────────────────────────────────────────────────
 
   const cargar = useCallback(async () => {
     setLoading(true)
@@ -309,6 +628,29 @@ export default function HistorialVentas() {
     else setCanceladosLoaded(false)
   }, [tab, cargarCancelados])
 
+  const cargarPendientes = useCallback(async () => {
+    setLoadingPend(true)
+    setErrorPend(null)
+    try {
+      const [vidrio, maquila] = await Promise.all([getPedidosPendientes(), getPedidosPendientesMaquila()])
+      const data = [...vidrio, ...maquila].sort((a, b) => {
+        const fa = a.fechaCreacionISO ?? a.fechaPedidoISO ?? ''
+        const fb = b.fechaCreacionISO ?? b.fechaPedidoISO ?? ''
+        return new Date(fb) - new Date(fa)
+      })
+      setPendientes(data)
+      setPendientesLoaded(true)
+    } catch (err) {
+      setErrorPend(err.message)
+    } finally {
+      setLoadingPend(false)
+    }
+  }, [])
+
+  useEffect(() => { cargarPendientes() }, [cargarPendientes])
+
+  // ── helpers ───────────────────────────────────────────────────────────────
+
   const totalAcumulado = filteredFinal.reduce((s, p) => s + p.total, 0)
   const totalCancelado = filteredCan.reduce((s, p) => s + p.total, 0)
 
@@ -324,7 +666,7 @@ export default function HistorialVentas() {
   }
 
   const formaPagoBadge = (fp) =>
-    fp === 'LIQUIDADO' ? <span className="badge badge-green">Liquidado</span>
+    fp === 'LIQUIDADO'    ? <span className="badge badge-green">Liquidado</span>
     : fp === 'POR COBRAR' ? <span className="badge badge-blue">Por cobrar</span>
     : <span className="badge badge-orange">Anticipo</span>
 
@@ -335,10 +677,12 @@ export default function HistorialVentas() {
     cursor: 'pointer',
     fontWeight: 600,
     fontSize: 13,
-    background: tab === t ? 'var(--accent)' : 'transparent',
-    color: tab === t ? '#fff' : 'var(--text-muted)',
+    background:   tab === t ? 'var(--accent)' : 'transparent',
+    color:        tab === t ? '#fff' : 'var(--text-muted)',
     borderBottom: tab === t ? '2px solid var(--accent)' : '2px solid transparent',
   })
+
+  // ── render ────────────────────────────────────────────────────────────────
 
   return (
     <>
@@ -348,70 +692,60 @@ export default function HistorialVentas() {
           <div style={{ display: 'flex', gap: 4, marginTop: 6 }}>
             <button style={tabStyle('entregados')} onClick={() => setTab('entregados')}>Entregados</button>
             <button style={tabStyle('cancelados')} onClick={() => setTab('cancelados')}>Cancelados</button>
+            <button style={tabStyle('Por cobrar')}  onClick={() => setTab('Por cobrar')}>Por cobrar</button>
+            <button style={tabStyle('Anticipo')}    onClick={() => setTab('Anticipo')}>Anticipo</button>
+            <button style={tabStyle('pendientes')}  onClick={() => setTab('pendientes')}>Pendientes</button>
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           {tab === 'entregados' ? (
             <>
-              <input
-                type="text"
-                className="filter-select"
-                placeholder="Buscar folio, cliente..."
-                value={busqueda}
-                onChange={e => setBusqueda(e.target.value)}
-                style={{ minWidth: 200 }}
-              />
+              <input type="text" className="filter-select" placeholder="Buscar folio, cliente..." value={busqueda} onChange={e => setBusqueda(e.target.value)} style={{ minWidth: 200 }} />
               <button className="btn btn-outline" onClick={cargar} disabled={loading}>↻ Actualizar</button>
               <button className="btn btn-primary" onClick={handleExportar} disabled={exporting || pedidos.length === 0}>
                 {exporting ? 'Exportando...' : '⬇ Excel'}
               </button>
             </>
+          ) : tab === 'cancelados' ? (
+            <>
+              <input type="text" className="filter-select" placeholder="Buscar folio, cliente..." value={busquedaCan} onChange={e => setBusquedaCan(e.target.value)} style={{ minWidth: 200 }} />
+              <button className="btn btn-outline" onClick={cargarCancelados} disabled={loadingCan}>↻ Actualizar</button>
+            </>
+          ) : tab === 'Por cobrar' ? (
+            <>
+              <input type="text" className="filter-select" placeholder="Buscar folio, cliente..." value={busquedaPorCobrar} onChange={e => setBusquedaPorCobrar(e.target.value)} style={{ minWidth: 200 }} />
+              <button className="btn btn-outline" onClick={() => { cargar(); cargarPendientes() }} disabled={loading || loadingPend}>↻ Actualizar</button>
+            </>
+          ) : tab === 'Anticipo' ? (
+            <>
+              <input type="text" className="filter-select" placeholder="Buscar folio, cliente..." value={busquedaAnticipo} onChange={e => setBusquedaAnticipo(e.target.value)} style={{ minWidth: 200 }} />
+              <button className="btn btn-outline" onClick={() => { cargar(); cargarPendientes() }} disabled={loading || loadingPend}>↻ Actualizar</button>
+            </>
           ) : (
             <>
-              <input
-                type="text"
-                className="filter-select"
-                placeholder="Buscar folio, cliente..."
-                value={busquedaCan}
-                onChange={e => setBusquedaCan(e.target.value)}
-                style={{ minWidth: 200 }}
-              />
-              <button className="btn btn-outline" onClick={cargarCancelados} disabled={loadingCan}>↻ Actualizar</button>
+              <input type="text" className="filter-select" placeholder="Buscar folio, cliente..." value={busquedaPend} onChange={e => setBusquedaPend(e.target.value)} style={{ minWidth: 200 }} />
+              <button className="btn btn-outline" onClick={cargarPendientes} disabled={loadingPend}>↻ Actualizar</button>
             </>
           )}
         </div>
       </div>
 
       <div className="page-body">
+
         {/* Filtros de fecha */}
         <div className="filter-bar" style={{ marginBottom: 20 }}>
           <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Desde:</span>
-          <input
-            type="date" className="filter-select"
-            value={fechaDesde}
-            onChange={e => setFechaDesde(e.target.value)}
-          />
+          <input type="date" className="filter-select" value={fechaDesde} onChange={e => setFechaDesde(e.target.value)} />
           <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Hasta:</span>
-          <input
-            type="date" className="filter-select"
-            value={fechaHasta}
-            onChange={e => setFechaHasta(e.target.value)}
-          />
-          <button
-            className="btn btn-outline btn-sm"
-            onClick={() => { setFechaDesde(lunesMX()); setFechaHasta(hoyMX()) }}
-          >
+          <input type="date" className="filter-select" value={fechaHasta} onChange={e => setFechaHasta(e.target.value)} />
+          <button className="btn btn-outline btn-sm" onClick={() => { setFechaDesde(lunesMX()); setFechaHasta(hoyMX()) }}>
             Esta semana
           </button>
           {tab === 'entregados' && (
             <>
               <div style={{ width: 1, background: 'var(--border)', alignSelf: 'stretch', margin: '0 4px' }} />
               {[{ val: null, label: 'Todos' }, { val: 'LIQUIDADO', label: 'Liquidado' }, { val: 'ANTICIPO', label: 'Anticipo' }].map(({ val, label }) => (
-                <button
-                  key={label}
-                  className={filtroPago === val ? 'btn btn-primary btn-sm' : 'btn btn-outline btn-sm'}
-                  onClick={() => setFiltroPago(val)}
-                >
+                <button key={label} className={filtroPago === val ? 'btn btn-primary btn-sm' : 'btn btn-outline btn-sm'} onClick={() => setFiltroPago(val)}>
                   {label}
                 </button>
               ))}
@@ -429,12 +763,9 @@ export default function HistorialVentas() {
               </div>
               <div className="stat-card">
                 <div className="stat-label">Total acumulado</div>
-                <div className="stat-value" style={{ fontSize: 18, color: 'var(--accent)' }}>
-                  ${fmt5(totalAcumulado)}
-                </div>
+                <div className="stat-value" style={{ fontSize: 18, color: 'var(--accent)' }}>${fmt5(totalAcumulado)}</div>
               </div>
             </div>
-
             {loading ? (
               <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>Cargando ventas...</div>
             ) : error ? (
@@ -452,12 +783,8 @@ export default function HistorialVentas() {
                     <table className="table">
                       <thead>
                         <tr>
-                          <th>Folio</th>
-                          <th>Entregado</th>
-                          <th>Cliente</th>
-                          <th>Pago</th>
-                          <th style={{ textAlign: 'right' }}>Total</th>
-                          <th style={{ width: 100 }}></th>
+                          <th>Folio</th><th>Entregado</th><th>Cliente</th><th>Pago</th>
+                          <th style={{ textAlign: 'right' }}>Total</th><th style={{ width: 100 }}></th>
                         </tr>
                       </thead>
                       <tbody>
@@ -468,11 +795,7 @@ export default function HistorialVentas() {
                             <td style={{ fontWeight: 500 }}>{p.clienteNombre}</td>
                             <td>{formaPagoBadge(p.forma_pago)}</td>
                             <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--accent)' }}>${fmt5(p.total)}</td>
-                            <td>
-                              <button className="btn btn-outline btn-sm" onClick={e => { e.stopPropagation(); setSeleccionado(p) }}>
-                                Ver detalle
-                              </button>
-                            </td>
+                            <td><button className="btn btn-outline btn-sm" onClick={e => { e.stopPropagation(); setSeleccionado(p) }}>Ver detalle</button></td>
                           </tr>
                         ))}
                       </tbody>
@@ -521,12 +844,9 @@ export default function HistorialVentas() {
               </div>
               <div className="stat-card">
                 <div className="stat-label">Total cancelado</div>
-                <div className="stat-value" style={{ fontSize: 18, color: '#dc2626' }}>
-                  ${fmt5(totalCancelado)}
-                </div>
+                <div className="stat-value" style={{ fontSize: 18, color: '#dc2626' }}>${fmt5(totalCancelado)}</div>
               </div>
             </div>
-
             {loadingCan ? (
               <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>Cargando cancelados...</div>
             ) : errorCan ? (
@@ -544,11 +864,8 @@ export default function HistorialVentas() {
                     <table className="table">
                       <thead>
                         <tr>
-                          <th>Folio</th>
-                          <th>Fecha creación</th>
-                          <th>Cliente</th>
-                          <th style={{ textAlign: 'right' }}>Total</th>
-                          <th style={{ width: 100 }}></th>
+                          <th>Folio</th><th>Fecha creación</th><th>Cliente</th>
+                          <th style={{ textAlign: 'right' }}>Total</th><th style={{ width: 100 }}></th>
                         </tr>
                       </thead>
                       <tbody>
@@ -558,11 +875,7 @@ export default function HistorialVentas() {
                             <td style={{ fontSize: 14, color: 'var(--text-muted)' }}>{p.fecha}</td>
                             <td style={{ fontWeight: 500 }}>{p.clienteNombre}</td>
                             <td style={{ textAlign: 'right', fontWeight: 700, color: '#dc2626' }}>${fmt5(p.total)}</td>
-                            <td>
-                              <button className="btn btn-outline btn-sm" onClick={e => { e.stopPropagation(); setSeleccionado(p) }}>
-                                Ver detalle
-                              </button>
-                            </td>
+                            <td><button className="btn btn-outline btn-sm" onClick={e => { e.stopPropagation(); setSeleccionado(p) }}>Ver detalle</button></td>
                           </tr>
                         ))}
                       </tbody>
@@ -591,12 +904,297 @@ export default function HistorialVentas() {
             )}
           </>
         )}
+
+        {/* ── TAB: POR COBRAR ── */}
+        {tab === 'Por cobrar' && (
+          <>
+            <div className="stats-row">
+              <div className="stat-card">
+                <div className="stat-label">Por cobrar</div>
+                <div className="stat-value">{filteredCob.length}</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-label">Total por cobrar</div>
+                <div className="stat-value" style={{ fontSize: 18, color: 'var(--accent)' }}>
+                  ${fmt5(filteredCob.reduce((s, p) => s + p.total, 0))}
+                </div>
+              </div>
+            </div>
+            {loading || loadingPend ? (
+              <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>Cargando...</div>
+            ) : filteredCob.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-state-icon">✅</div>
+                <h3>Sin pedidos por cobrar</h3>
+              </div>
+            ) : (
+              <>
+                <div className="hist-desktop">
+                  <div className="table-container">
+                    <table className="table">
+                      <thead>
+                        <tr>
+                          <th>Folio</th><th>Estado</th><th>Cliente</th>
+                          <th style={{ textAlign: 'right' }}>Total</th><th style={{ width: 100 }}></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredCob.map(p => (
+                          <tr key={p.id} style={{ cursor: 'pointer' }} onClick={() => setSeleccionado(p)}>
+                            <td><span className="badge badge-blue">{p.folio}</span></td>
+                            <td>
+                              {p.estatus === 'PENDIENTE'
+                                ? <span className="badge badge-orange">Sin entregar</span>
+                                : <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{p.fechaEntrega}</span>}
+                            </td>
+                            <td style={{ fontWeight: 500 }}>{p.clienteNombre}</td>
+                            <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--accent)' }}>${fmt5(p.total)}</td>
+                            <td>
+                              <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
+                                {p.estatus === 'PENDIENTE' && (
+                                  <button className="btn btn-primary btn-sm" onClick={e => { e.stopPropagation(); setCobrarPedido(p) }}>💰 Cobrar</button>
+                                )}
+                                <button className="btn btn-outline btn-sm" onClick={e => { e.stopPropagation(); setSeleccionado(p) }}>Ver</button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    <div style={{ padding: '12px 18px', textAlign: 'right', fontWeight: 700, fontSize: 15, borderTop: '1px solid var(--border)', color: 'var(--accent)' }}>
+                      Total: ${fmt5(filteredCob.reduce((s, p) => s + p.total, 0))}
+                    </div>
+                  </div>
+                </div>
+                <div className="hist-mobile">
+                  {filteredCob.map(p => (
+                    <div key={p.id} className="hist-card" onClick={() => setSeleccionado(p)}>
+                      <div className="hist-card-header">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span className="badge badge-blue">{p.folio}</span>
+                          {p.estatus === 'PENDIENTE'
+                            ? <span className="badge badge-orange">Pendiente</span>
+                            : <span className="badge badge-blue">Entregado</span>}
+                        </div>
+                        <span style={{ fontWeight: 700, fontSize: 17, color: 'var(--accent)' }}>${fmt5(p.total)}</span>
+                      </div>
+                      <div className="hist-card-body">
+                        <div style={{ fontWeight: 600, fontSize: 15 }}>{p.clienteNombre}</div>
+                        <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 3 }}>
+                          {p.estatus === 'PENDIENTE' ? `Creado: ${p.fecha}` : `Entregado: ${p.fechaEntrega}`}
+                        </div>
+                      </div>
+                      <div className="hist-card-footer">
+                        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{p.fecha}</span>
+                        <button className="btn btn-outline btn-sm" onClick={e => { e.stopPropagation(); setSeleccionado(p) }}>Ver detalle</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </>
+        )}
+
+        {/* ── TAB: ANTICIPO ── */}
+        {tab === 'Anticipo' && (
+          <>
+            <div className="stats-row">
+              <div className="stat-card">
+                <div className="stat-label">Con anticipo</div>
+                <div className="stat-value">{filteredAntic.length}</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-label">Total</div>
+                <div className="stat-value" style={{ fontSize: 18, color: 'var(--accent)' }}>
+                  ${fmt5(filteredAntic.reduce((s, p) => s + p.total, 0))}
+                </div>
+              </div>
+            </div>
+            {loading || loadingPend ? (
+              <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>Cargando...</div>
+            ) : filteredAntic.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-state-icon">💰</div>
+                <h3>Sin pedidos con anticipo</h3>
+              </div>
+            ) : (
+              <>
+                <div className="hist-desktop">
+                  <div className="table-container">
+                    <table className="table">
+                      <thead>
+                        <tr>
+                          <th>Folio</th><th>Estado</th><th>Cliente</th>
+                          <th style={{ textAlign: 'right' }}>Anticipo</th>
+                          <th style={{ textAlign: 'right' }}>Total</th>
+                          <th style={{ width: 100 }}></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredAntic.map(p => (
+                          <tr key={p.id} style={{ cursor: 'pointer' }} onClick={() => setSeleccionado(p)}>
+                            <td><span className="badge badge-blue">{p.folio}</span></td>
+                            <td>
+                              {p.estatus === 'PENDIENTE'
+                                ? <span className="badge badge-orange">Sin entregar</span>
+                                : <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{p.fechaEntrega}</span>}
+                            </td>
+                            <td style={{ fontWeight: 500 }}>{p.clienteNombre}</td>
+                            <td style={{ textAlign: 'right', color: 'var(--text-muted)' }}>${fmt5(p.anticipo)}</td>
+                            <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--accent)' }}>${fmt5(p.total)}</td>
+                            <td>
+                              <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
+                                {p.estatus === 'PENDIENTE' && (
+                                  <button className="btn btn-primary btn-sm" onClick={e => { e.stopPropagation(); setCobrarPedido(p) }}>💰 Cobrar</button>
+                                )}
+                                <button className="btn btn-outline btn-sm" onClick={e => { e.stopPropagation(); setSeleccionado(p) }}>Ver</button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    <div style={{ padding: '12px 18px', textAlign: 'right', fontWeight: 700, fontSize: 15, borderTop: '1px solid var(--border)', color: 'var(--accent)' }}>
+                      Total: ${fmt5(filteredAntic.reduce((s, p) => s + p.total, 0))}
+                    </div>
+                  </div>
+                </div>
+                <div className="hist-mobile">
+                  {filteredAntic.map(p => (
+                    <div key={p.id} className="hist-card" onClick={() => setSeleccionado(p)}>
+                      <div className="hist-card-header">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span className="badge badge-blue">{p.folio}</span>
+                          {p.estatus === 'PENDIENTE'
+                            ? <span className="badge badge-orange">Pendiente</span>
+                            : <span className="badge badge-blue">Entregado</span>}
+                        </div>
+                        <span style={{ fontWeight: 700, fontSize: 17, color: 'var(--accent)' }}>${fmt5(p.total)}</span>
+                      </div>
+                      <div className="hist-card-body">
+                        <div style={{ fontWeight: 600, fontSize: 15 }}>{p.clienteNombre}</div>
+                        <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 3 }}>
+                          {p.estatus === 'PENDIENTE' ? `Creado: ${p.fecha}` : `Entregado: ${p.fechaEntrega}`}
+                        </div>
+                      </div>
+                      <div className="hist-card-footer">
+                        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Anticipo: ${fmt5(p.anticipo)}</span>
+                        <button className="btn btn-outline btn-sm" onClick={e => { e.stopPropagation(); setSeleccionado(p) }}>Ver detalle</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </>
+        )}
+
+        {/* ── TAB: PENDIENTES ── */}
+        {tab === 'pendientes' && (
+          <>
+            <div className="stats-row">
+              <div className="stat-card">
+                <div className="stat-label">Pedidos pendientes</div>
+                <div className="stat-value">{filteredPend.length}</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-label">Total pendiente</div>
+                <div className="stat-value" style={{ fontSize: 18, color: 'var(--accent)' }}>
+                  ${fmt5(filteredPend.reduce((s, p) => s + p.total, 0))}
+                </div>
+              </div>
+            </div>
+            {loadingPend ? (
+              <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>Cargando...</div>
+            ) : errorPend ? (
+              <div className="alert alert-error">❌ {errorPend}</div>
+            ) : filteredPend.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-state-icon">✅</div>
+                <h3>Sin pedidos pendientes</h3>
+              </div>
+            ) : (
+              <>
+                <div className="hist-desktop">
+                  <div className="table-container">
+                    <table className="table">
+                      <thead>
+                        <tr>
+                          <th>Folio</th><th>Fecha</th><th>Cliente</th><th>Pago</th>
+                          <th style={{ textAlign: 'right' }}>Total</th><th style={{ width: 100 }}></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredPend.map(p => (
+                          <tr key={p.id} style={{ cursor: 'pointer' }} onClick={() => setSeleccionado(p)}>
+                            <td><span className="badge badge-blue">{p.folio}</span></td>
+                            <td style={{ fontSize: 14, color: 'var(--text-muted)' }}>{p.fecha}</td>
+                            <td style={{ fontWeight: 500 }}>{p.clienteNombre}</td>
+                            <td>{formaPagoBadge(p.tipo_pago)}</td>
+                            <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--accent)' }}>${fmt5(p.total)}</td>
+                            <td><button className="btn btn-outline btn-sm" onClick={e => { e.stopPropagation(); setSeleccionado(p) }}>Ver detalle</button></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    <div style={{ padding: '12px 18px', textAlign: 'right', fontWeight: 700, fontSize: 15, borderTop: '1px solid var(--border)', color: 'var(--accent)' }}>
+                      Total: ${fmt5(filteredPend.reduce((s, p) => s + p.total, 0))}
+                    </div>
+                  </div>
+                </div>
+                <div className="hist-mobile">
+                  {filteredPend.map(p => (
+                    <div key={p.id} className="hist-card" onClick={() => setSeleccionado(p)}>
+                      <div className="hist-card-header">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span className="badge badge-blue">{p.folio}</span>
+                          {formaPagoBadge(p.tipo_pago)}
+                        </div>
+                        <span style={{ fontWeight: 700, fontSize: 17, color: 'var(--accent)' }}>${fmt5(p.total)}</span>
+                      </div>
+                      <div className="hist-card-body">
+                        <div style={{ fontWeight: 600, fontSize: 15 }}>{p.clienteNombre}</div>
+                        <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 3 }}>Creado: {p.fecha}</div>
+                      </div>
+                      <div className="hist-card-footer">
+                        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{p.hora}</span>
+                        <button className="btn btn-outline btn-sm" onClick={e => { e.stopPropagation(); setSeleccionado(p) }}>Ver detalle</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </>
+        )}
+
       </div>
 
       {seleccionado && (
         <DetalleVentaModal
           resumen={seleccionado}
           onClose={() => setSeleccionado(null)}
+          onFacturar={(r) => { setSeleccionado(null); setFacturarPedido(r) }}
+        />
+      )}
+
+      {facturarPedido && (
+        <FacturarModal
+          resumen={facturarPedido}
+          onClose={() => setFacturarPedido(null)}
+        />
+      )}
+
+      {cobrarPedido && (
+        <CobrarModal
+          resumen={cobrarPedido}
+          onClose={() => setCobrarPedido(null)}
+          onSuccess={() => {
+            setCobrarPedido(null)
+            cargar()
+            cargarPendientes()
+          }}
         />
       )}
     </>

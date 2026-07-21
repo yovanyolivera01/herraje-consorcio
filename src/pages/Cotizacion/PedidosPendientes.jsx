@@ -579,6 +579,29 @@ function DetalleMaquilaModal({ resumen, onClose, onActualizado }) {
                     </div>
                   )
                 })}
+
+                {(detalle.extras ?? []).length > 0 && (
+                  <>
+                    {detalle.partidas.length > 0 && (
+                      <div style={{ fontWeight:700, fontSize:12, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:1, margin:'12px 0 6px' }}>
+                        Extras
+                      </div>
+                    )}
+                    {detalle.extras.map((e, i) => (
+                      <div key={i} style={{ border:'1px solid var(--border)', borderRadius:8, padding:'8px 14px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <div style={{ fontWeight:600, fontSize:13 }}>{e.descripcion}</div>
+                          {e.precio_unitario != null && (
+                            <div style={{ fontSize:11, color:'var(--text-muted)', marginTop:2 }}>
+                              {e.cantidad} {e.unidad} × ${Number(e.precio_unitario).toFixed(2)}
+                            </div>
+                          )}
+                        </div>
+                        <span style={{ fontWeight:700, color:'var(--accent)', fontSize:14, flexShrink:0 }}>${fmt5(e.subtotal)}</span>
+                      </div>
+                    ))}
+                  </>
+                )}
               </div>
             </>
           )}
@@ -598,18 +621,33 @@ function DetalleMaquilaModal({ resumen, onClose, onActualizado }) {
               anticipo:     detalle.anticipo,
               saldo:        detalle.saldo,
               esEntregado:  false,
-              partidas:     detalle.partidas.map(p => ({
-                tipo:             'MAQUILA',
-                piezas:           p.cantidad ?? 1,
-                cantidad:         p.cantidad ?? 1,
-                largo_cm:         p.largo_cm,
-                ancho_cm:         p.ancho_cm,
-                clave:            p.descripcion || null,
-                descripcion:      p.descripcion,
-                subtotal_partida: p.subtotal_partida,
-                subtotal_vidrio:  null,
-                procesos:         (p.procesos ?? []).map(pr => ({ nombre: pr.nombre, precio_unitario: pr.precio_unitario ?? null, subtotal: pr.subtotal })),
-              })),
+              partidas:     [
+                ...detalle.partidas.map(p => ({
+                  tipo:             'MAQUILA',
+                  piezas:           p.cantidad ?? 1,
+                  cantidad:         p.cantidad ?? 1,
+                  largo_cm:         p.largo_cm,
+                  ancho_cm:         p.ancho_cm,
+                  clave:            p.descripcion || null,
+                  descripcion:      p.descripcion,
+                  subtotal_partida: p.subtotal_partida,
+                  subtotal_vidrio:  null,
+                  procesos:         (p.procesos ?? []).map(pr => ({ nombre: pr.nombre, precio_unitario: pr.precio_unitario ?? null, subtotal: pr.subtotal })),
+                  notas:            null,
+                })),
+                ...(detalle.extras ?? []).map(e => ({
+                  tipo:             'MAQUILA',
+                  descripcion:      e.descripcion,
+                  cantidad:         e.cantidad ?? 1,
+                  piezas:           e.cantidad ?? 1,
+                  largo_cm:         null,
+                  ancho_cm:         null,
+                  subtotal_partida: Number(e.subtotal),
+                  subtotal_vidrio:  null,
+                  procesos:         [],
+                  notas:            e.notas ?? null,
+                })),
+              ],
             }
             return (<>
               <button className="btn btn-outline" onClick={() => printTicketVidrio(detalleMaq)}>🖨️ Ticket</button>
@@ -726,9 +764,10 @@ export default function PedidosPendientes() {
         <button className={`btn ${tab === 'pendientes' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setTab('pendientes')}>
           📦 Pendientes
         </button>
-        <button className={`btn ${tab === 'credito' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setTab('credito')}>
+        {/* Moved to Historial de Ventas → Por cobrar tab */}
+        {/* <button className={`btn ${tab === 'credito' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setTab('credito')}>
           💳 Por cobrar
-        </button>
+        </button> */}
       </div>
 
       <div className="page-body">

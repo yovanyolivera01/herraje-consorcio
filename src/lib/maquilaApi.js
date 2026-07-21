@@ -134,6 +134,8 @@ export const getPedidosPendientesMaquila = async () => {
       anticipo:           Number(row.monto_anticipo),
       saldo:              Number(row.saldo_pendiente),
       estatus:            row.estatus,
+      tipo_pago:          row.tipo_pago      ?? null,
+      fechaCreacionISO:   row.fecha_pedido,
       partidasPendientes: Number(row.partidas_pendientes ?? 0),
       numPartidas:        Number(row.partidas_total      ?? 0),
     }
@@ -156,6 +158,15 @@ export const getDetallePedidoMaquila = async (id_pedido) => {
     anticipo:        Number(row.monto_anticipo),
     saldo:           Number(row.saldo_pendiente),
     estatus:         row.estatus,
+    extras:          (row.extras ?? []).map(e => ({
+      tipo:            e.tipo,
+      descripcion:     e.descripcion ?? '',
+      unidad:          e.unidad ?? 'pza',
+      cantidad:        Number(e.cantidad),
+      precio_unitario: e.precio_unitario != null ? Number(e.precio_unitario) : null,
+      subtotal:        Number(e.subtotal),
+      notas:           e.notas ?? null,
+    })),
     partidas: (row.partidas ?? []).map(pm => ({
       id:                pm.id_partida_ped_maq,
       descripcion:       pm.descripcion       ?? '',
