@@ -70,6 +70,8 @@ export const guardarPrecio = async ({ id_tipo_vidrio, id_nivel_precio, precio_m2
 
 export const getClientes = async () => apiFetch('/clientes')
 
+export const getClienteEmpresa = async (id_cliente) => apiFetch(`/clientes/${id_cliente}/empresa`)
+
 export const createCliente = async ({ nombre, telefono, correo, id_nivel_precio }) =>
   apiFetch('/clientes', { method: 'POST', body: { nombre, telefono: telefono || null, correo: correo || null, id_nivel_precio: id_nivel_precio || null } })
 

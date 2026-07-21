@@ -3,8 +3,16 @@ import { fmt5, hoyMX, lunesMX } from '../../lib/utils'
 import * as XLSX from 'xlsx'
 import { getPedidosEntregados, getDetallePedido, getPedidosParaExport, getPedidosCancelados, getPedidosPendientes, marcarComoEntregado } from '../../lib/pedidosApi'
 import { getPedidosPendientesMaquila } from '../../lib/maquilaApi'
+import { getClientes } from '../../lib/cotizacionApi'
 import { crearCFDI, getCFDIPdfUrl, getCFDIXmlUrl } from '../../lib/facturamaApi'
 import { printTicketVidrio, printPedidoA4 } from '../../utils/ticket'
+
+function parseMaqNotas(notas) {
+  try {
+    const parsed = notas ? JSON.parse(notas) : null
+    return parsed && typeof parsed === 'object' ? parsed : null
+  } catch { return null }
+}
 
 // ── Ticket de pedido entregado ────────────────────────────────────────────
 function TicketVenta({ detalle }) {
@@ -53,7 +61,9 @@ function TicketVenta({ detalle }) {
               ? 'Maquila / Productos'
               : detalle.extras[0].tipo === 'MAQUILA' ? 'Maquila' : 'Productos'}
           </div>
-          {detalle.extras.map((e, i) => (
+          {detalle.extras.map((e, i) => {
+            const maqNotas = parseMaqNotas(e.notas)
+            return (
             <div key={i} style={{ marginBottom: 8 }}>
               <div className="ticket-row" style={{ fontWeight: 600, fontSize: 12 }}>
                 <span>{e.cantidad} {e.unidad} — {e.descripcion}</span>
@@ -61,10 +71,17 @@ function TicketVenta({ detalle }) {
               </div>
               <div style={{ fontSize: 11, color: 'var(--text-muted)', paddingLeft: 14 }}>
                 ${Number(e.precio_unitario).toFixed(2)}/u
-                {e.notas ? ` · ${e.notas}` : ''}
+                {!maqNotas && e.notas ? ` · ${e.notas}` : ''}
               </div>
+              {(maqNotas?.procesos ?? []).map((pr, j) => (
+                <div key={j} className="ticket-row" style={{ fontSize: 11, paddingLeft: 14 }}>
+                  <span>+ {pr.nombre}</span>
+                  <span>${fmt5(pr.subtotal)}</span>
+                </div>
+              ))}
             </div>
-          ))}
+            )
+          })}
         </>
       )}
 
@@ -93,7 +110,7 @@ function TicketVenta({ detalle }) {
 }
 
 // ── Modal detalle de venta ────────────────────────────────────────────────
-function DetalleVentaModal({ resumen, onClose, onFacturar }) {
+function DetalleVentaModal({ resumen, onClose, onFacturar, onCobrar }) {
   const [detalle, setDetalle] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -125,6 +142,11 @@ function DetalleVentaModal({ resumen, onClose, onFacturar }) {
         </div>
         <div className="modal-footer">
           <button className="btn btn-outline" onClick={onClose}>Cerrar</button>
+          {onCobrar && resumen.estatus === 'PENDIENTE' && (
+            <button className="btn btn-primary" onClick={() => { onClose(); onCobrar(resumen) }}>
+              💰 Cobrar
+            </button>
+          )}
           {onFacturar && !resumen.esCancelado && (
             <button className="btn btn-outline" style={{ borderColor: '#6366f1', color: '#6366f1' }} onClick={() => onFacturar(resumen)}>
               🧾 Facturar
@@ -223,15 +245,34 @@ function FacturarModal({ resumen, onClose }) {
   const [formaPago,  setFormaPago]  = useState('01')
   const [metodoPago, setMetodoPago] = useState('PUE')
 
-  const [loading, setLoading] = useState(false)
-  const [error,   setError]   = useState(null)
-  const [cfdi,    setCfdi]    = useState(null)
+  const [loading,   setLoading]   = useState(false)
+  const [error,     setError]     = useState(null)
+  const [cfdi,      setCfdi]      = useState(null)
+  const [clientes,  setClientes]  = useState([])
+  const [clienteSel, setClienteSel] = useState('publico')
 
-  const fillPublico = () => {
-    setRfc('XAXX010101000')
-    setNombre('PUBLICO EN GENERAL')
-    setRegimen('616')
-    setUsoCfdi('S01')
+  useEffect(() => {
+    getClientes().then(setClientes).catch(() => {})
+  }, [])
+
+  const handleSelectCliente = (val) => {
+    setClienteSel(val)
+    if (val === 'publico') {
+      setRfc('XAXX010101000')
+      setNombre('PUBLICO EN GENERAL')
+      setCpFiscal('')
+      setRegimen('616')
+      setUsoCfdi('S01')
+    } else if (val) {
+      const c = clientes.find(x => x.id_cliente === Number(val))
+      if (c) {
+        setRfc(c.rfc ?? '')
+        setNombre(c.razon_social || c.nombre || '')
+        setCpFiscal(c.cp_fiscal ?? '')
+        setRegimen(c.regimen_fiscal ?? '616')
+        setUsoCfdi(c.uso_cfdi ?? 'S01')
+      }
+    }
   }
 
   const handleGenerar = async () => {
@@ -310,9 +351,15 @@ function FacturarModal({ resumen, onClose }) {
           <button className="btn-icon" onClick={onClose}>✕</button>
         </div>
         <div className="modal-body">
-          <button className="btn btn-outline btn-sm" style={{ marginBottom: 16 }} onClick={fillPublico}>
-            👤 Público en general
-          </button>
+          <div className="form-group" style={{ marginBottom: 16 }}>
+            <label className="form-label">Cliente</label>
+            <select className="form-select" value={clienteSel} onChange={e => handleSelectCliente(e.target.value)}>
+              <option value="publico">👤 Público en general</option>
+              {clientes.map(c => (
+                <option key={c.id_cliente} value={c.id_cliente}>{c.nombre}</option>
+              ))}
+            </select>
+          </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div className="form-group">
@@ -329,25 +376,25 @@ function FacturarModal({ resumen, onClose }) {
             </div>
             <div className="form-group">
               <label className="form-label required">Régimen fiscal receptor</label>
-              <select className="filter-select" value={regimen} onChange={e => setRegimen(e.target.value)}>
+              <select className="form-select" value={regimen} onChange={e => setRegimen(e.target.value)}>
                 {REGIMENES.map(([val, label]) => <option key={val} value={val}>{label}</option>)}
               </select>
             </div>
             <div className="form-group">
               <label className="form-label required">Uso CFDI</label>
-              <select className="filter-select" value={usoCfdi} onChange={e => setUsoCfdi(e.target.value)}>
+              <select className="form-select" value={usoCfdi} onChange={e => setUsoCfdi(e.target.value)}>
                 {USOS_CFDI.map(([val, label]) => <option key={val} value={val}>{label}</option>)}
               </select>
             </div>
             <div className="form-group">
               <label className="form-label required">Forma de pago</label>
-              <select className="filter-select" value={formaPago} onChange={e => setFormaPago(e.target.value)}>
+              <select className="form-select" value={formaPago} onChange={e => setFormaPago(e.target.value)}>
                 {FORMAS_PAGO.map(([val, label]) => <option key={val} value={val}>{label}</option>)}
               </select>
             </div>
             <div className="form-group">
               <label className="form-label required">Método de pago</label>
-              <select className="filter-select" value={metodoPago} onChange={e => setMetodoPago(e.target.value)}>
+              <select className="form-select" value={metodoPago} onChange={e => setMetodoPago(e.target.value)}>
                 <option value="PUE">PUE - Pago en una sola exhibición</option>
                 <option value="PPD">PPD - Pago en parcialidades o diferido</option>
               </select>
@@ -1176,6 +1223,7 @@ export default function HistorialVentas() {
           resumen={seleccionado}
           onClose={() => setSeleccionado(null)}
           onFacturar={(r) => { setSeleccionado(null); setFacturarPedido(r) }}
+          onCobrar={seleccionado.estatus === 'PENDIENTE' ? (r) => { setCobrarPedido(r) } : undefined}
         />
       )}
 

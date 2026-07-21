@@ -1,0 +1,6 @@
+ALTER TABLE cliente
+  ADD COLUMN IF NOT EXISTS rfc             VARCHAR(15),
+  ADD COLUMN IF NOT EXISTS razon_social    VARCHAR(255),
+  ADD COLUMN IF NOT EXISTS cp_fiscal       CHAR(5),
+  ADD COLUMN IF NOT EXISTS regimen_fiscal  VARCHAR(3),
+  ADD COLUMN IF NOT EXISTS uso_cfdi        VARCHAR(3);
