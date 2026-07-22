@@ -23,8 +23,8 @@ app.use(cors({ origin: process.env.FRONTEND_ORIGIN || '*' }))
 app.use(express.json())
 
 // API routes
-app.use('/api', herrajeRoutes)
 app.use('/api', cotizacionRoutes)
+app.use('/api', herrajeRoutes)
 app.use('/api', clientesRoutes)
 app.use('/api', pedidosRoutes)
 app.use('/api', personalRoutes)
