@@ -3,15 +3,90 @@ import { fmt5, hoyMX, lunesMX } from '../../lib/utils'
 import * as XLSX from 'xlsx'
 import { getPedidosEntregados, getDetallePedido, getPedidosParaExport, getPedidosCancelados, getPedidosPendientes, marcarComoEntregado } from '../../lib/pedidosApi'
 import { getPedidosPendientesMaquila } from '../../lib/maquilaApi'
-import { getClientes } from '../../lib/cotizacionApi'
 import { crearCFDI, getCFDIPdfUrl, getCFDIXmlUrl } from '../../lib/facturamaApi'
 import { printTicketVidrio, printPedidoA4 } from '../../utils/ticket'
+import {getClientes} from '../../lib/clientesApi'
 
 function parseMaqNotas(notas) {
   try {
     const parsed = notas ? JSON.parse(notas) : null
     return parsed && typeof parsed === 'object' ? parsed : null
   } catch { return null }
+}
+
+function GlassIcon({ sides, largo, ancho }) {
+  const { top: t, bottom: b, left: l, right: r } = sides
+  if (t && b && l && r) return null
+  const W = 44, H = 34, lbH = 8, lbW = 14
+  const gx0 = lbW, gy0 = lbH, gx1 = W - 2, gy1 = H - lbH - 1
+  const cx = (gx0 + gx1) / 2, cy = (gy0 + gy1) / 2
+  const line = (ax, ay, bx, by, on, key) => (
+    <line key={key} x1={ax} y1={ay} x2={bx} y2={by}
+      stroke={on ? '#1B4DFF' : '#BBBBBB'} strokeWidth={on ? 2.5 : 1}
+      strokeDasharray={on ? undefined : '2,2'} />
+  )
+  return (
+    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ display: 'inline-block', verticalAlign: 'middle', flexShrink: 0, marginRight: 3 }}>
+      <rect x={gx0} y={gy0} width={gx1 - gx0} height={gy1 - gy0} fill="rgba(100,140,255,0.08)" />
+      {line(gx0, gy0, gx1, gy0, t, 't')}
+      {line(gx0, gy1, gx1, gy1, b, 'b')}
+      {line(gx0, gy0, gx0, gy1, l, 'l')}
+      {line(gx1, gy0, gx1, gy1, r, 'r')}
+      {(t || b) && (
+        <text x={cx} y={t ? gy0 - 3 : gy1 + 7} textAnchor="middle" fontSize={6} fontFamily="Arial,sans-serif" fontWeight={700} fill="#1B4DFF">{ancho}cm</text>
+      )}
+      {(l || r) && (
+        <text x={l ? gx0 - 1 : gx1 + 1} y={cy} textAnchor={l ? 'end' : 'start'} dominantBaseline="middle" fontSize={6} fontFamily="Arial,sans-serif" fontWeight={700} fill="#1B4DFF" transform={`rotate(-90,${l ? gx0 - 1 : gx1 + 1},${cy})`}>{largo}cm</text>
+      )}
+    </svg>
+  )
+}
+
+function ExtraMaquilaRow({ e }) {
+  const maqNotas = parseMaqNotas(e.notas)
+  const notasProcs = maqNotas?.procesos ?? []
+  const label = e.descripcion || ''
+  const dotIdx = label.indexOf(' · ')
+
+  if (e.tipo === 'MAQUILA' && dotIdx >= 0) {
+    const dimsStr = label.slice(0, dotIdx)
+    const procsStr = label.slice(dotIdx + 3)
+    const dm = dimsStr.match(/(\d+(?:\.\d+)?)×(\d+(?:\.\d+)?)cm/)
+    const pLargo = dm?.[1], pAncho = dm?.[2]
+    const procList = procsStr.split(', ')
+    return (
+      <div style={{ marginBottom: 8 }}>
+        <div className="ticket-row" style={{ fontWeight: 600, fontSize: 12 }}>
+          <span>{dimsStr}</span>
+          <span>${fmt5(Number(e.subtotal))}</span>
+        </div>
+        {procList.map((pr, i) => {
+          const sides = notasProcs[i]?.sidesML
+          const allSides = sides?.top && sides?.bottom && sides?.left && sides?.right
+          const txt = pr.replace(/\s*\[[TBLR]+\]/g, '')
+          return (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', fontSize: 11, paddingLeft: 10, color: 'var(--text-muted)' }}>
+              {sides && !allSides && pLargo && pAncho && <GlassIcon sides={sides} largo={pLargo} ancho={pAncho} />}
+              <span>+ {txt}</span>
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ marginBottom: 8 }}>
+      <div className="ticket-row" style={{ fontWeight: 600, fontSize: 12 }}>
+        <span>{e.cantidad} {e.unidad} — {e.descripcion}</span>
+        <span>${fmt5(Number(e.subtotal))}</span>
+      </div>
+      <div style={{ fontSize: 11, color: 'var(--text-muted)', paddingLeft: 14 }}>
+        ${Number(e.precio_unitario).toFixed(2)}/u
+        {!maqNotas && e.notas ? ` · ${e.notas}` : ''}
+      </div>
+    </div>
+  )
 }
 
 // ── Ticket de pedido entregado ────────────────────────────────────────────
@@ -44,6 +119,9 @@ function TicketVenta({ detalle }) {
           <div className="ticket-row" style={{ fontSize: 11, color: 'var(--text-muted)', paddingLeft: 10 }}>
             <span>{p.largo_cm} × {p.ancho_cm} cm</span>
           </div>
+          {p.descripcion_vidrio && (
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', paddingLeft: 10, marginBottom: 2 }}>{p.descripcion_vidrio}</div>
+          )}
           {p.procesos.map((pr, j) => (
             <div key={j} className="ticket-row" style={{ fontSize: 11, paddingLeft: 10 }}>
               <span>+ {pr.nombre}</span>
@@ -61,27 +139,7 @@ function TicketVenta({ detalle }) {
               ? 'Maquila / Productos'
               : detalle.extras[0].tipo === 'MAQUILA' ? 'Maquila' : 'Productos'}
           </div>
-          {detalle.extras.map((e, i) => {
-            const maqNotas = parseMaqNotas(e.notas)
-            return (
-            <div key={i} style={{ marginBottom: 8 }}>
-              <div className="ticket-row" style={{ fontWeight: 600, fontSize: 12 }}>
-                <span>{e.cantidad} {e.unidad} — {e.descripcion}</span>
-                <span>${fmt5(Number(e.subtotal))}</span>
-              </div>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)', paddingLeft: 14 }}>
-                ${Number(e.precio_unitario).toFixed(2)}/u
-                {!maqNotas && e.notas ? ` · ${e.notas}` : ''}
-              </div>
-              {(maqNotas?.procesos ?? []).map((pr, j) => (
-                <div key={j} className="ticket-row" style={{ fontSize: 11, paddingLeft: 14 }}>
-                  <span>+ {pr.nombre}</span>
-                  <span>${fmt5(pr.subtotal)}</span>
-                </div>
-              ))}
-            </div>
-            )
-          })}
+          {detalle.extras.map((e, i) => <ExtraMaquilaRow key={i} e={e} />)}
         </>
       )}
 
@@ -178,6 +236,7 @@ function DetalleVentaModal({ resumen, onClose, onFacturar, onCobrar }) {
                   ancho_cm:         p.ancho_cm,
                   subtotal_vidrio:  p.subtotal_vidrio,
                   subtotal_partida: p.subtotal_partida,
+                  descripcion_vidrio: p.descripcion_vidrio,
                   procesos:         p.procesos ?? [],
                 })),
                 ...(detalle.extras ?? []).map(e => ({

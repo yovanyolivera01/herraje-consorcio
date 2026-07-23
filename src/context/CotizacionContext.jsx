@@ -4,6 +4,7 @@ import * as empApi from '../lib/empresasApi'
 import * as maqApi from '../lib/maquilaApi'
 import * as invApi from '../lib/inventarioVidrioApi'
 import * as prodApi from '../lib/productosGeneralesApi'
+import * as clienApi from '../lib/clientesApi'
 import { supabaseConfigured } from '../lib/supabase'
 
 const CotizacionContext = createContext()
@@ -35,7 +36,7 @@ export function CotizacionProvider({ children }) {
         api.getTiposVidrio(),
         api.getNivelesPrecio(),
         api.getPreciosVidrio(),
-        api.getClientes(),
+        clienApi.getClientes(),
         api.getProcesos(),
         api.getUnidadesCobro(),
         api.getPreciosProceso(),
@@ -86,8 +87,8 @@ export function CotizacionProvider({ children }) {
   const addTipoVidrio  = async (d)    => { const r = await wrap(api.createTipoVidrio)(d);    if (!r.error) setTiposVidrio(await api.getTiposVidrio()); return r }
   const editTipoVidrio = async (id,d) => { const r = await wrap(api.updateTipoVidrio)(id,d); if (!r.error) setTiposVidrio(await api.getTiposVidrio()); return r }
   const guardarPrecio  = async (d)    => { const r = await wrap(api.guardarPrecio)(d);       if (!r.error) setPrecios(await api.getPreciosVidrio()); return r }
-  const addCliente     = async (d)    => { const r = await wrap(api.createCliente)(d);       if (!r.error) setClientes(await api.getClientes()); return r }
-  const editCliente    = async (id,d) => { const r = await wrap(api.updateCliente)(id,d);    if (!r.error) setClientes(await api.getClientes()); return r }
+  const addCliente     = async (d)    => { const r = await wrap(clienApi.createCliente)(d);  if (!r.error) setClientes(await clienApi.getClientes()); return r }
+  const editCliente    = async (id,d) => { const r = await wrap(clienApi.updateCliente)(id,d);if (!r.error) setClientes(await clienApi.getClientes()); return r }
   const addProceso     = async (d)    => { const r = await wrap(api.createProceso)(d);       if (!r.error) setProcesos(await api.getProcesos()); return r }
   const editProceso    = async (id,d) => { const r = await wrap(api.updateProceso)(id,d);    if (!r.error) setProcesos(await api.getProcesos()); return r }
 
@@ -113,7 +114,7 @@ export function CotizacionProvider({ children }) {
   }
   const vincularClienteEmpresa = async (id_cliente, id_empresa) => {
     const r = await wrap(empApi.vincularClienteEmpresa)(id_cliente, id_empresa)
-    if (!r.error) setClientes(await api.getClientes())
+    if (!r.error) setClientes(await clienApi.getClientes())
     return r
   }
   const guardarPrecioEmpresa           = (p) => wrap(empApi.guardarPrecioEmpresa)(p)

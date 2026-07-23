@@ -361,8 +361,8 @@ router.post('/cotizaciones/:id/partidas', async (req, res) => {
     const { rows: pRows } = await client.query(`
       INSERT INTO partida_cotizacion
         (id_cotizacion, id_tipo_vidrio, piezas, largo_cm, ancho_cm, metros2, precio_m2_aplicado,
-         subtotal_vidrio, subtotal_procesos, subtotal_partida, es_hoja_completa)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *
+         subtotal_vidrio, subtotal_procesos, subtotal_partida, es_hoja_completa, observaciones)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *
     `, [
       req.params.id,
       partida.id_tipo_vidrio,
@@ -375,6 +375,7 @@ router.post('/cotizaciones/:id/partidas', async (req, res) => {
       partida.subtotal_procesos ?? 0,
       partida.subtotal_partida,
       partida.es_hoja_completa ?? false,
+      partida.observaciones || null,
     ])
 
     const p = pRows[0]
@@ -440,14 +441,14 @@ router.put('/cotizaciones/:id/actualizar', async (req, res) => {
       const { rows: pRows } = await client.query(`
         INSERT INTO partida_cotizacion
           (id_cotizacion, id_tipo_vidrio, piezas, largo_cm, ancho_cm, metros2,
-           precio_m2_aplicado, subtotal_vidrio, subtotal_procesos, subtotal_partida, es_hoja_completa)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id_partida
+           precio_m2_aplicado, subtotal_vidrio, subtotal_procesos, subtotal_partida, es_hoja_completa, observaciones)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id_partida
       `, [
         req.params.id, partida.id_tipo_vidrio, partida.piezas ?? 1,
         partida.largo_cm, partida.ancho_cm, partida.metros2,
         partida.precio_m2_aplicado, partida.subtotal_vidrio,
         partida.subtotal_procesos ?? 0, partida.subtotal_partida,
-        partida.es_hoja_completa ?? false,
+        partida.es_hoja_completa ?? false, partida.observaciones || null,
       ])
       if (partida.procesos?.length) {
         for (const proc of partida.procesos) {

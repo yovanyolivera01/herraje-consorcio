@@ -1,3 +1,6 @@
+
+---In production
+
 DROP FUNCTION IF EXISTS public.sp_crear_cliente(character varying, character varying, character varying, integer);
 
 CREATE OR REPLACE FUNCTION public.sp_crear_cliente

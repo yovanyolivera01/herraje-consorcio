@@ -66,17 +66,6 @@ export const getPreciosVidrio = async () => apiFetch('/precios-vidrio')
 export const guardarPrecio = async ({ id_tipo_vidrio, id_nivel_precio, precio_m2 }) =>
   apiFetch('/precios-vidrio', { method: 'POST', body: { id_tipo_vidrio, id_nivel_precio, precio_m2: Number(precio_m2) } })
 
-// ── Clientes ──────────────────────────────────────────────────────────────────
-
-export const getClientes = async () => apiFetch('/clientes')
-
-export const getClienteEmpresa = async (id_cliente) => apiFetch(`/clientes/${id_cliente}/empresa`)
-
-export const createCliente = async ({ nombre, telefono, correo, id_nivel_precio }) =>
-  apiFetch('/clientes', { method: 'POST', body: { nombre, telefono: telefono || null, correo: correo || null, id_nivel_precio: id_nivel_precio || null } })
-
-export const updateCliente = async (id_cliente, campos) =>
-  apiFetch(`/clientes/${id_cliente}`, { method: 'PUT', body: campos })
 
 // ── Procesos ──────────────────────────────────────────────────────────────────
 
@@ -189,6 +178,7 @@ export const getDetalleCotizacion = async (id) => {
       subtotal_procesos:  Number(p.subtotal_procesos),
       subtotal_partida:   Number(p.subtotal_partida),
       es_hoja_completa:   p.es_hoja_completa,
+      observaciones:      p.observaciones ?? '',
       procesos: (p.partida_proceso ?? []).map(pp => ({
         id:              pp.id_partida_proceso,
         id_proceso:      pp.id_proceso,

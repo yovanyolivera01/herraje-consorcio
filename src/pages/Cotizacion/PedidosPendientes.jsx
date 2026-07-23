@@ -417,6 +417,7 @@ function DetallePedidoModal({ resumen, onClose, onEntregado }) {
                       subtotal_vidrio: p.subtotal_vidrio,
                       procesos: p.procesos ?? [],
                       subtotal_partida: p.subtotal_partida,
+                      descripcion_vidrio: p.descripcion_vidrio,
                     })),
                     ...(detalle.extras ?? []).map(e => ({
                       tipo: e.tipo === 'HERRAJE' || e.tipo === 'PRODUCTO' ? e.tipo : 'MAQUILA',

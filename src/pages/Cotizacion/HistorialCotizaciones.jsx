@@ -79,7 +79,7 @@ function TicketPedido({ detalle }) {
     <div className="ticket-preview">
       <div className="ticket-header">
         <h2>VIDRIO TEMPLADO Y ALUMINIO ROSALES</h2>
-        <p style={{ fontWeight: 700 }}>ARTE EN VIDRIO</p>
+        <p style={{ fontStyle: 'italic', fontWeight: 700 }}>Calidad que se ve, confianza que perdura</p>
         <p>Pedido vidrio</p>
       </div>
       <hr className="ticket-divider" />
@@ -310,7 +310,7 @@ function PedidoCreadoModal({ detalle, onClose }) {
         subtotal_partida: p.subtotal_partida,
       })),
       ...(detalle.extras ?? []).map(e => ({
-        tipo:             e.tipo === 'HERRAJE' || e.tipo === 'PRODUCTO' ? e.tipo : 'MAQUILA',
+        tipo:             ['HERRAJE', 'PRODUCTO', 'EXTRA'].includes(e.tipo) ? e.tipo : 'MAQUILA',
         descripcion:      e.descripcion,
         cantidad:         e.cantidad,
         precio_unitario:  e.precio_unitario != null ? Number(e.precio_unitario) : null,
@@ -366,14 +366,90 @@ function PedidoCreadoModal({ detalle, onClose }) {
   )
 }
 
+function parseMaqNotasCot(notas) {
+  try {
+    const parsed = notas ? JSON.parse(notas) : null
+    return parsed && typeof parsed === 'object' ? parsed : null
+  } catch { return null }
+}
+
+function GlassIconCot({ sides, largo, ancho }) {
+  const { top: t, bottom: b, left: l, right: r } = sides
+  if (t && b && l && r) return null
+  const W = 44, H = 34, lbH = 8, lbW = 14
+  const gx0 = lbW, gy0 = lbH, gx1 = W - 2, gy1 = H - lbH - 1
+  const cx = (gx0 + gx1) / 2, cy = (gy0 + gy1) / 2
+  const line = (ax, ay, bx, by, on, key) => (
+    <line key={key} x1={ax} y1={ay} x2={bx} y2={by}
+      stroke={on ? '#1B4DFF' : '#BBBBBB'} strokeWidth={on ? 2.5 : 1}
+      strokeDasharray={on ? undefined : '2,2'} />
+  )
+  return (
+    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ display: 'inline-block', verticalAlign: 'middle', flexShrink: 0, marginRight: 3 }}>
+      <rect x={gx0} y={gy0} width={gx1 - gx0} height={gy1 - gy0} fill="rgba(100,140,255,0.08)" />
+      {line(gx0, gy0, gx1, gy0, t, 't')}
+      {line(gx0, gy1, gx1, gy1, b, 'b')}
+      {line(gx0, gy0, gx0, gy1, l, 'l')}
+      {line(gx1, gy0, gx1, gy1, r, 'r')}
+      {(t || b) && (
+        <text x={cx} y={t ? gy0 - 3 : gy1 + 7} textAnchor="middle" fontSize={6} fontFamily="Arial,sans-serif" fontWeight={700} fill="#1B4DFF">{ancho}cm</text>
+      )}
+      {(l || r) && (
+        <text x={l ? gx0 - 1 : gx1 + 1} y={cy} textAnchor={l ? 'end' : 'start'} dominantBaseline="middle" fontSize={6} fontFamily="Arial,sans-serif" fontWeight={700} fill="#1B4DFF" transform={`rotate(-90,${l ? gx0 - 1 : gx1 + 1},${cy})`}>{largo}cm</text>
+      )}
+    </svg>
+  )
+}
+
+function ExtraMaquilaRowCot({ e }) {
+  const maqNotas = parseMaqNotasCot(e.notas)
+  const notasProcs = maqNotas?.procesos ?? []
+  const label = e.descripcion || ''
+  const dotIdx = label.indexOf(' · ')
+
+  if (dotIdx >= 0) {
+    const dimsStr = label.slice(0, dotIdx)
+    const procsStr = label.slice(dotIdx + 3)
+    const dm = dimsStr.match(/(\d+(?:\.\d+)?)×(\d+(?:\.\d+)?)cm/)
+    const pLargo = dm?.[1], pAncho = dm?.[2]
+    const procList = procsStr.split(', ')
+    return (
+      <div style={{ marginBottom: 6 }}>
+        <div className="ticket-row" style={{ fontWeight: 600, fontSize: 12 }}>
+          <span>{dimsStr}</span>
+          <span>${fmt5(e.subtotal)}</span>
+        </div>
+        {procList.map((pr, i) => {
+          const sides = notasProcs[i]?.sidesML
+          const allSides = sides?.top && sides?.bottom && sides?.left && sides?.right
+          const txt = pr.replace(/\s*\[[TBLR]+\]/g, '')
+          return (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', fontSize: 11, paddingLeft: 10, color: 'var(--text-muted)' }}>
+              {sides && !allSides && pLargo && pAncho && <GlassIconCot sides={sides} largo={pLargo} ancho={pAncho} />}
+              <span>+ {txt}</span>
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+
+  return (
+    <div className="ticket-row" style={{ fontSize: 12, marginBottom: 4 }}>
+      <span>{e.cantidad} {e.unidad} — {e.descripcion}</span>
+      <span style={{ fontWeight: 700 }}>${fmt5(e.subtotal)}</span>
+    </div>
+  )
+}
+
 // ── Ticket de cotización (modal detalle) ──────────────────────────────────
 function TicketDetalleCot({ detalle }) {
   return (
     <div className="ticket-preview">
       <div className="ticket-header">
         <h2>VIDRIO TEMPLADO Y ALUMINIO ROSALES</h2>
-        <p style={{ fontWeight: 700 }}>ARTE EN VIDRIO</p>
-        <p>Pedido vidrio</p>
+        <p style={{ fontStyle: 'italic', fontWeight: 700 }}>Calidad que se ve, confianza que perdura</p>
+        <p>Cotizacion</p>
       </div>
       <hr className="ticket-divider" />
       <div className="ticket-row"><span>Folio:</span><strong>{detalle.folio}</strong></div>
@@ -397,6 +473,9 @@ function TicketDetalleCot({ detalle }) {
                 <span>{p.piezas ?? 1} · {p.tipoVidrio?.clave ?? '?'} · {p.largo_cm}×{p.ancho_cm}</span>
                 <span>${fmt5(p.subtotal_vidrio)}</span>
               </div>
+              {p.observaciones && (
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', paddingLeft: 10, marginBottom: 2 }}>{p.observaciones}</div>
+              )}
               {p.procesos.map((pr, j) => (
                 <div key={j} className="ticket-row" style={{ fontSize: 11, paddingLeft: 10 }}>
                   <span>+ {pr.nombre}</span>
@@ -416,9 +495,15 @@ function TicketDetalleCot({ detalle }) {
       {(detalle.extras ?? []).filter(e => e.tipo === 'MAQUILA').length > 0 && (
         <>
           <div style={{ fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.5px', borderBottom:'1px dashed #aaa', paddingBottom:2, margin:'5px 0 3px' }}>Maquila</div>
-          {(detalle.extras ?? []).filter(e => e.tipo === 'MAQUILA').map(e => (
+          {(detalle.extras ?? []).filter(e => e.tipo === 'MAQUILA').map(e => <ExtraMaquilaRowCot key={e.id} e={e} />)}
+        </>
+      )}
+      {(detalle.extras ?? []).filter(e => e.tipo === 'EXTRA').length > 0 && (
+        <>
+          <div style={{ fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.5px', borderBottom:'1px dashed #aaa', paddingBottom:2, margin:'5px 0 3px' }}>Proceso Extra</div>
+          {(detalle.extras ?? []).filter(e => e.tipo === 'EXTRA').map(e => (
             <div key={e.id} className="ticket-row" style={{ fontSize:12, marginBottom:4 }}>
-              <span>{e.cantidad} {e.unidad} — {e.descripcion}</span>
+              <span>{e.cantidad} · {e.descripcion}</span>
               <span style={{ fontWeight:700 }}>${fmt5(e.subtotal)}</span>
             </div>
           ))}
@@ -485,7 +570,7 @@ function DetalleModal({ resumen, onClose, onConvertir, onEditar }) {
         subtotal_partida: p.subtotal_partida,
       })),
       ...(detalle.extras ?? []).map(e => ({
-        tipo:             e.tipo === 'MAQUILA' ? 'MAQUILA' : 'PRODUCTO',
+        tipo:             ['MAQUILA', 'EXTRA'].includes(e.tipo) ? e.tipo : 'PRODUCTO',
         cantidad:         e.cantidad,
         unidad:           e.unidad,
         descripcion:      e.descripcion,

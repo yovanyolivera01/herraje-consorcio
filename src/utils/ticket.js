@@ -41,35 +41,37 @@ export function printTicketVidrio(detalle) {
     const procRows = (p.procesos ?? []).map(pr => {
       const cuPr  = Number(pr.subtotal) / pzas
       const totPr = cuPr * pzas
+      const allSides = pr.sidesML?.top && pr.sidesML?.bottom && pr.sidesML?.left && pr.sidesML?.right
+      const icon = (pr.sidesML && !allSides) ? glassIconSVG(pr.sidesML, p.largo_cm, p.ancho_cm) : ''
       return `
-      <div class="row5" style="padding-left:10px;font-size:11px">
-        <span class="c-cant"></span>
-        <span class="c-med"></span>
-        <span class="c-desc">+ ${pr.nombre}</span>
-        <span class="c-cu">$${cuPr.toFixed(2)}</span>
-        <span class="c-tot">$${totPr.toFixed(2)}</span>
-      </div>`
+      <tr style="font-size:11px">
+        <td colspan="3" style="padding-left:10px"><div style="display:flex;align-items:center">${icon}<span>+ ${pr.nombre}</span></div></td>
+        <td class="c-cu">$${cuPr.toFixed(2)}</td>
+        <td class="c-tot">$${totPr.toFixed(2)}</td>
+      </tr>`
     }).join('')
     const subtotalRow = hasProc ? `
-      <div class="row5" style="font-size:11px;font-weight:600;border-top:1px dashed #ccc;margin-top:2px;padding-top:2px">
-        <span class="c-cant"></span>
-        <span class="c-med"></span>
-        <span class="c-desc">Subtotal</span>
-        <span class="c-cu">$${(exactSubtotal / pzas).toFixed(2)}</span>
-        <span class="c-tot">$${exactSubtotal.toFixed(2)}</span>
-      </div>` : ''
+      <tr style="font-size:11px;font-weight:600;border-top:1px dashed #ccc">
+        <td colspan="3">Subtotal</td>
+        <td class="c-cu">$${(exactSubtotal / pzas).toFixed(2)}</td>
+        <td class="c-tot">$${exactSubtotal.toFixed(2)}</td>
+      </tr>` : ''
+    const descRow = p.descripcion_vidrio ? `
+      <tr>
+        <td></td>
+        <td colspan="4" style="font-size:11px;color:#555;padding-bottom:2px">${p.descripcion_vidrio}</td>
+      </tr>` : ''
     return `
-      <div class="partida">
-        <div class="row5 bold">
-          <span class="c-cant">${pzas}</span>
-          <span class="c-med">${p.largo_cm}×${p.ancho_cm}</span>
-          <span class="c-desc">${p.clave}</span>
-          <span class="c-cu">$${cuVid.toFixed(2)}</span>
-          <span class="c-tot">$${totVid.toFixed(2)}</span>
-        </div>
-        ${procRows}
-        ${subtotalRow}
-      </div>`
+      <tr class="bold">
+        <td class="c-cant">${pzas}</td>
+        <td class="c-med">${p.largo_cm}×${p.ancho_cm}</td>
+        <td>${p.clave}</td>
+        <td class="c-cu">$${cuVid.toFixed(2)}</td>
+        <td class="c-tot">$${totVid.toFixed(2)}</td>
+      </tr>
+      ${descRow}
+      ${procRows}
+      ${subtotalRow}`
   }
 
   const renderMaquila = p => {
@@ -79,9 +81,11 @@ export function printTicketVidrio(detalle) {
       const clave = (p.clave && p.clave !== dimStr) ? ` · ${p.clave}` : ''
       const procRows = (p.procesos ?? []).map(pr => {
         const cu = pr.precio_unitario != null ? ` · $${Number(pr.precio_unitario).toFixed(2)}` : ''
+        const allSides = pr.sidesML?.top && pr.sidesML?.bottom && pr.sidesML?.left && pr.sidesML?.right
+        const icon = (pr.sidesML && !allSides) ? glassIconSVG(pr.sidesML, p.largo_cm, p.ancho_cm) : ''
         return `
         <div class="row" style="padding-left:10px;font-size:12px">
-          <span>+${pr.nombre}${cu}</span><span>$${Number(pr.subtotal ?? 0).toFixed(2)}</span>
+          <span style="display:flex;align-items:center">${icon}<span>+${pr.nombre}${cu}</span></span><span>$${Number(pr.subtotal ?? 0).toFixed(2)}</span>
         </div>`
       }).join('')
       return `
@@ -107,7 +111,7 @@ export function printTicketVidrio(detalle) {
         const sides = notasProcs[i]?.sidesML
         const allSides = sides?.top && sides?.bottom && sides?.left && sides?.right
         const icon = (sides && !allSides && pLargo && pAncho) ? glassIconSVG(sides, pLargo, pAncho) : ''
-        const txt = icon ? pr.replace(/\s*\[[TBLR]+\]/g, '') : pr
+        const txt = pr.replace(/\s*\[[TBLR]+\]/g, '')
         return `<div style="display:flex;align-items:center;padding-left:10px;font-size:11px;margin-bottom:1px">${icon}<span>+${txt}</span></div>`
       }).join('')
       return `
@@ -139,13 +143,13 @@ export function printTicketVidrio(detalle) {
 
   const sectionLbl = text => `<div class="section-lbl">${text}</div>`
 
-  const colHeader = `<div class="row5 col-header">
-    <span class="c-cant">Cant</span>
-    <span class="c-med">Medida</span>
-    <span class="c-desc">Descripción</span>
-    <span class="c-cu">c/u</span>
-    <span class="c-tot">Total</span>
-  </div>`
+  const colHeader = `<table class="tbl-vidrio"><thead><tr>
+    <th class="c-cant">Cant</th>
+    <th class="c-med">Medida</th>
+    <th>Descripción</th>
+    <th class="c-cu">c/u</th>
+    <th class="c-tot">Total</th>
+  </tr></thead><tbody>`
 
   const maqColHeader = `<div style="display:flex;align-items:baseline;font-size:9px;color:#555;border-bottom:1px dashed #aaa;margin-bottom:3px;gap:2px">
     <span style="width:18px;flex-shrink:0"></span>
@@ -164,7 +168,7 @@ export function printTicketVidrio(detalle) {
   ].join('')
 
   let rows = ''
-  if (vidrios.length)    rows += sectionLbl('Vidrio') + colHeader + vidrios.map(renderVidrio).join('')
+  if (vidrios.length)    rows += sectionLbl('Vidrio') + colHeader + vidrios.map(renderVidrio).join('') + '</tbody></table>'
   if (maquilas.length)   rows += sectionLbl('Maquila') + maqColHeader + maquilas.map(renderMaquila).join('')
   if (extrasProc.length) rows += sectionLbl('Proceso Extra') + extrasProc.map(p => `
     <div class="row"><span>${p.cantidad ?? 1} · ${p.descripcion ?? '—'}</span><span>$${Number(p.subtotal_partida).toFixed(2)}</span></div>`).join('')
@@ -226,13 +230,14 @@ export function printTicketVidrio(detalle) {
     .section-lbl { font-size: 10px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; border-bottom: 1px dashed #888; padding-bottom: 2px; margin: 6px 0 3px; }
     .total-row { font-size: 15px; font-weight: 700; }
     .footer { margin-top: 10px; font-size: 12px; }
-    .row5 { display: flex; align-items: baseline; margin-bottom: 3px; font-size: 11px; }
-    .c-cant { width: 22px; flex-shrink: 0; }
-    .c-med  { width: 54px; flex-shrink: 0; }
-    .c-desc { flex: 1; padding-left: 4px; }
-    .c-cu   { width: 42px; flex-shrink: 0; text-align: right; }
-    .c-tot  { width: 46px; flex-shrink: 0; text-align: right; }
-    .col-header { font-size: 9px; color: #555; border-bottom: 1px dashed #aaa; margin-bottom: 3px; }
+    .tbl-vidrio { width: 100%; border-collapse: collapse; font-size: 10px; margin-bottom: 3px; }
+    .tbl-vidrio td, .tbl-vidrio th { vertical-align: baseline; padding: 1px 0; }
+    .tbl-vidrio thead th { font-size: 9px; font-weight: 400; color: #555; text-align: left; border-bottom: 1px dashed #aaa; padding-bottom: 3px; }
+    .tbl-vidrio .bold td { font-weight: 700; }
+    .c-cant { width: 22px; }
+    .c-med  { width: 54px; }
+    .c-cu   { width: 48px; text-align: right; padding-left: 6px; }
+    .c-tot  { width: 52px; text-align: right; padding-left: 6px; }
   </style>
 </head>
 <body>
@@ -375,6 +380,7 @@ export function printPedidoPendiente(detalle) {
 <body>
   <div class="header center">
     <h1>VIDRIO TEMPLADO Y ALUMINIO ROSALES</h1>
+    <p style="font-style:italic;font-weight:700">Calidad que se ve, confianza que perdura</p>
     <p>Rosales #35 C.P. 55270, Granjas Valle de Guadalupe</p>
     <p>Ecatepec de Morelos, Estado de Mexico</p>
     <p>Tel: 5523134256, 5522161432, 5547912671</p>
@@ -733,6 +739,12 @@ export function printPedidoA4(detalle) {
         <td style="text-align:right;font-weight:700">$${exactSubtotal.toFixed(2)}</td>
         <td></td>
       </tr>` : ''
+    const descRow = p.descripcion_vidrio ? `
+      <tr style="background:${bg}">
+        <td></td>
+        <td colspan="4" style="font-size:11px;color:#555;padding-top:0">${p.descripcion_vidrio}</td>
+        <td></td>
+      </tr>` : ''
     return `
       <tr style="background:${bg}">
         <td style="text-align:center;font-weight:700">${pzas}</td>
@@ -742,6 +754,7 @@ export function printPedidoA4(detalle) {
         <td style="text-align:right;font-weight:600">$${totVid.toFixed(2)}</td>
         <td></td>
       </tr>
+      ${descRow}
       ${procSubRows}
       ${subtotalSubRow}`
   }).join('')
@@ -797,7 +810,7 @@ export function printPedidoA4(detalle) {
           const sides = notasProcs[i]?.sidesML
           const allSides = sides?.top && sides?.bottom && sides?.left && sides?.right
           const icon = (sides && !allSides && pLargo && pAncho) ? glassIconSVG(sides, pLargo, pAncho) : ''
-          const txt = icon ? pr.replace(/\s*\[[TBLR]+\]/g, '') : pr
+          const txt = pr.replace(/\s*\[[TBLR]+\]/g, '')
           return `<tr><td style="font-size:11px;color:#555;padding-left:14px"><div style="display:flex;align-items:center">${icon}<span>+${txt}</span></div></td><td></td><td></td></tr>`
         }).join('')
         return `<tr style="${bg}"><td style="font-weight:600">${dimsStr}</td><td></td><td style="text-align:right;font-weight:600">$${Number(p.subtotal_partida).toFixed(2)}</td></tr>${procTrs}`

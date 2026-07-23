@@ -186,7 +186,7 @@ export const getDetallePedido = async (id_pedido) => {
     partidas: (data.partidas ?? []).map(p => ({
       id:                 p.id_partida_pedido,
       clave_vidrio:       p.tipo_vidrio      ?? '—',
-      descripcion_vidrio: '',
+      descripcion_vidrio: p.observaciones    ?? '',
       largo_cm:           Number(p.largo_cm),
       ancho_cm:           Number(p.ancho_cm),
       metros2:            Number(p.metros_cuadrados),

@@ -68,8 +68,8 @@ function TicketCotizacion({ cotizacion }) {
   return (
     <div className="ticket-preview">
       <div className="ticket-header">
-        <h2>VIDRIO TEMPLADO ROSALES</h2>
-        <p style={{ fontWeight: 700 }}>CONSTRUYENDO SUEÑOS</p>
+        <h2>VIDRIO TEMPLADO Y ALUMINIO ROSALES</h2>
+        <p style={{ fontStyle: 'italic', fontWeight: 700 }}>Calidad que se ve, confianza que perdura</p>
         <p style={{ fontWeight: 700 }}>Cotizacion</p>
       </div>
       <hr className="ticket-divider" />
@@ -91,6 +91,9 @@ function TicketCotizacion({ cotizacion }) {
                 <span>{p.piezas} · {p.largo_cm}×{p.ancho_cm} · {p.tipoClaveLabel}</span>
                 <span>${fmt5(p.subtotal_vidrio)}</span>
               </div>
+              {p.observaciones && (
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', paddingLeft: 10, marginBottom: 2 }}>{p.observaciones}</div>
+              )}
               {(p.procesos ?? []).map((pr, j) => (
                 <div key={j} className="ticket-row" style={{ fontSize: 11, paddingLeft: 10 }}>
                   <span>+ {pr.nombre}</span><span>${fmt5(pr.subtotal)}</span>
@@ -120,6 +123,17 @@ function TicketCotizacion({ cotizacion }) {
                   <span>+ {pr.nombre}</span><span>${fmt5(pr.subtotal)}</span>
                 </div>
               ))}
+            </div>
+          ))}
+        </>
+      )}
+      {cotizacion.partidas.filter(p => p.tipo === 'EXTRA').length > 0 && (
+        <>
+          <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '1px dashed #aaa', paddingBottom: 2, margin: '5px 0 3px' }}>Proceso Extra</div>
+          {cotizacion.partidas.filter(p => p.tipo === 'EXTRA').map((p, i) => (
+            <div key={i} className="ticket-row" style={{ fontSize: 12, marginBottom: 4 }}>
+              <span>{p.cantidad} · {p.descripcion}</span>
+              <span style={{ fontWeight: 700 }}>${fmt5(p.subtotal_partida)}</span>
             </div>
           ))}
         </>
@@ -203,6 +217,9 @@ function TicketPedidoRapido({ detalle, extras = [] }) {
                 <span>{p.cantidad} · {p.largo_cm}×{p.ancho_cm} · {p.clave_vidrio}</span>
                 <span>${fmt5(p.subtotal_partida)}</span>
               </div>
+              {p.descripcion_vidrio && (
+                <div style={{ fontSize:11, color:'var(--text-muted)', paddingLeft:10, marginBottom:2 }}>{p.descripcion_vidrio}</div>
+              )}
               {p.procesos.map((pr, j) => (
                 <div key={j} className="ticket-row" style={{ fontSize:11, paddingLeft:10 }}>
                   <span>+ {pr.nombre}</span>
@@ -237,7 +254,7 @@ function TicketPedidoRapido({ detalle, extras = [] }) {
                   const sides = notasProcs[j]?.sidesML
                   const allSides = sides?.top && sides?.bottom && sides?.left && sides?.right
                   const showIcon = sides && !allSides && pLargo && pAncho
-                  const txt = showIcon ? pr.replace(/\s*\[[TBLR]+\]/g, '') : pr
+                  const txt = pr.replace(/\s*\[[TBLR]+\]/g, '')
                   return (
                     <div key={j} style={{ display:'flex', alignItems:'center', gap:4, fontSize:11, paddingLeft:10 }}>
                       {showIcon && <GlassIconML sides={sides} largo={pLargo} ancho={pAncho} />}
@@ -279,10 +296,36 @@ function TicketPedidoRapido({ detalle, extras = [] }) {
         </>
       )}
 
+      {(() => {
+        const totalPzasVidrio  = detalle.partidas.reduce((s, p) => s + Number(p.cantidad ?? 1), 0)
+        const totalPzasMaquila = extras.filter(e => e.tipo === 'MAQUILA').reduce((s, e) => s + Number(e.cantidad ?? 1), 0)
+        if (totalPzasVidrio === 0 && totalPzasMaquila === 0) return null
+        return (
+          <>
+            <hr className="ticket-divider" />
+            {totalPzasVidrio > 0 && (
+              <div className="ticket-row" style={{ fontSize:11, color:'var(--text-muted)' }}>
+                <span>Piezas vendidas:</span><span style={{ fontWeight:700 }}>{totalPzasVidrio}</span>
+              </div>
+            )}
+            {totalPzasMaquila > 0 && (
+              <div className="ticket-row" style={{ fontSize:11, color:'var(--text-muted)' }}>
+                <span>Piezas maquila recibidas:</span><span style={{ fontWeight:700 }}>{totalPzasMaquila}</span>
+              </div>
+            )}
+          </>
+        )
+      })()}
       <hr className="ticket-divider" />
       <div className="ticket-total"><span>TOTAL</span><span>${fmt5(detalle.total)}</span></div>
-      <div className="ticket-row" style={{ marginTop:6 }}>
-        <span>Forma de pago:</span>
+      {detalle.metodo_pago && (
+        <div className="ticket-row" style={{ marginTop:6 }}>
+          <span>Método de pago:</span>
+          <span>{detalle.metodo_pago.charAt(0) + detalle.metodo_pago.slice(1).toLowerCase()}</span>
+        </div>
+      )}
+      <div className="ticket-row">
+        <span>Método de entrega:</span>
         <span>{
           detalle.forma_pago === 'LIQUIDADO'  ? 'Liquidado' :
           detalle.forma_pago === 'POR COBRAR' ? 'Por cobrar' :
@@ -1711,6 +1754,7 @@ export default function NuevaCotizacion() {
         clienteNombre: pedidoCreado.cliente?.nombre ?? 'Mostrador',
         nivelNombre: pedidoCreado.nivel?.es_hoja_completa ? 'POR HOJA' : (pedidoCreado.nivel?.nombre ?? ''),
         formaPago: pedidoCreado.forma_pago,
+        metodoPago: pedidoCreado.metodo_pago ?? null,
         anticipo: pedidoCreado.anticipo,
         saldo: pedidoCreado.saldo,
         saldo_cobrado: pedidoCreado.saldo_cobrado,
@@ -1723,6 +1767,7 @@ export default function NuevaCotizacion() {
             largo_cm: p.largo_cm, ancho_cm: p.ancho_cm,
             subtotal_vidrio: p.subtotal_vidrio, procesos: p.procesos,
             subtotal_partida: p.subtotal_partida,
+            descripcion_vidrio: p.descripcion_vidrio,
           })),
           ...pedidoExtras.map(e => ({
             tipo: e.tipo === 'HERRAJE' || e.tipo === 'PRODUCTO' ? e.tipo : 'MAQUILA',
