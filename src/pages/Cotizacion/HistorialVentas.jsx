@@ -681,16 +681,14 @@ export default function HistorialVentas() {
   )
 
   const qCob = busquedaPorCobrar.trim().toLowerCase()
-  const filteredCob = [
-    ...pendientes.filter(v => v.tipo_pago === 'POR COBRAR'),
-    ...pedidos.filter(v => v.forma_pago === 'POR COBRAR'),
-  ].filter(v => !qCob || v.folio?.toLowerCase().includes(qCob) || v.clienteNombre?.toLowerCase().includes(qCob))
+  const filteredCob = pendientes
+    .filter(v => v.tipo_pago === 'POR COBRAR')
+    .filter(v => !qCob || v.folio?.toLowerCase().includes(qCob) || v.clienteNombre?.toLowerCase().includes(qCob))
 
   const qAntic = busquedaAnticipo.trim().toLowerCase()
-  const filteredAntic = [
-    ...pendientes.filter(v => v.tipo_pago === 'ANTICIPO'),
-    ...pedidos.filter(v => v.forma_pago === 'ANTICIPO'),
-  ].filter(v => !qAntic || v.folio?.toLowerCase().includes(qAntic) || v.clienteNombre?.toLowerCase().includes(qAntic))
+  const filteredAntic = pendientes
+    .filter(v => v.tipo_pago === 'ANTICIPO')
+    .filter(v => !qAntic || v.folio?.toLowerCase().includes(qAntic) || v.clienteNombre?.toLowerCase().includes(qAntic))
 
   const qPend = busquedaPend.trim().toLowerCase()
   const filteredPend = pendientes

@@ -1,6 +1,7 @@
 -- Catch-up migration: ensures partida_pedido_extra and partida_cotizacion_extra
 -- exist with their full current structure, regardless of whether migration 008
 -- or any ad-hoc local changes were ever applied to this database.
+-- in production
 
 CREATE TABLE IF NOT EXISTS partida_pedido_extra (
   id_partida_extra     SERIAL PRIMARY KEY,

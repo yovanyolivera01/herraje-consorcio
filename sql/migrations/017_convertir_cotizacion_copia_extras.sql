@@ -1,3 +1,5 @@
+-- in production
+
 CREATE OR REPLACE FUNCTION public.sp_convertir_cotizacion_a_pedido(p_id_cotizacion integer, p_tipo_pago text, p_monto_anticipo numeric)
  RETURNS TABLE(out_id_pedido integer, out_folio text, out_mensaje text)
  LANGUAGE plpgsql

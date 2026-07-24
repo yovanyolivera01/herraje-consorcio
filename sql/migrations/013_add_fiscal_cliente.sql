@@ -1,3 +1,6 @@
+
+-- in production  
+
 ALTER TABLE cliente
   ADD COLUMN IF NOT EXISTS rfc             VARCHAR(15),
   ADD COLUMN IF NOT EXISTS razon_social    VARCHAR(255),

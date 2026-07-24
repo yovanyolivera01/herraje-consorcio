@@ -2372,10 +2372,10 @@ export default function NuevaCotizacion() {
                     const hasRight = barrenos.length > 0 || saques.length > 0 || extras.length > 0
                     if (!hasLeft && !hasRight) return null
 
-                    const checkRow = (p, sel, onToggle, onQtyChange, qty) => (
+                    const checkRow = (p, sel, onToggle, onQtyChange, qty, onAddStandalone) => (
                       <div
                         key={p.id_proceso}
-                        onClick={onToggle}
+                        onClick={e => { if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON') onToggle() }}
                         className={sel ? 'proc-row-sel' : undefined}
                         style={{
                           display: 'flex', alignItems: 'center', gap: 8,
@@ -2383,7 +2383,7 @@ export default function NuevaCotizacion() {
                           cursor: 'pointer', userSelect: 'none', borderRadius: 5,
                         }}
                       >
-                        <input type="checkbox" checked={sel} readOnly
+                        <input type="checkbox" checked={sel} readOnly onClick={onToggle}
                           style={{ cursor: 'pointer', flexShrink: 0, width: 14, height: 14 }}
                         />
                         <span style={{ flex: 1, fontSize: 13, fontWeight: sel ? 600 : 400 }}>{p.nombre}</span>
@@ -2394,8 +2394,17 @@ export default function NuevaCotizacion() {
                             style={{ width: 46, padding: '1px 4px', fontSize: 11, margin: 0, height: 22, flexShrink: 0 }}
                             value={qty}
                             onClick={e => e.stopPropagation()}
+                            onKeyDown={e => { if (e.key === 'Enter' && onAddStandalone) { e.preventDefault(); onAddStandalone() } }}
                             onChange={e => onQtyChange(e.target.value)}
                           />
+                        )}
+                        {onAddStandalone && sel && (
+                          <button
+                            type="button"
+                            onClick={e => { e.stopPropagation(); onAddStandalone() }}
+                            title="Agregar como partida extra"
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px', fontSize: 14, lineHeight: 1, flexShrink: 0 }}
+                          >➕</button>
                         )}
                       </div>
                     )
@@ -2434,10 +2443,11 @@ export default function NuevaCotizacion() {
                               </>)}
                               {saques.length > 0 && (<>
                                 {groupLabel('Saques')}
-                                {saques.map(p => checkRow(p,
-                                  maqProcesosSelec.some(s => s.id_proceso === p.id_proceso),
-                                  () => toggleMaqProceso(p.id_proceso), null, null
-                                ))}
+                                {saques.map(p => {
+                                  const sel = maqProcesosSelec.find(s => s.id_proceso === p.id_proceso)
+                                  return checkRow(p, !!sel, () => toggleMaqProceso(p.id_proceso),
+                                    val => setMaqProcesoQty(p.id_proceso, val), sel?.cantidad ?? '')
+                                })}
                               </>)}
                               {extras.length > 0 && (<>
                                 {groupLabel('Extras')}
@@ -2448,7 +2458,8 @@ export default function NuevaCotizacion() {
                                   return (
                                     <div key={p.id_proceso} style={{ position: 'relative' }}>
                                       {checkRow(p, !!sel, () => toggleMaqProceso(p.id_proceso),
-                                        val => setMaqProcesoQty(p.id_proceso, val), sel?.cantidad ?? '')}
+                                        val => setMaqProcesoQty(p.id_proceso, val), sel?.cantidad ?? '',
+                                        precio > 0 ? () => handleAgregarExtraStandalone(p, sel?.cantidad ?? 1) : null)}
                                       {sinPrecio && (
                                         <span style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', fontSize: 10, color: '#dc2626', fontWeight: 700 }}>sin precio</span>
                                       )}

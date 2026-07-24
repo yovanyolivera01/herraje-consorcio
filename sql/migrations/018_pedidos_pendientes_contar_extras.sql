@@ -1,3 +1,5 @@
+-- in production
+
 CREATE OR REPLACE FUNCTION public.sp_obtener_pedidos_pendientes(p_tipo_pedido character varying)
  RETURNS TABLE(id_pedido integer, folio text, tipo_pedido text, cliente text, fecha_pedido timestamp with time zone, total numeric, monto_anticipo numeric, saldo_pendiente numeric, estatus text, partidas_pendientes bigint, partidas_total bigint, tipo_pago text)
  LANGUAGE sql
