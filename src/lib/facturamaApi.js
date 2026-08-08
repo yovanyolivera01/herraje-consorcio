@@ -14,11 +14,11 @@ async function apiFetch(path, options = {}) {
   return data
 }
 
-// Prices in the system include IVA 16%.
-// Facturama needs the pre-tax base amount.
-function calcularImportes(totalConIva) {
-  const base = Math.round((totalConIva / 1.16) * 100) / 100
-  const iva  = Math.round((totalConIva - base) * 100) / 100
+// Prices in the system are pre-tax. When a client requires a factura,
+// IVA 16% is added on top of the stored cost (not extracted from it).
+function calcularImportes(costoSinIva) {
+  const base = Math.round(costoSinIva * 100) / 100
+  const iva  = Math.round((costoSinIva * 0.16) * 100) / 100
   return { base, iva }
 }
 
@@ -29,9 +29,46 @@ function fechaActual() {
     .replace(' ', 'T')
 }
 
+export const getPartidasParaFactura = async (id_pedido) =>
+  apiFetch(`/pedidos/${id_pedido}/partidas-factura`)
+
 export async function crearCFDI(resumen, receptor) {
   const { rfc, nombre, cpFiscal, regimen, usoCfdi, formaPago, metodoPago } = receptor
-  const { base, iva } = calcularImportes(resumen.total)
+
+  const partidas = await getPartidasParaFactura(resumen.id)
+
+  // Itemized: one Concepto per partida, each with its own pre-tax base/IVA —
+  // keeps the invoice's tax total consistent with what was actually sold,
+  // instead of deriving one lump base/IVA from the pedido's grand total.
+  const conceptos = (partidas.length ? partidas : [{ descripcion: `Vidrio templado y aluminio según pedido ${resumen.folio}`, cantidad: 1, subtotal: resumen.total }])
+    .map(p => {
+      const cantidad = Number(p.cantidad) > 0 ? Number(p.cantidad) : 1
+      const { base, iva } = calcularImportes(Number(p.subtotal))
+      const valorUnitario = Math.round((base / cantidad) * 100) / 100
+      const total = Math.round((base + iva) * 100) / 100
+      return {
+        ProductCode:         '44103103',
+        UnitCode:            'H87',
+        Unit:                'Pieza',
+        IdentificationNumber: resumen.folio,
+        Description:         p.descripcion,
+        Quantity:            cantidad,
+        UnitPrice:           valorUnitario,
+        Subtotal:            base,
+        TaxObject:           '02', // taxes itemized at concept level
+        Taxes: [
+          {
+            Name:          'IVA',
+            Rate:          '0.16',
+            Base:          base,
+            Total:         iva,
+            IsRetention:   false,
+            IsFederalTax:  true,
+          },
+        ],
+        Total: total,
+      }
+    })
 
   const body = {
     // Internal metadata stripped by backend before sending to Facturama
@@ -39,43 +76,21 @@ export async function crearCFDI(resumen, receptor) {
     _folio_pedido: resumen.folio,
     _total_cfdi:   resumen.total,
 
-    // CFDI 4.0 payload
-    Fecha: fechaActual(),
-    Receptor: {
-      Rfc:                     rfc.trim().toUpperCase(),
-      Nombre:                  nombre.trim().toUpperCase(),
-      DomicilioFiscalReceptor: cpFiscal.trim(),
-      RegimenFiscalReceptor:   regimen,
-      UsoCfdi:                 usoCfdi,
+    // CFDI 4.0 payload — Facturama's own JSON schema (English property names),
+    // NOT the raw SAT XML tag names (Receptor/Conceptos/Impuestos/etc.)
+    Receiver: {
+      Rfc:          rfc.trim().toUpperCase(),
+      Name:         nombre.trim().toUpperCase(),
+      CfdiUse:      usoCfdi,
+      FiscalRegime: regimen,
+      TaxZipCode:   cpFiscal.trim(),
     },
-    TipoDeComprobante: 'I',
-    MetodoPago:        metodoPago,
-    FormaPago:         formaPago,
-    Moneda:            'MXN',
-    Conceptos: [
-      {
-        ClaveProdServ:    '44103103',
-        ClaveUnidad:      'H87',
-        Unidad:           'Pieza',
-        NoIdentificacion: resumen.folio,
-        Descripcion:      `Vidrio templado y aluminio según pedido ${resumen.folio}`,
-        Cantidad:         1.0,
-        ValorUnitario:    base,
-        Importe:          base,
-        Descuento:        0.0,
-        Impuestos: {
-          Traslados: [
-            {
-              Base:       base,
-              Impuesto:   '002',
-              TipoFactor: 'Tasa',
-              TasaOCuota: '0.160000',
-              Importe:    iva,
-            },
-          ],
-        },
-      },
-    ],
+    CfdiType:      'I',
+    PaymentForm:   formaPago,
+    PaymentMethod: metodoPago,
+    Exportation:   '01', // "No aplica" — required by CFDI 4.0, not an export transaction
+    Date:          fechaActual(),
+    Items: conceptos,
   }
 
   return apiFetch('/facturama/cfdi', { method: 'POST', body })

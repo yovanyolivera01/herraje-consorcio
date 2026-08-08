@@ -156,6 +156,7 @@ export function CotizacionProvider({ children }) {
   // ── Cotizaciones ──────────────────────────────────────────────────────────
   const iniciarCotizacion    = wrap(api.iniciarCotizacion)
   const agregarPartida       = wrap(api.agregarPartida)
+  const agregarMaquilaCotizacion = wrap(api.agregarMaquilaCotizacion)
   const actualizarCotizacion = wrap(api.actualizarCotizacion)
   const finalizarCotizacion  = async (id, total) => {
     const res = await wrap(api.finalizarCotizacion)(id, total)
@@ -219,7 +220,7 @@ export function CotizacionProvider({ children }) {
       getPreciosClienteRegistrado: empApi.getPreciosClienteRegistrado,
       getEmpresaDeCliente:         empApi.getEmpresaDeCliente,
       getDocumentoEmpresa: empApi.getDocumentoEmpresa,
-      iniciarCotizacion, agregarPartida, agregarPartidaExtra, getPartidasExtra, deletePartidasExtra,
+      iniciarCotizacion, agregarPartida, agregarMaquilaCotizacion, agregarPartidaExtra, getPartidasExtra, deletePartidasExtra,
       actualizarCotizacion, finalizarCotizacion, cancelarCotizacion, borrarCotizacion,
       getCotizaciones, getDetalleCotizacion,
       getPrecioVidrio, getPrecioProceso, getPrecioProcesoEspecial,

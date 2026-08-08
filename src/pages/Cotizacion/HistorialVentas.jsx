@@ -91,6 +91,8 @@ function ExtraMaquilaRow({ e }) {
 
 // ── Ticket de pedido entregado ────────────────────────────────────────────
 function TicketVenta({ detalle }) {
+  const vidrios = detalle.partidas.filter(p => !p.tipo || p.tipo === 'VIDRIO')
+  const maquilasDim = detalle.partidas.filter(p => p.tipo === 'MAQUILA')
   return (
     <div className="ticket-preview">
       <div className="ticket-header">
@@ -104,13 +106,13 @@ function TicketVenta({ detalle }) {
       <div className="ticket-row"><span>Cliente:</span><span>{detalle.cliente?.nombre ?? 'Mostrador'}</span></div>
       <hr className="ticket-divider" />
 
-      {detalle.partidas.length === 0 && (detalle.extras ?? []).length === 0 && (
+      {vidrios.length === 0 && maquilasDim.length === 0 && (detalle.extras ?? []).length === 0 && (
         <div style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', padding: '6px 0' }}>
           Sin partidas registradas
         </div>
       )}
 
-      {detalle.partidas.map((p, i) => (
+      {vidrios.map((p, i) => (
         <div key={p.id} style={{ marginBottom: 10 }}>
           <div className="ticket-row" style={{ fontWeight: 700, fontSize: 12 }}>
             <span>{p.cantidad} - {p.clave_vidrio}</span>
@@ -131,9 +133,37 @@ function TicketVenta({ detalle }) {
         </div>
       ))}
 
+      {maquilasDim.length > 0 && (
+        <>
+          {vidrios.length > 0 && <hr className="ticket-divider" />}
+          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 1 }}>Maquila</div>
+          {maquilasDim.map((p, i) => (
+            <div key={i} style={{ marginBottom: 10 }}>
+              <div className="ticket-row" style={{ fontWeight: 700, fontSize: 12 }}>
+                <span>{p.piezas ?? p.cantidad} - {p.largo_cm}×{p.ancho_cm}cm{p.espesor_label ? ` · ${p.espesor_label}` : ''}</span>
+                <span>${fmt5(p.subtotal_partida)}</span>
+              </div>
+              {p.descripcion && (
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', paddingLeft: 10, marginBottom: 2 }}>{p.descripcion}</div>
+              )}
+              {(p.procesos ?? []).length === 1 && (
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', paddingLeft: 10 }}>+ {p.procesos[0].nombre}</div>
+              )}
+              {(p.procesos ?? []).length > 1 && p.procesos.map((pr, j) => (
+                <div key={j} style={{ display: 'flex', gap: 4, fontSize: 11, paddingLeft: 10 }}>
+                  <span style={{ flex: 1 }}>+ {pr.nombre}</span>
+                  <span style={{ width: 50, textAlign: 'right', color: 'var(--text-muted)' }}>{pr.precio_unitario != null ? `$${fmt5(pr.precio_unitario)}` : ''}</span>
+                  <span style={{ width: 50, textAlign: 'right' }}>${fmt5(pr.subtotal)}</span>
+                </div>
+              ))}
+            </div>
+          ))}
+        </>
+      )}
+
       {(detalle.extras ?? []).length > 0 && (
         <>
-          {detalle.partidas.length > 0 && <hr className="ticket-divider" />}
+          {(vidrios.length > 0 || maquilasDim.length > 0) && <hr className="ticket-divider" />}
           <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 1 }}>
             {detalle.extras.some(e => e.tipo === 'MAQUILA') && detalle.extras.some(e => e.tipo === 'PRODUCTO')
               ? 'Maquila / Productos'
@@ -227,8 +257,10 @@ function DetalleVentaModal({ resumen, onClose, onFacturar, onCobrar }) {
               esReimpresion: true,
               esCancelado:   resumen.esCancelado ?? false,
               total:         detalle.total,
+              piezasVidrioVendidas:   detalle.piezasVidrioVendidas,
+              piezasMaquilaRecibidas: detalle.piezasMaquilaRecibidas,
               partidas: [
-                ...(detalle.partidas ?? []).map(p => ({
+                ...(detalle.partidas ?? []).filter(p => !p.tipo || p.tipo === 'VIDRIO').map(p => ({
                   tipo:             'VIDRIO',
                   piezas:           p.cantidad ?? 1,
                   clave:            p.clave_vidrio,
@@ -239,6 +271,16 @@ function DetalleVentaModal({ resumen, onClose, onFacturar, onCobrar }) {
                   descripcion_vidrio: p.descripcion_vidrio,
                   procesos:         p.procesos ?? [],
                 })),
+                ...(detalle.partidas ?? []).filter(p => p.tipo === 'MAQUILA').map(p => ({
+                  tipo:             'MAQUILA',
+                  piezas:           p.piezas ?? p.cantidad ?? 1,
+                  largo_cm:         p.largo_cm,
+                  ancho_cm:         p.ancho_cm,
+                  clave:            p.espesor_label,
+                  descripcion:      p.descripcion,
+                  subtotal_partida: p.subtotal_partida,
+                  procesos:         p.procesos ?? [],
+                })),
                 ...(detalle.extras ?? []).map(e => ({
                   tipo:             e.tipo === 'PRODUCTO' ? 'HERRAJE' : e.tipo,
                   descripcion:      e.descripcion,
@@ -246,6 +288,7 @@ function DetalleVentaModal({ resumen, onClose, onFacturar, onCobrar }) {
                   precio_unitario:  e.precio_unitario,
                   subtotal_partida: Number(e.subtotal),
                   procesos:         [],
+                  notas:            e.notas,
                 })),
               ],
             }
@@ -351,8 +394,9 @@ function FacturarModal({ resumen, onClose }) {
     }
   }
 
-  const base = Math.round((resumen.total / 1.16) * 100) / 100
-  const iva  = Math.round((resumen.total - base) * 100) / 100
+  const base  = resumen.total
+  const iva   = Math.round((resumen.total * 0.16) * 100) / 100
+  const total = Math.round((base + iva) * 100) / 100
 
   if (cfdi) {
     return (
@@ -463,9 +507,9 @@ function FacturarModal({ resumen, onClose }) {
           <div style={{ borderTop: '1px solid var(--border)', marginTop: 16, paddingTop: 12 }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
               {[
-                ['Subtotal (sin IVA)', `$${fmt5(base)}`],
-                ['IVA 16%',           `$${fmt5(iva)}`],
-                ['Total CFDI',        `$${fmt5(resumen.total)}`],
+                ['Costo (sin IVA)', `$${fmt5(base)}`],
+                ['IVA 16%',         `$${fmt5(iva)}`],
+                ['Total CFDI',      `$${fmt5(total)}`],
               ].map(([label, val]) => (
                 <div key={label} style={{ textAlign: 'center', background: 'var(--bg)', borderRadius: 8, padding: '8px 4px' }}>
                   <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 3 }}>{label}</div>
@@ -474,7 +518,7 @@ function FacturarModal({ resumen, onClose }) {
               ))}
             </div>
             <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 8 }}>
-              * Los precios incluyen IVA 16%. El subtotal se calcula dividiendo el total entre 1.16.
+              * Los precios no incluyen IVA. Se agrega 16% adicional al generar la factura.
             </div>
           </div>
 

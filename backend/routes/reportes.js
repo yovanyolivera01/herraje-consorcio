@@ -12,7 +12,7 @@ router.get('/reportes/partidas-vidrio', async (req, res) => {
     const { fecha_inicio, fecha_fin } = req.query
     const { rows } = await query(`
       SELECT
-        pp.id_partida_pedido,
+        pp.id_partida AS id_partida_pedido,
         pp.id_pedido,
         p.folio,
         p.fecha_entrega,
@@ -22,17 +22,19 @@ router.get('/reportes/partidas-vidrio', async (req, res) => {
         tv.descripcion                  AS nombre_vidrio,
         pp.largo_cm,
         pp.ancho_cm,
-        COALESCE(pp.metros_cuadrados, 0) AS metros2,
-        COALESCE(pp.cantidad, 1)         AS cantidad,
-        pp.precio_m2,
-        pp.subtotal_vidrio,
+        COALESCE(pp.metros2, 0)  AS metros2,
+        COALESCE(pp.cantidad, 1) AS cantidad,
+        pv.precio_m2,
+        pv.subtotal_vidrio,
         pp.subtotal_procesos,
-        pp.total_partida
-      FROM partida_pedido pp
+        pp.subtotal AS total_partida
+      FROM partida pp
+      JOIN partida_vidrio pv ON pv.id_partida = pp.id_partida
       JOIN pedido p ON p.id_pedido = pp.id_pedido
       LEFT JOIN cliente    c  ON c.id_cliente     = p.id_cliente
-      LEFT JOIN tipo_vidrio tv ON tv.id_tipo_vidrio = pp.id_tipo_vidrio
-      WHERE p.tipo_pedido = 'VIDRIO'
+      LEFT JOIN tipo_vidrio tv ON tv.id_tipo_vidrio = pv.id_tipo_vidrio
+      WHERE pp.tipo = 'VIDRIO'
+        AND p.tipo_pedido = 'VIDRIO'
         AND p.estatus     = 'ENTREGADO'
         AND ($1::timestamptz IS NULL OR COALESCE(p.fecha_entrega, p.fecha_creacion) >= $1::timestamptz)
         AND ($2::timestamptz IS NULL OR COALESCE(p.fecha_entrega, p.fecha_creacion) <= $2::timestamptz)
@@ -49,7 +51,7 @@ router.get('/reportes/extras-maquila', async (req, res) => {
     const { fecha_inicio, fecha_fin } = req.query
     const { rows } = await query(`
       SELECT
-        e.id_partida_extra,
+        e.id_partida AS id_partida_extra,
         p.id_pedido,
         p.folio,
         COALESCE(p.fecha_entrega, p.fecha_creacion) AS fecha_entrega_iso,
@@ -60,12 +62,12 @@ router.get('/reportes/extras-maquila', async (req, res) => {
         e.cantidad,
         e.precio_unitario,
         e.subtotal
-      FROM partida_cotizacion_extra e
-      JOIN pedido p ON p.id_cotizacion = e.id_cotizacion
+      FROM pedido p
+      JOIN partida e ON e.id_pedido = p.id_pedido
+        AND e.tipo = 'MAQUILA' AND e.largo_cm IS NULL
       LEFT JOIN cliente c ON c.id_cliente = p.id_cliente
       WHERE p.tipo_pedido = 'VIDRIO'
         AND p.estatus     = 'ENTREGADO'
-        AND e.tipo        = 'MAQUILA'
         AND ($1::timestamptz IS NULL OR COALESCE(p.fecha_entrega, p.fecha_creacion) >= $1::timestamptz)
         AND ($2::timestamptz IS NULL OR COALESCE(p.fecha_entrega, p.fecha_creacion) <= $2::timestamptz)
       ORDER BY fecha_entrega_iso DESC
@@ -81,7 +83,7 @@ router.get('/reportes/extras-herraje', async (req, res) => {
     const { fecha_inicio, fecha_fin } = req.query
     const { rows } = await query(`
       SELECT
-        e.id_partida_extra,
+        e.id_partida AS id_partida_extra,
         p.id_pedido,
         p.folio,
         COALESCE(p.fecha_entrega, p.fecha_creacion) AS fecha_entrega_iso,
@@ -92,12 +94,12 @@ router.get('/reportes/extras-herraje', async (req, res) => {
         e.cantidad,
         e.precio_unitario,
         e.subtotal
-      FROM partida_cotizacion_extra e
-      JOIN pedido p ON p.id_cotizacion = e.id_cotizacion
+      FROM pedido p
+      JOIN partida e ON e.id_pedido = p.id_pedido
+        AND e.tipo = 'PRODUCTO' AND e.largo_cm IS NULL
       LEFT JOIN cliente c ON c.id_cliente = p.id_cliente
       WHERE p.tipo_pedido = 'VIDRIO'
         AND p.estatus     = 'ENTREGADO'
-        AND e.tipo        = 'PRODUCTO'
         AND ($1::timestamptz IS NULL OR COALESCE(p.fecha_entrega, p.fecha_creacion) >= $1::timestamptz)
         AND ($2::timestamptz IS NULL OR COALESCE(p.fecha_entrega, p.fecha_creacion) <= $2::timestamptz)
       ORDER BY fecha_entrega_iso DESC

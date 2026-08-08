@@ -41,6 +41,7 @@ function convertirPartidaDesdeDB(p) {
       cantidad:        pr.cantidad,
       precio_unitario: pr.precio_unitario,
       subtotal:        pr.subtotal,
+      sidesML:         pr.sidesML ?? null,
     })),
     precio_manual:  null,
     observaciones:  '',
@@ -57,7 +58,67 @@ function convertirExtraDesdeDB(e) {
     precio_unitario:     Number(e.precio_unitario),
     subtotal_partida:    Number(e.subtotal),
     id_producto_general: e.id_producto_general ?? null,
+    notas:               e.notas ?? null,
   }
+}
+
+// Reconstruye un job de maquila dimensionado (formato DB, con procesos
+// propios en partida_proceso) al mismo formato interno que handleAgregarMaquila
+// produce al agregarlo desde el formulario.
+function convertirMaquilaDesdeDB(m) {
+  return {
+    _key:             Date.now() + Math.random(),
+    tipo:             'MAQUILA',
+    descripcion:      m.descripcion ?? '',
+    largo_cm:         m.largo_cm,
+    ancho_cm:         m.ancho_cm,
+    piezas_maq:       m.piezas,
+    metros2:          m.metros2,
+    id_espesor:       m.id_espesor,
+    espesor_label:    m.espesor_label,
+    procesos_maq: (m.procesos ?? []).map(pr => ({
+      id_proceso:      pr.id_proceso,
+      id_unidad_cobro: pr.id_unidad_cobro,
+      nombre:          pr.nombre,
+      unidad:          pr.unidad,
+      cantidad:        pr.cantidad,
+      precio_unitario: pr.precio_unitario,
+      subtotal:        pr.subtotal,
+      sidesML:         pr.sidesML ?? null,
+    })),
+    cantidad:         m.piezas,
+    unidad:           'pza',
+    precio_unitario:  m.piezas > 0 ? m.subtotal_partida / m.piezas : 0,
+    subtotal_partida: m.subtotal_partida,
+    observaciones:    m.observaciones ?? '',
+  }
+}
+
+// Payload estructurado para POST/PUT de maquila en cotización — mismo
+// formato que sp_crear_pedido_directo's p_maquilas ya usa para el flujo
+// pedido-directo-con-extras.
+function construirMaquilasPayload(partidas) {
+  return partidas
+    .filter(p => p.tipo === 'MAQUILA' && p.piezas_maq != null)
+    .map(p => ({
+      descripcion:       p.descripcion || null,
+      largo_cm:          p.largo_cm,
+      ancho_cm:          p.ancho_cm,
+      cantidad:          p.piezas_maq,
+      metros2:           p.metros2,
+      subtotal_procesos: (p.procesos_maq ?? []).reduce((s, pr) => s + Number(pr.subtotal ?? 0), 0),
+      subtotal_partida:  p.subtotal_partida,
+      observaciones:     p.observaciones || null,
+      id_espesor:        p.id_espesor ?? null,
+      procesos: (p.procesos_maq ?? []).map(pr => ({
+        id_proceso:      pr.id_proceso,
+        id_unidad_cobro: pr.id_unidad_cobro,
+        cantidad:        pr.cantidad,
+        precio_unitario: pr.precio_unitario,
+        subtotal:        pr.subtotal,
+        sidesML:         pr.sidesML ?? null,
+      })),
+    }))
 }
 
 
@@ -99,11 +160,10 @@ function TicketCotizacion({ cotizacion }) {
                   <span>+ {pr.nombre}</span><span>${fmt5(pr.subtotal)}</span>
                 </div>
               ))}
-              {(p.procesos?.length > 0) && (
-                <div className="ticket-row" style={{ fontWeight: 600, fontSize: 12 }}>
-                  <span>Subtotal partida</span><span>${fmt5(p.subtotal_partida)}</span>
-                </div>
-              )}
+              <div className="ticket-row" style={{ fontWeight: 600, fontSize: 12 }}>
+                <span>Subtotal</span><span>${fmt5(p.subtotal_partida)}</span>
+              </div>
+              <hr className="ticket-divider" style={{ margin: '4px 0' }} />
             </div>
           ))}
         </>
@@ -115,14 +175,26 @@ function TicketCotizacion({ cotizacion }) {
             <div key={i} style={{ marginBottom: 6 }}>
               <div className="ticket-row" style={{ fontWeight: 600, fontSize: 12 }}>
                 <span>{p.piezas_maq} · {p.largo_cm}×{p.ancho_cm}cm{p.espesor_label ? ` · ${p.espesor_label}` : ''}</span>
-                <span>${fmt5(p.subtotal_partida)}</span>
               </div>
               {p.descripcion && <div style={{ fontSize: 11, paddingLeft: 10, marginBottom: 2 }}>{p.descripcion}</div>}
-              {(p.procesos_maq ?? []).map((pr, j) => (
-                <div key={j} className="ticket-row" style={{ fontSize: 11, paddingLeft: 10 }}>
-                  <span>+ {pr.nombre}</span><span>${fmt5(pr.subtotal)}</span>
-                </div>
-              ))}
+              {(p.procesos_maq ?? []).map((pr, j) => {
+                const sides = pr.sidesML
+                const allSides = sides?.top && sides?.bottom && sides?.left && sides?.right
+                const showIcon = sides && !allSides
+                return (
+                  <div key={j} className="ticket-row" style={{ fontSize: 11, paddingLeft: 10, alignItems: 'center' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      {showIcon && <GlassIconML sides={sides} largo={p.largo_cm} ancho={p.ancho_cm} />}
+                      + {pr.nombre}
+                    </span>
+                    <span>${fmt5(pr.subtotal)}</span>
+                  </div>
+                )
+              })}
+              <div className="ticket-row" style={{ fontWeight: 600, fontSize: 12 }}>
+                <span>Subtotal</span><span>${fmt5(p.subtotal_partida)}</span>
+              </div>
+              <hr className="ticket-divider" style={{ margin: '4px 0' }} />
             </div>
           ))}
         </>
@@ -131,9 +203,14 @@ function TicketCotizacion({ cotizacion }) {
         <>
           <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '1px dashed #aaa', paddingBottom: 2, margin: '5px 0 3px' }}>Proceso Extra</div>
           {cotizacion.partidas.filter(p => p.tipo === 'EXTRA').map((p, i) => (
-            <div key={i} className="ticket-row" style={{ fontSize: 12, marginBottom: 4 }}>
-              <span>{p.cantidad} · {p.descripcion}</span>
-              <span style={{ fontWeight: 700 }}>${fmt5(p.subtotal_partida)}</span>
+            <div key={i}>
+              <div className="ticket-row" style={{ fontSize: 12, marginBottom: 4 }}>
+                <span>{p.cantidad} · {p.descripcion}</span>
+              </div>
+              <div className="ticket-row" style={{ fontWeight: 600, fontSize: 12 }}>
+                <span>Subtotal</span><span>${fmt5(p.subtotal_partida)}</span>
+              </div>
+              <hr className="ticket-divider" style={{ margin: '4px 0' }} />
             </div>
           ))}
         </>
@@ -142,9 +219,14 @@ function TicketCotizacion({ cotizacion }) {
         <>
           <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '1px dashed #aaa', paddingBottom: 2, margin: '5px 0 3px' }}>Herraje</div>
           {cotizacion.partidas.filter(p => p.tipo === 'HERRAJE' || p.tipo === 'PRODUCTO').map((p, i) => (
-            <div key={i} className="ticket-row" style={{ fontSize: 12, marginBottom: 4 }}>
-              <span>{p.cantidad} · {p.descripcion}</span>
-              <span style={{ fontWeight: 700 }}>${fmt5(p.subtotal_partida)}</span>
+            <div key={i}>
+              <div className="ticket-row" style={{ fontSize: 12, marginBottom: 4 }}>
+                <span>{p.cantidad} · {p.descripcion}</span>
+              </div>
+              <div className="ticket-row" style={{ fontWeight: 600, fontSize: 12 }}>
+                <span>Subtotal</span><span>${fmt5(p.subtotal_partida)}</span>
+              </div>
+              <hr className="ticket-divider" style={{ margin: '4px 0' }} />
             </div>
           ))}
         </>
@@ -185,6 +267,8 @@ function GlassIconML({ sides, largo, ancho }) {
 
 // ── Ticket de pedido (post-conversión) ───────────────────────────────────
 function TicketPedidoRapido({ detalle, extras = [] }) {
+  const vidrios = detalle.partidas.filter(p => !p.tipo || p.tipo === 'VIDRIO')
+  const maquilasDim = detalle.partidas.filter(p => p.tipo === 'MAQUILA')
   return (
     <div className="ticket-preview">
       <div className="ticket-header">
@@ -208,14 +292,22 @@ function TicketPedidoRapido({ detalle, extras = [] }) {
       <hr className="ticket-divider" />
 
       {/* Vidrio */}
-      {detalle.partidas.length > 0 && (
+      {vidrios.length > 0 && (
         <>
           <div style={{ fontWeight:700, fontSize:11, textTransform:'uppercase', letterSpacing:1, marginBottom:4, color:'var(--text-muted)' }}>Vidrio</div>
-          {detalle.partidas.map((p) => (
+          <div style={{ display:'flex', fontSize:9, color:'var(--text-muted)', borderBottom:'1px dashed #aaa', paddingBottom:2, marginBottom:3, gap:4 }}>
+            <span style={{ flex:1 }}>Cant · Medida · Descripción</span>
+            <span style={{ width:50, textAlign:'right' }}>C.U.</span>
+            <span style={{ width:50, textAlign:'right' }}>Total</span>
+          </div>
+          {vidrios.map((p) => {
+            const cu = Number(p.subtotal_partida) / Number(p.cantidad || 1)
+            return (
             <div key={p.id} style={{ marginBottom: 8 }}>
-              <div className="ticket-row" style={{ fontWeight:600, fontSize:12 }}>
-                <span>{p.cantidad} · {p.largo_cm}×{p.ancho_cm} · {p.clave_vidrio}</span>
-                <span>${fmt5(p.subtotal_partida)}</span>
+              <div style={{ display:'flex', fontWeight:600, fontSize:12, gap:4 }}>
+                <span style={{ flex:1 }}>{p.cantidad} · {p.largo_cm}×{p.ancho_cm} · {p.clave_vidrio}</span>
+                <span style={{ width:50, textAlign:'right', fontWeight:400, fontSize:11, color:'var(--text-muted)' }}>${fmt5(cu)}</span>
+                <span style={{ width:50, textAlign:'right' }}>${fmt5(p.subtotal_partida)}</span>
               </div>
               {p.descripcion_vidrio && (
                 <div style={{ fontSize:11, color:'var(--text-muted)', paddingLeft:10, marginBottom:2 }}>{p.descripcion_vidrio}</div>
@@ -227,15 +319,55 @@ function TicketPedidoRapido({ detalle, extras = [] }) {
                 </div>
               ))}
             </div>
-          ))}
+          )})}
         </>
       )}
 
-      {/* Maquila */}
+      {/* Maquila dimensionada (jobs reales, con largo_cm/ancho_cm y procesos propios) */}
+      {maquilasDim.length > 0 && (
+        <>
+          <hr className="ticket-divider" />
+          <div style={{ fontWeight:700, fontSize:11, textTransform:'uppercase', letterSpacing:1, marginBottom:4, color:'var(--text-muted)' }}>Maquila</div>
+          <div style={{ display:'flex', fontSize:9, color:'var(--text-muted)', borderBottom:'1px dashed #aaa', paddingBottom:2, marginBottom:3, gap:4 }}>
+            <span style={{ flex:1 }}>Cant · Medida · Descripción</span>
+            <span style={{ width:50, textAlign:'right' }}>C.U.</span>
+            <span style={{ width:50, textAlign:'right' }}>Total</span>
+          </div>
+          {maquilasDim.map((p, i) => {
+            const cu = Number(p.subtotal_partida) / Number(p.piezas || p.cantidad || 1)
+            return (
+            <div key={i} style={{ marginBottom: 8 }}>
+              <div style={{ display:'flex', fontWeight:600, fontSize:12, gap:4 }}>
+                <span style={{ flex:1 }}>{p.piezas} · {p.largo_cm}×{p.ancho_cm}cm{p.espesor_label ? ` · ${p.espesor_label}` : ''}</span>
+                <span style={{ width:50, textAlign:'right', fontWeight:400, fontSize:11, color:'var(--text-muted)' }}>${fmt5(cu)}</span>
+                <span style={{ width:50, textAlign:'right' }}>${fmt5(p.subtotal_partida)}</span>
+              </div>
+              {p.descripcion && (
+                <div style={{ fontSize:11, color:'var(--text-muted)', paddingLeft:10, marginBottom:2 }}>{p.descripcion}</div>
+              )}
+              {/* Con un solo proceso, el renglón de la pieza ya trae el total correcto — solo mostramos el nombre. */}
+              {(p.procesos ?? []).length === 1 && (
+                <div style={{ fontSize:11, color:'var(--text-muted)', paddingLeft:10 }}>
+                  + {p.procesos[0].nombre}
+                </div>
+              )}
+              {(p.procesos ?? []).length > 1 && p.procesos.map((pr, j) => (
+                <div key={j} style={{ display:'flex', fontSize:11, paddingLeft:10, gap:4 }}>
+                  <span style={{ flex:1 }}>+ {pr.nombre}</span>
+                  <span style={{ width:50, textAlign:'right', color:'var(--text-muted)' }}>{pr.precio_unitario != null ? `$${fmt5(pr.precio_unitario)}` : ''}</span>
+                  <span style={{ width:50, textAlign:'right' }}>${fmt5(pr.subtotal)}</span>
+                </div>
+              ))}
+            </div>
+          )})}
+        </>
+      )}
+
+      {/* Maquila plana (extra sin dimensiones, formato heredado descripcion+notas) */}
       {extras.some(e => e.tipo === 'MAQUILA') && (
         <>
-          {detalle.partidas.length > 0 && <hr className="ticket-divider" />}
-          <div style={{ fontWeight:700, fontSize:11, textTransform:'uppercase', letterSpacing:1, marginBottom:4, color:'var(--text-muted)' }}>Maquila</div>
+          {(vidrios.length > 0 || maquilasDim.length > 0) && <hr className="ticket-divider" />}
+          <div style={{ fontWeight:700, fontSize:11, textTransform:'uppercase', letterSpacing:1, marginBottom:4, color:'var(--text-muted)' }}>Maquila (extra)</div>
           {extras.filter(e => e.tipo === 'MAQUILA').map((e, i) => {
             const dotIdx = (e.descripcion ?? '').indexOf(' · ')
             const dims   = dotIdx >= 0 ? e.descripcion.slice(0, dotIdx) : (e.descripcion ?? '')
@@ -297,8 +429,11 @@ function TicketPedidoRapido({ detalle, extras = [] }) {
       )}
 
       {(() => {
-        const totalPzasVidrio  = detalle.partidas.reduce((s, p) => s + Number(p.cantidad ?? 1), 0)
-        const totalPzasMaquila = extras.filter(e => e.tipo === 'MAQUILA').reduce((s, e) => s + Number(e.cantidad ?? 1), 0)
+        const totalPzasVidrio  = detalle.piezasVidrioVendidas ??
+          detalle.partidas.filter(p => !p.tipo || p.tipo === 'VIDRIO').reduce((s, p) => s + Number(p.cantidad ?? 1), 0)
+        const totalPzasMaquila = detalle.piezasMaquilaRecibidas ??
+          (detalle.partidas.filter(p => p.tipo === 'MAQUILA').reduce((s, p) => s + Number(p.piezas ?? p.cantidad ?? 1), 0) +
+           extras.filter(e => e.tipo === 'MAQUILA').reduce((s, e) => s + Number(e.cantidad ?? 1), 0))
         if (totalPzasVidrio === 0 && totalPzasMaquila === 0) return null
         return (
           <>
@@ -723,7 +858,7 @@ export default function NuevaCotizacion() {
     tiposVidrio, espesores, nivelesPrecio, clientes, procesos, barrenos, saques, extras, tiposPago, metodosPago,
     getPrecioVidrio, getPrecioProceso, getPrecioProcesoEspecial,
     getPreciosClienteRegistrado,
-    iniciarCotizacion, agregarPartida, agregarPartidaExtra, deletePartidasExtra,
+    iniciarCotizacion, agregarPartida, agregarMaquilaCotizacion, agregarPartidaExtra, deletePartidasExtra,
     actualizarCotizacion, finalizarCotizacion,
   } = useCotizacion()
 
@@ -764,6 +899,7 @@ export default function NuevaCotizacion() {
     cotEdit ? [
       ...cotEdit.partidas.map(convertirPartidaDesdeDB),
       ...(cotEdit.extras ?? []).map(convertirExtraDesdeDB),
+      ...(cotEdit.maquilas ?? []).map(convertirMaquilaDesdeDB),
     ] : []
   )
 
@@ -935,9 +1071,9 @@ export default function NuevaCotizacion() {
     const largo = parsed.largo
     const ancho  = parsed.ancho
 
-    const metros2_pieza   = (largo * ancho) / 10000
-    const metros2_total   = parsed.piezas * metros2_pieza
-    const subtotal_vidrio = metros2_total * precio_m2
+    const metros2_pieza   = Math.round((largo * ancho) / 10000 * 100) / 100
+    const metros2_total   = Math.round(parsed.piezas * metros2_pieza * 100) / 100
+    const subtotal_vidrio = Math.round(metros2_total * precio_m2 * 100) / 100
 
     // Calcular procesos seleccionados
     let subtotal_procesos = 0
@@ -952,25 +1088,26 @@ export default function NuevaCotizacion() {
       if (isM2) {
         const frac = sp.areaFrac
           ?? (sp.facesM2 ? ((sp.facesM2.front ? 1 : 0) + (sp.facesM2.back ? 1 : 0)) : (sp.numCaras ?? 1))
-        cantidad = metros2_total * frac
+        cantidad = Math.round(metros2_total * frac * 10000) / 10000
       } else if (isML && sp.sidesML) {
         const s = sp.sidesML
         const totalCm = (s.top ? ancho : 0) + (s.bottom ? ancho : 0) + (s.left ? largo : 0) + (s.right ? largo : 0)
-        cantidad = (totalCm / 100) * parsed.piezas
+        cantidad = Math.round((totalCm / 100) * parsed.piezas * 100) / 100
       } else {
         const lados = sp.lados ?? 'perimetro'
         if (lados === 'largo')       cantidad = (largo / 100) * parsed.piezas
         else if (lados === 'ancho')  cantidad = (ancho / 100) * parsed.piezas
         else                         cantidad = ((largo + ancho) * 2 / 100) * parsed.piezas
+        cantidad = Math.round(cantidad * 100) / 100
       }
       const precioNivel = getPrecioProc(proc.id_proceso, tipo?.espesor?.id_espesor ?? null)
       const precio_unitario = precioNivel !== null ? precioNivel : Number(proc.precio_unitario)
       const sinPrecio  = precioNivel === null && Number(proc.precio_unitario) === 0
       const configVacio = (isML && sp.sidesML && cantidad === 0)
         || (isM2 && sp.cellsM2 && !sp.cellsM2.some(Boolean))
-      const subtotal = cantidad * precio_unitario
+      const subtotal = Math.round(cantidad * precio_unitario * 100) / 100
       subtotal_procesos += subtotal
-      return { id_proceso: proc.id_proceso, id_unidad_cobro: proc.id_unidad_cobro, nombre: proc.nombre, unidad, cantidad, precio_unitario, subtotal, sinPrecio, configVacio }
+      return { id_proceso: proc.id_proceso, id_unidad_cobro: proc.id_unidad_cobro, nombre: proc.nombre, unidad, cantidad, precio_unitario, subtotal, sinPrecio, configVacio, sidesML: isML ? (sp.sidesML ?? null) : undefined }
     }).filter(Boolean)
 
     // Barrenos seleccionados
@@ -980,7 +1117,7 @@ export default function NuevaCotizacion() {
       const precioBruto = getPrecioEsp(proc.id_proceso)
       const sinPrecio = precioBruto === null
       const precio_unitario = precioBruto ?? 0
-      const subtotal = bs.cantidad * precio_unitario
+      const subtotal = Math.round(bs.cantidad * precio_unitario * 100) / 100
       subtotal_procesos += subtotal
       procesosCalc.push({
         id_proceso:      proc.id_proceso,
@@ -1001,7 +1138,7 @@ export default function NuevaCotizacion() {
       const precioBruto = getPrecioEsp(proc.id_proceso)
       const sinPrecio = precioBruto === null
       const precio_unitario = precioBruto ?? 0
-      const subtotal = ss.cantidad * precio_unitario
+      const subtotal = Math.round(ss.cantidad * precio_unitario * 100) / 100
       subtotal_procesos += subtotal
       procesosCalc.push({
         id_proceso:      proc.id_proceso,
@@ -1022,7 +1159,7 @@ export default function NuevaCotizacion() {
       const precioBruto = getPrecioEsp(proc.id_proceso)
       const sinPrecio = precioBruto === null
       const precio_unitario = precioBruto ?? 0
-      const subtotal = es.cantidad * precio_unitario
+      const subtotal = Math.round(es.cantidad * precio_unitario * 100) / 100
       subtotal_procesos += subtotal
       procesosCalc.push({
         id_proceso:      proc.id_proceso,
@@ -1036,6 +1173,7 @@ export default function NuevaCotizacion() {
       })
     })
 
+    subtotal_procesos = Math.round(subtotal_procesos * 100) / 100
     return {
       piezas: parsed.piezas,
       largo,
@@ -1044,8 +1182,8 @@ export default function NuevaCotizacion() {
       precio_m2,
       subtotal_vidrio,
       subtotal_procesos,
-      subtotal_total:   subtotal_vidrio + subtotal_procesos,
-      subtotal_rounded: subtotal_vidrio + subtotal_procesos,
+      subtotal_total:   Math.round((subtotal_vidrio + subtotal_procesos) * 100) / 100,
+      subtotal_rounded: Math.round((subtotal_vidrio + subtotal_procesos) * 100) / 100,
       esHojaCompleta,
       procesosCalc,
     }
@@ -1099,6 +1237,7 @@ export default function NuevaCotizacion() {
 
     const nuevaPartida = {
       _key:              Date.now() + Math.random(),
+      tipo:              'VIDRIO',
       id_tipo_vidrio:    Number(tipoVidrioId),
       tipoClaveLabel:    tipoSeleccionado.clave,
       piezas:            parsed.piezas,
@@ -1127,12 +1266,12 @@ export default function NuevaCotizacion() {
 
   // ── Preview en vivo de Maquila ────────────────────────────────────────────
   const maqParsed   = useMemo(() => parseNotacion(maqNotacion), [maqNotacion])
-  const maqMetros2  = maqParsed.error ? null : (maqParsed.piezas * maqParsed.largo * maqParsed.ancho) / 10000
+  const maqMetros2  = maqParsed.error ? null : Math.round((maqParsed.piezas * maqParsed.largo * maqParsed.ancho) / 10000 * 100) / 100
 
   const maqPreviewProcesos = useMemo(() => {
     if (!efectivoNivelId || maqMetros2 === null) return []
     const espesorNum     = maqEspesorId ? Number(maqEspesorId) : null
-    const perimetroML    = maqParsed.error ? 0 : maqParsed.piezas * 2 * (maqParsed.largo + maqParsed.ancho) / 100
+    const perimetroML    = maqParsed.error ? 0 : Math.round(maqParsed.piezas * 2 * (maqParsed.largo + maqParsed.ancho) / 100 * 100) / 100
     const especialesIds  = new Set([...saques.map(s => s.id_proceso), ...barrenos.map(b => b.id_proceso), ...extras.map(x => x.id_proceso)])
     return maqProcesosSelec.map(sel => {
       const proc = procesosActivos.find(p => p.id_proceso === sel.id_proceso)
@@ -1151,26 +1290,26 @@ export default function NuevaCotizacion() {
           const s = sel.sidesML
           const L = maqParsed.largo, A = maqParsed.ancho
           const totalCm = (s.top ? A : 0) + (s.bottom ? A : 0) + (s.left ? L : 0) + (s.right ? L : 0)
-          cantidad = (totalCm / 100) * maqParsed.piezas
+          cantidad = Math.round((totalCm / 100) * maqParsed.piezas * 100) / 100
         } else {
-          cantidad = perimetroML
+          cantidad = Math.round(perimetroML * 100) / 100
         }
         precio_unitario = getPrecioProc(proc.id_proceso, espesorNum) ?? getPrecioProc(proc.id_proceso, null) ?? 0
       } else if (esPorM2) {
         const frac = sel.areaFrac
           ?? (sel.facesM2 ? ((sel.facesM2.front ? 1 : 0) + (sel.facesM2.back ? 1 : 0)) : (sel.numCaras ?? 1))
-        cantidad        = maqMetros2 * frac
+        cantidad        = Math.round(maqMetros2 * frac * 10000) / 10000
         precio_unitario = getPrecioProc(proc.id_proceso, espesorNum) ?? getPrecioProc(proc.id_proceso, null) ?? 0
       } else {
-        cantidad        = maqMetros2
+        cantidad        = Math.round(maqMetros2 * 10000) / 10000
         precio_unitario = getPrecioProc(proc.id_proceso, espesorNum) ?? getPrecioProc(proc.id_proceso, null) ?? 0
       }
       const configVacio = (esPorML && sel.sidesML && cantidad === 0)
         || (esPorM2 && sel.cellsM2 && !sel.cellsM2.some(Boolean))
       return {
-        id_proceso: proc.id_proceso, nombre: proc.nombre,
+        id_proceso: proc.id_proceso, id_unidad_cobro: proc.id_unidad_cobro, nombre: proc.nombre,
         unidad: proc.unidad_cobro?.nombre ?? '', esPorM2, esPorML,
-        cantidad, precio_unitario, subtotal: cantidad * precio_unitario, configVacio,
+        cantidad, precio_unitario, subtotal: Math.round(cantidad * precio_unitario * 100) / 100, configVacio,
         sidesML:  esPorML ? (sel.sidesML ?? null) : undefined,
         areaFrac: esPorM2 ? (sel.areaFrac ?? null) : undefined,
       }
@@ -1178,7 +1317,7 @@ export default function NuevaCotizacion() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [efectivoNivelId, usarPreciosCli, preciosCli, cliPrecioFallback, nivelId, maqMetros2, maqParsed, maqEspesorId, maqProcesosSelec, procesosActivos, saques, barrenos, extras])
 
-  const maqSubtotal = maqPreviewProcesos.reduce((s, p) => s + p.subtotal, 0)
+  const maqSubtotal = Math.round(maqPreviewProcesos.reduce((s, p) => s + p.subtotal, 0) * 100) / 100
 
   const toggleMaqProceso = (procOrId) => {
     const proc = typeof procOrId === 'object' && procOrId !== null ? procOrId : null
@@ -1215,6 +1354,7 @@ export default function NuevaCotizacion() {
       ancho_cm:        maqParsed.ancho,
       piezas_maq:      maqParsed.piezas,
       metros2:         maqMetros2,
+      id_espesor:      espesorSel?.id_espesor ?? null,
       espesor_label:   espesorSel?.etiqueta ?? (espesorSel ? `${espesorSel.valor_mm} mm` : ''),
       procesos_maq:    maqPreviewProcesos,
       cantidad:        maqParsed.piezas,
@@ -1406,45 +1546,28 @@ export default function NuevaCotizacion() {
   }
 
   const guardarExtras = async (id_cotizacion) => {
-    const extras = partidas.filter(p => p.tipo && p.tipo !== 'VIDRIO')
+    const extras = partidas.filter(p => p.tipo && p.tipo !== 'VIDRIO' && !(p.tipo === 'MAQUILA' && p.piezas_maq != null))
     for (const p of extras) {
-      let descripcion = p.descripcion
-      let notas = null
-      if (p.tipo === 'MAQUILA' && p.piezas_maq != null) {
-        const dims  = `${p.piezas_maq} ${p.largo_cm}×${p.ancho_cm}cm${p.espesor_label ? ` ${p.espesor_label}` : ''}`
-        const procs = (p.procesos_maq ?? []).map(pr => {
-          const qty = pr.cantidad != null ? ` ${Number(pr.cantidad).toFixed(3)} ${pr.unidad}` : ''
-          const cfg = pr.sidesML
-            ? ` [${['top','bottom','left','right'].filter(k => pr.sidesML[k]).map(k => k[0].toUpperCase()).join('')}]`
-            : (pr.areaFrac != null && pr.areaFrac < 1 ? ` (${Math.round(pr.areaFrac * 100)}%)` : '')
-          return `${pr.nombre}${qty}${cfg}`
-        }).join(', ')
-        descripcion = `${dims}${p.descripcion ? ` - ${p.descripcion}` : ''}${procs ? ` · ${procs}` : ''}`
-        notas = JSON.stringify({
-          metros2: p.metros2,
-          procesos: (p.procesos_maq ?? []).map(pr => ({
-            id_proceso:      pr.id_proceso,
-            nombre:          pr.nombre,
-            unidad:          pr.unidad ?? '',
-            cantidad:        pr.cantidad ?? 0,
-            precio_unitario: pr.precio_unitario ?? 0,
-            subtotal:        pr.subtotal ?? 0,
-            ...(pr.sidesML  ? { sidesML:  pr.sidesML  } : {}),
-            ...(pr.areaFrac != null ? { areaFrac: pr.areaFrac } : {}),
-          })),
-        })
-      }
       const { error } = await agregarPartidaExtra(id_cotizacion, {
         tipo:                p.tipo,
-        descripcion:         descripcion ?? '',
+        descripcion:         p.descripcion ?? '',
         unidad:              p.unidad,
         cantidad:            p.cantidad,
         precio_unitario:     p.precio_unitario,
         subtotal:            p.subtotal_partida,
         id_producto_general: p.id_producto_general ?? null,
-        notas,
+        notas:               null,
         observaciones:       p.observaciones || null,
       })
+      if (error) throw new Error(error)
+    }
+  }
+
+  // Jobs de maquila dimensionados — guardados estructurados (largo_cm/ancho_cm
+  // reales + procesos propios en partida_proceso), no aplanados como los extras.
+  const guardarMaquilas = async (id_cotizacion) => {
+    for (const m of construirMaquilasPayload(partidas)) {
+      const { error } = await agregarMaquilaCotizacion(id_cotizacion, m)
       if (error) throw new Error(error)
     }
   }
@@ -1474,10 +1597,12 @@ export default function NuevaCotizacion() {
           id_nivel_precio: nivelParaGuardar,
           id_cliente:      clienteId ? Number(clienteId) : null,
           partidas:        vidrioPartidas,
+          maquilas:        construirMaquilasPayload(partidas),
           total:           totalGeneral,
         })
         if (updErr) throw new Error(updErr)
-        // Limpiar y reinsertar extras
+        // Limpiar y reinsertar extras (los jobs de maquila dimensionados ya
+        // se borran/reinsertan dentro de actualizarCotizacion en el backend)
         await deletePartidasExtra(cotEdit.id)
         await guardarExtras(cotEdit.id)
         setCotCreada({
@@ -1504,6 +1629,7 @@ export default function NuevaCotizacion() {
         if (pErr) throw new Error(pErr)
       }
       await guardarExtras(cot.id_cotizacion)
+      await guardarMaquilas(cot.id_cotizacion)
 
       const { error: finErr } = await finalizarCotizacion(cot.id_cotizacion, totalGeneral)
       if (finErr) throw new Error(finErr)
@@ -1572,6 +1698,7 @@ export default function NuevaCotizacion() {
           id_nivel_precio: nivelParaGuardar,
           id_cliente:      clienteId ? Number(clienteId) : null,
           partidas:        vidrioPartidas,
+          maquilas:        construirMaquilasPayload(partidas),
           total:           totalGeneral,
         })
         await deletePartidasExtra(cotEdit.id)
@@ -1587,52 +1714,29 @@ export default function NuevaCotizacion() {
         setPedidoCreado(detalle)
         setCotCreada({ folio: cotEdit.folio, clienteNombre: clienteSeleccionado?.nombre ?? null, partidas, total: totalGeneral })
       } else if (tieneExtras) {
-        // Con extras: pedido directo sin cotización, extras en partida_pedido_extra
+        // Con extras: pedido directo sin cotización.
+        // MAQUILA dimensionada (piezas_maq != null) va estructurada — mismas
+        // columnas/PROCESO hijos que un job de maquila real, no aplanada a texto.
+        // Todo lo demás (PRODUCTO/EXTRA/maquila sin medidas) sigue como extra plano.
+        const maquilasPayload = construirMaquilasPayload(partidas)
         const extrasPayload = partidas
-          .filter(p => p.tipo && p.tipo !== 'VIDRIO')
-          .map(p => {
-            let descripcion = p.descripcion
-            let notas = null
-            if (p.tipo === 'MAQUILA' && p.piezas_maq != null) {
-              const dims  = `${p.piezas_maq} ${p.largo_cm}×${p.ancho_cm}cm${p.espesor_label ? ` ${p.espesor_label}` : ''}`
-              const procs = (p.procesos_maq ?? []).map(pr => {
-                const qty = pr.cantidad != null ? ` ${Number(pr.cantidad).toFixed(3)} ${pr.unidad}` : ''
-                const cfg = pr.sidesML
-                  ? ` [${['top','bottom','left','right'].filter(k => pr.sidesML[k]).map(k => k[0].toUpperCase()).join('')}]`
-                  : (pr.areaFrac != null && pr.areaFrac < 1 ? ` (${Math.round(pr.areaFrac * 100)}%)` : '')
-                return `${pr.nombre}${qty}${cfg}`
-              }).join(', ')
-              descripcion = `${dims}${p.descripcion ? ` - ${p.descripcion}` : ''}${procs ? ` · ${procs}` : ''}`
-              notas = JSON.stringify({
-                metros2: p.metros2,
-                procesos: (p.procesos_maq ?? []).map(pr => ({
-                  id_proceso:      pr.id_proceso,
-                  nombre:          pr.nombre,
-                  unidad:          pr.unidad ?? '',
-                  cantidad:        pr.cantidad ?? 0,
-                  precio_unitario: pr.precio_unitario ?? 0,
-                  subtotal:        pr.subtotal ?? 0,
-                  ...(pr.sidesML   ? { sidesML:  pr.sidesML  } : {}),
-                  ...(pr.areaFrac != null ? { areaFrac: pr.areaFrac } : {}),
-                })),
-              })
-            }
-            return {
-              tipo:                p.tipo,
-              descripcion:         descripcion ?? '',
-              unidad:              p.unidad,
-              cantidad:            p.cantidad,
-              precio_unitario:     p.precio_unitario,
-              subtotal:            p.subtotal_partida,
-              id_producto_general: p.id_producto_general ?? null,
-              notas,
-              observaciones:       p.observaciones || null,
-            }
-          })
+          .filter(p => p.tipo && p.tipo !== 'VIDRIO' && !(p.tipo === 'MAQUILA' && p.piezas_maq != null))
+          .map(p => ({
+            tipo:                p.tipo,
+            descripcion:         p.descripcion ?? '',
+            unidad:              p.unidad,
+            cantidad:            p.cantidad,
+            precio_unitario:     p.precio_unitario,
+            subtotal:            p.subtotal_partida,
+            id_producto_general: p.id_producto_general ?? null,
+            notas:               null,
+            observaciones:       p.observaciones || null,
+          }))
         const idPedido = await crearPedidoDirectoConExtras({
           id_cliente:      clienteId ? Number(clienteId) : null,
           id_nivel_precio: nivelParaGuardar,
           partidas:        vidrioPartidas,
+          maquilas:        maquilasPayload,
           tipo_pago:       modalFormaPago,
           monto_anticipo:  monto,
           extras:          extrasPayload,
@@ -1760,17 +1864,26 @@ export default function NuevaCotizacion() {
         saldo_cobrado: pedidoCreado.saldo_cobrado,
         esEntregado: pedidoCreado.estado === 'ENTREGADO',
         total: pedidoCreado.total,
+        piezasMaquilaRecibidas: pedidoCreado.piezasMaquilaRecibidas,
+        piezasVidrioVendidas: pedidoCreado.piezasVidrioVendidas,
         observaciones: pedidoCreado.observaciones ?? '',
         partidas: [
-          ...pedidoCreado.partidas.map(p => ({
+          ...pedidoCreado.partidas.filter(p => !p.tipo || p.tipo === 'VIDRIO').map(p => ({
             piezas: p.cantidad, clave: p.clave_vidrio,
             largo_cm: p.largo_cm, ancho_cm: p.ancho_cm,
             subtotal_vidrio: p.subtotal_vidrio, procesos: p.procesos,
             subtotal_partida: p.subtotal_partida,
             descripcion_vidrio: p.descripcion_vidrio,
           })),
+          ...pedidoCreado.partidas.filter(p => p.tipo === 'MAQUILA').map(p => ({
+            tipo: 'MAQUILA',
+            piezas: p.piezas, largo_cm: p.largo_cm, ancho_cm: p.ancho_cm,
+            clave: p.espesor_label,
+            descripcion: p.descripcion, subtotal_partida: p.subtotal_partida,
+            procesos: p.procesos,
+          })),
           ...pedidoExtras.map(e => ({
-            tipo: e.tipo === 'HERRAJE' || e.tipo === 'PRODUCTO' ? e.tipo : 'MAQUILA',
+            tipo: ['HERRAJE', 'PRODUCTO', 'EXTRA'].includes(e.tipo) ? e.tipo : 'MAQUILA',
             descripcion: e.descripcion,
             cantidad: e.cantidad,
             unidad: e.unidad,
@@ -1838,6 +1951,43 @@ export default function NuevaCotizacion() {
 
     // Ticket de cotización + bloque de conversión rápida
     const antNum = parseFloat(anticipoStr) || 0
+    const partidasImpresion = cotCreada.partidas.map(p => {
+      if (!p.tipo || p.tipo === 'VIDRIO') return {
+        tipo: 'VIDRIO',
+        piezas: p.piezas, clave: p.tipoClaveLabel,
+        largo_cm: p.largo_cm, ancho_cm: p.ancho_cm,
+        subtotal_vidrio: p.subtotal_vidrio, procesos: p.procesos ?? [],
+        subtotal_partida: p.subtotal_partida,
+      }
+      if (p.tipo === 'MAQUILA' && p.piezas_maq != null) return {
+        tipo: 'MAQUILA',
+        piezas: p.piezas_maq, clave: p.espesor_label,
+        largo_cm: p.largo_cm, ancho_cm: p.ancho_cm,
+        descripcion: p.descripcion,
+        procesos: p.procesos_maq ?? [],
+        subtotal_partida: p.subtotal_partida,
+      }
+      return {
+        tipo: p.tipo ?? 'MAQUILA',
+        descripcion: p.descripcion,
+        cantidad: p.cantidad,
+        unidad: p.unidad,
+        precio_unitario: p.precio_unitario,
+        subtotal_partida: p.subtotal_partida,
+        notas: p.notas ?? null,
+      }
+    })
+    const detalleImpresionCot = {
+      tipo: 'cotizacion',
+      folio: cotCreada.folio,
+      fecha: new Date().toLocaleDateString('es-MX'),
+      hora: new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }),
+      clienteNombre: cotCreada.clienteNombre ?? 'Mostrador',
+      nivelNombre: cotCreada.nivelNombre ?? '',
+      esEntregado: false,
+      total: calcTotal(cotCreada.partidas),
+      partidas: partidasImpresion,
+    }
     return (
       <>
         <div className="page-header">
@@ -1846,38 +1996,8 @@ export default function NuevaCotizacion() {
             <div className="page-subtitle">Folio {cotCreada.folio}</div>
           </div>
           <div style={{ display: 'flex', gap: 10 }}>
-            <button className="btn btn-outline" onClick={() => printTicketVidrio({
-              tipo: 'cotizacion',
-              folio: cotCreada.folio,
-              fecha: new Date().toLocaleDateString('es-MX'),
-              hora: new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }),
-              clienteNombre: cotCreada.clienteNombre ?? 'Mostrador',
-              nivelNombre: cotCreada.nivelNombre ?? '',
-              esEntregado: false,
-              total: calcTotal(cotCreada.partidas),
-              partidas: cotCreada.partidas.map(p => {
-                if (!p.tipo || p.tipo === 'VIDRIO') return {
-                  tipo: 'VIDRIO',
-                  piezas: p.piezas, clave: p.tipoClaveLabel,
-                  largo_cm: p.largo_cm, ancho_cm: p.ancho_cm,
-                  subtotal_vidrio: p.subtotal_vidrio, procesos: p.procesos ?? [],
-                  subtotal_partida: p.subtotal_partida,
-                }
-                if (p.tipo === 'MAQUILA' && p.piezas_maq != null) return {
-                  tipo: 'MAQUILA',
-                  piezas: p.piezas_maq, clave: p.espesor_label,
-                  largo_cm: p.largo_cm, ancho_cm: p.ancho_cm,
-                  descripcion: p.descripcion,
-                  procesos: p.procesos_maq ?? [],
-                  subtotal_partida: p.subtotal_partida,
-                }
-                return {
-                  tipo: p.tipo ?? 'MAQUILA',
-                  descripcion: p.descripcion,
-                  subtotal_partida: p.subtotal_partida,
-                }
-              }),
-            })}>🖨️ Imprimir</button>
+            <button className="btn btn-outline" onClick={() => printTicketVidrio(detalleImpresionCot)}>🖨️ Imprimir</button>
+            <button className="btn btn-outline" onClick={() => printPedidoA4(detalleImpresionCot)}>🖨️ Hoja</button>
             <button className="btn btn-primary" onClick={nuevaCotizacion}>+ Nueva cotizacion</button>
           </div>
         </div>

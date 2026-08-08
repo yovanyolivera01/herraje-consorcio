@@ -316,6 +316,7 @@ function PedidoCreadoModal({ detalle, onClose }) {
         precio_unitario:  e.precio_unitario != null ? Number(e.precio_unitario) : null,
         subtotal_partida: Number(e.subtotal),
         procesos:         [],
+        notas:            e.notas,
       })),
     ],
   }
@@ -576,6 +577,22 @@ function DetalleModal({ resumen, onClose, onConvertir, onEditar }) {
         descripcion:      e.descripcion,
         precio_unitario:  e.precio_unitario,
         subtotal_partida: e.subtotal,
+        notas:            e.notas,
+      })),
+      ...(detalle.maquilas ?? []).map(m => ({
+        tipo:             'MAQUILA',
+        descripcion:      m.descripcion,
+        piezas:           m.piezas,
+        largo_cm:         m.largo_cm,
+        ancho_cm:         m.ancho_cm,
+        subtotal_partida: m.subtotal_partida,
+        procesos: (m.procesos ?? []).map(pr => ({
+          nombre:          pr.nombre,
+          unidad:          pr.unidad,
+          precio_unitario: pr.precio_unitario,
+          subtotal:        pr.subtotal,
+          sidesML:         pr.sidesML,
+        })),
       })),
     ],
   } : null

@@ -110,8 +110,14 @@ export const iniciarCotizacion = async ({ id_nivel_precio, id_cliente = null, ob
 export const agregarPartida = async (id_cotizacion, partida) =>
   apiFetch(`/cotizaciones/${id_cotizacion}/partidas`, { method: 'POST', body: partida })
 
-export const actualizarCotizacion = async (id_cotizacion, { id_nivel_precio, id_cliente, partidas, total }) =>
-  apiFetch(`/cotizaciones/${id_cotizacion}/actualizar`, { method: 'PUT', body: { id_nivel_precio, id_cliente, partidas, total } })
+// Job de maquila dimensionado (largo_cm/ancho_cm reales + procesos propios en
+// partida_proceso) — no confundir con agregarPartidaMaquila en maquilaApi.js,
+// que es del módulo independiente de cotizaciones-solo-maquila.
+export const agregarMaquilaCotizacion = async (id_cotizacion, maquila) =>
+  apiFetch(`/cotizaciones/${id_cotizacion}/maquilas`, { method: 'POST', body: maquila })
+
+export const actualizarCotizacion = async (id_cotizacion, { id_nivel_precio, id_cliente, partidas, maquilas, total }) =>
+  apiFetch(`/cotizaciones/${id_cotizacion}/actualizar`, { method: 'PUT', body: { id_nivel_precio, id_cliente, partidas, maquilas, total } })
 
 export const finalizarCotizacion = async (id_cotizacion, total) =>
   apiFetch(`/cotizaciones/${id_cotizacion}`, { method: 'PUT', body: { total: Number(total), estatus: 'FINALIZADA' } })
@@ -188,6 +194,7 @@ export const getDetalleCotizacion = async (id) => {
         cantidad:        Number(pp.cantidad),
         precio_unitario: Number(pp.precio_unitario),
         subtotal:        Number(pp.subtotal),
+        sidesML:         pp.sides ?? null,
       })),
     })),
     extras: (row.extras ?? []).map(e => ({
@@ -199,6 +206,30 @@ export const getDetalleCotizacion = async (id) => {
       precio_unitario:     Number(e.precio_unitario),
       subtotal:            Number(e.subtotal),
       id_producto_general: e.id_producto_general,
+      notas:               e.notas,
+    })),
+    maquilas: (row.maquilas ?? []).map(m => ({
+      id:                 m.id_partida,
+      descripcion:        m.descripcion ?? '',
+      largo_cm:           Number(m.largo_cm),
+      ancho_cm:           Number(m.ancho_cm),
+      piezas:             Number(m.cantidad),
+      metros2:            Number(m.metros2),
+      subtotal_procesos:  Number(m.subtotal_procesos),
+      subtotal_partida:   Number(m.subtotal),
+      observaciones:      m.observaciones ?? '',
+      id_espesor:         m.id_espesor,
+      espesor_label:      m.espesor_label ?? '',
+      procesos: (m.procesos ?? []).map(pr => ({
+        id_proceso:      pr.id_proceso,
+        id_unidad_cobro: pr.id_unidad_cobro,
+        nombre:          pr.proceso ?? '',
+        unidad:          pr.unidad_cobro ?? '',
+        cantidad:        Number(pr.cantidad),
+        precio_unitario: Number(pr.precio_unitario),
+        subtotal:        Number(pr.subtotal),
+        sidesML:         pr.sides ?? null,
+      })),
     })),
   }
 }

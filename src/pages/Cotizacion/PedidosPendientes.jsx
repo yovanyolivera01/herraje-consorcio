@@ -6,6 +6,16 @@ import { printPedidoPendiente, printTicketVidrio, printPedidoA4 } from '../../ut
 
 // ── Ticket de pedido ──────────────────────────────────────────────────────
 function TicketPedido({ detalle, extras = [] }) {
+  const vidrios = detalle.partidas.filter(p => !p.tipo || p.tipo === 'VIDRIO')
+  const maquilasDim = detalle.partidas.filter(p => p.tipo === 'MAQUILA')
+  const extrasConMaquila = [
+    ...maquilasDim.map(p => ({
+      tipo: 'MAQUILA',
+      descripcion: `${p.piezas ?? p.cantidad ?? 1} · ${p.largo_cm}×${p.ancho_cm}cm${p.espesor_label ? ' · ' + p.espesor_label : ''}${p.descripcion ? ' - ' + p.descripcion : ''}`,
+      subtotal: p.subtotal_partida,
+    })),
+    ...extras,
+  ]
   return (
     <div className="ticket-preview">
       <div className="ticket-header">
@@ -25,7 +35,7 @@ function TicketPedido({ detalle, extras = [] }) {
       )}
       <hr className="ticket-divider" />
 
-      {detalle.partidas.map((p, i) => (
+      {vidrios.map((p, i) => (
         <div key={p.id} style={{ marginBottom: 10 }}>
           <div style={{ fontWeight: 600, fontSize: 12 }}>
             {i + 1}. {p.cantidad ?? 1} · {p.largo_cm}×{p.ancho_cm} cm · {p.clave_vidrio} · {p.metros2.toFixed(4)} m²
@@ -50,7 +60,7 @@ function TicketPedido({ detalle, extras = [] }) {
         </div>
       ))}
 
-      {extras.map((e, i) => (
+      {extrasConMaquila.map((e, i) => (
         <div key={i} style={{ marginBottom: 8 }}>
           <div className="ticket-row" style={{ fontWeight: 600, fontSize: 12 }}>
             <span>{e.tipo === 'MAQUILA' ? '🔧 ' : ''}{e.descripcion}</span>
@@ -84,6 +94,16 @@ function TicketPedido({ detalle, extras = [] }) {
 
 // ── Ticket de entrega (post-entrega) ──────────────────────────────────────
 function TicketEntrega({ detalle, saldoCobrado, extras = [] }) {
+  const vidrios = detalle.partidas.filter(p => !p.tipo || p.tipo === 'VIDRIO')
+  const maquilasDim = detalle.partidas.filter(p => p.tipo === 'MAQUILA')
+  const extrasConMaquila = [
+    ...maquilasDim.map(p => ({
+      tipo: 'MAQUILA',
+      descripcion: `${p.piezas ?? p.cantidad ?? 1} · ${p.largo_cm}×${p.ancho_cm}cm${p.espesor_label ? ' · ' + p.espesor_label : ''}${p.descripcion ? ' - ' + p.descripcion : ''}`,
+      subtotal: p.subtotal_partida,
+    })),
+    ...extras,
+  ]
   return (
     <div className="ticket-preview">
       <div className="ticket-header">
@@ -96,7 +116,7 @@ function TicketEntrega({ detalle, saldoCobrado, extras = [] }) {
       <div className="ticket-row"><span>Cliente:</span><span>{detalle.cliente?.nombre ?? 'Mostrador'}</span></div>
       <hr className="ticket-divider" />
 
-      {detalle.partidas.map((p, i) => (
+      {vidrios.map((p, i) => (
         <div key={p.id} style={{ marginBottom: 8 }}>
           <div style={{ fontWeight:600, fontSize:12 }}>
             {i+1}. {p.cantidad ?? 1} · {p.largo_cm}×{p.ancho_cm} cm · {p.clave_vidrio}
@@ -113,7 +133,7 @@ function TicketEntrega({ detalle, saldoCobrado, extras = [] }) {
         </div>
       ))}
 
-      {extras.map((e, i) => (
+      {extrasConMaquila.map((e, i) => (
         <div key={i} style={{ marginBottom: 8 }}>
           <div className="ticket-row" style={{ fontWeight: 600, fontSize: 12 }}>
             <span>{e.tipo === 'MAQUILA' ? '🔧 ' : ''}{e.descripcion}</span>
@@ -260,6 +280,9 @@ function DetallePedidoModal({ resumen, onClose, onEntregado }) {
     </div>
   )
 
+  const vidrios = detalle?.partidas.filter(p => !p.tipo || p.tipo === 'VIDRIO') ?? []
+  const maquilasDim = detalle?.partidas.filter(p => p.tipo === 'MAQUILA') ?? []
+
   return (
     <>
       <div className="modal-overlay" onClick={e => e.target === e.currentTarget && !showEntregar && onClose()}>
@@ -304,7 +327,7 @@ function DetallePedidoModal({ resumen, onClose, onEntregado }) {
                   </div>
 
                   <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-                    {detalle.partidas.map((p, i) => (
+                    {vidrios.map((p, i) => (
                       <div key={p.id} style={{
                         border: '1px solid var(--border)', borderRadius: 10,
                         overflow: 'hidden',
@@ -358,6 +381,57 @@ function DetallePedidoModal({ resumen, onClose, onEntregado }) {
                     ))}
                   </div>
 
+                  {maquilasDim.length > 0 && (
+                    <>
+                      <div style={{ fontWeight:700, fontSize:13, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:1, margin:'14px 0 8px' }}>
+                        Maquila
+                      </div>
+                      <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                        {maquilasDim.map((p, i) => (
+                          <div key={p.id} style={{ border:'1px solid var(--border)', borderRadius:10, overflow:'hidden' }}>
+                            <div style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 14px', background:'white' }}>
+                              <div style={{
+                                width: 28, height: 28, borderRadius: 6,
+                                background: 'var(--accent)', color: 'white',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                fontSize: 12, fontWeight: 700, flexShrink: 0,
+                              }}>
+                                {i + 1}
+                              </div>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontWeight:700, fontSize:15 }}>
+                                  {p.piezas ?? p.cantidad ?? 1} · {p.largo_cm}×{p.ancho_cm} cm{p.espesor_label ? ` · ${p.espesor_label}` : ''}
+                                </div>
+                                {p.descripcion && (
+                                  <div style={{ fontSize:12, color:'var(--text-muted)', marginTop:1 }}>{p.descripcion}</div>
+                                )}
+                              </div>
+                              <div style={{ fontWeight:700, fontSize:15, color:'var(--accent)', flexShrink:0 }}>
+                                ${fmt5(p.subtotal_partida)}
+                              </div>
+                            </div>
+                            {(p.procesos ?? []).length === 1 && (
+                              <div style={{ background:'var(--bg)', borderTop:'1px solid var(--border)', padding:'6px 14px 6px 54px', fontSize:12, color:'var(--text-muted)' }}>
+                                + {p.procesos[0].nombre}
+                              </div>
+                            )}
+                            {(p.procesos ?? []).length > 1 && (
+                              <div style={{ background:'var(--bg)', borderTop:'1px solid var(--border)', padding:'6px 14px 6px 54px' }}>
+                                {p.procesos.map((pr, j) => (
+                                  <div key={j} style={{ display:'flex', gap:8, fontSize:12, color:'var(--text-muted)', paddingBottom: j < p.procesos.length - 1 ? 3 : 0 }}>
+                                    <span style={{ flex:1 }}>+ {pr.nombre}</span>
+                                    <span>{pr.precio_unitario != null ? `$${fmt5(pr.precio_unitario)}` : ''}</span>
+                                    <span>${fmt5(pr.subtotal)}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
+
                   {extras.length > 0 && (
                     <>
                       <div style={{ fontWeight:700, fontSize:13, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:1, margin:'14px 0 8px' }}>
@@ -408,8 +482,10 @@ function DetallePedidoModal({ resumen, onClose, onEntregado }) {
                   anticipo: detalle.anticipo,
                   saldo: detalle.saldo,
                   esEntregado: false,
+                  piezasVidrioVendidas: detalle.piezasVidrioVendidas,
+                  piezasMaquilaRecibidas: detalle.piezasMaquilaRecibidas,
                   partidas: [
-                    ...detalle.partidas.map(p => ({
+                    ...vidrios.map(p => ({
                       piezas: p.cantidad ?? 1,
                       clave: p.clave_vidrio,
                       largo_cm: p.largo_cm,
@@ -419,13 +495,24 @@ function DetallePedidoModal({ resumen, onClose, onEntregado }) {
                       subtotal_partida: p.subtotal_partida,
                       descripcion_vidrio: p.descripcion_vidrio,
                     })),
+                    ...maquilasDim.map(p => ({
+                      tipo: 'MAQUILA',
+                      piezas: p.piezas ?? p.cantidad ?? 1,
+                      largo_cm: p.largo_cm,
+                      ancho_cm: p.ancho_cm,
+                      clave: p.espesor_label,
+                      descripcion: p.descripcion,
+                      subtotal_partida: p.subtotal_partida,
+                      procesos: p.procesos ?? [],
+                    })),
                     ...(detalle.extras ?? []).map(e => ({
-                      tipo: e.tipo === 'HERRAJE' || e.tipo === 'PRODUCTO' ? e.tipo : 'MAQUILA',
+                      tipo: ['HERRAJE', 'PRODUCTO', 'EXTRA'].includes(e.tipo) ? e.tipo : 'MAQUILA',
                       descripcion: e.descripcion,
                       cantidad: e.cantidad,
                       precio_unitario: e.precio_unitario != null ? Number(e.precio_unitario) : null,
                       subtotal_partida: Number(e.subtotal),
                       procesos: [],
+                      notas: e.notas,
                     })),
                   ],
                 })}>🖨️ Hoja</button>

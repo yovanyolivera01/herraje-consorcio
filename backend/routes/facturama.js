@@ -21,32 +21,51 @@ function extractError(data) {
 // ── Crear CFDI 4.0 y guardar en BD ───────────────────────────────────────
 router.post('/facturama/cfdi', async (req, res) => {
   const { _id_pedido, _folio_pedido, _total_cfdi, ...cfdiBody } = req.body
+  cfdiBody.ExpeditionPlace = process.env.FACTURAMA_CP_EMISOR || cfdiBody.ExpeditionPlace
+
+  // Regla del SAT (CFDI 4.0): con RFC genérico de público en general
+  // (XAXX010101000) o extranjero (XEXX010101000), el TaxZipCode del
+  // receptor debe coincidir con el CP del emisor — no con uno arbitrario
+  // capturado en el formulario. Se fuerza aquí para que siempre sea
+  // válido sin importar qué CP haya quedado en el formulario.
+  const RFC_GENERICOS = ['XAXX010101000', 'XEXX010101000']
+  if (cfdiBody.Receiver && RFC_GENERICOS.includes(cfdiBody.Receiver.Rfc) && process.env.FACTURAMA_CP_EMISOR) {
+    cfdiBody.Receiver.TaxZipCode = process.env.FACTURAMA_CP_EMISOR
+  }
+
   try {
-    const r = await fetch(`${baseUrl()}/4/cfdis`, {
+    const r = await fetch(`${baseUrl()}/3/cfdis`, {
       method:  'POST',
       headers: { 'Authorization': authHeader(), 'Content-Type': 'application/json' },
       body:    JSON.stringify(cfdiBody),
     })
-    const data = await r.json().catch(() => ({}))
-    if (!r.ok) return res.status(r.status).json({ message: extractError(data) })
+    const rawText = await r.text()
+    let data = {}
+    try { data = rawText ? JSON.parse(rawText) : {} } catch { /* respuesta no-JSON, se conserva rawText para el log */ }
+    if (!r.ok) {
+      console.error(`[facturama] ${r.status} ${r.statusText} — ${rawText || '(cuerpo vacío)'}`)
+      const msg = Object.keys(data).length ? extractError(data) : `${r.status} ${r.statusText}: ${rawText || 'sin detalle'}`
+      return res.status(r.status).json({ message: msg })
+    }
 
     // Persist in local DB
     try {
-      await query(
-        `INSERT INTO factura_cfdi
-           (id_pedido, folio_pedido, uuid_cfdi, serie, folio_cfdi, rfc_receptor, nombre_receptor, total)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+      const { rows: insRows } = await query(
+        'SELECT * FROM sp_insertar_factura_cfdi($1,$2,$3,$4,$5,$6,$7,$8)',
         [
           _id_pedido    ?? null,
           _folio_pedido ?? null,
           data.Id ?? data.id ?? null,
           data.Serie    ?? null,
           data.Folio    ?? null,
-          cfdiBody.Receptor?.Rfc    ?? null,
-          cfdiBody.Receptor?.Nombre ?? null,
+          cfdiBody.Receiver?.Rfc  ?? null,
+          cfdiBody.Receiver?.Name ?? null,
           _total_cfdi  ?? null,
         ]
       )
+      if (!insRows[0]?.p_id_factura) {
+        console.error('[facturama] No se pudo guardar en BD:', insRows[0]?.p_mensaje)
+      }
     } catch (dbErr) {
       console.error('[facturama] No se pudo guardar en BD:', dbErr.message)
     }
@@ -91,14 +110,14 @@ router.get('/facturas', async (req, res) => {
 // ── Descargar PDF ─────────────────────────────────────────────────────────
 router.get('/facturama/cfdi/:id/pdf', async (req, res) => {
   try {
-    const r = await fetch(`${baseUrl()}/cfdi/pdf/issued/${encodeURIComponent(req.params.id)}`, {
+    const r = await fetch(`${baseUrl()}/Cfdi/pdf/issued/${encodeURIComponent(req.params.id)}`, {
       headers: { 'Authorization': authHeader() },
     })
     if (!r.ok) return res.status(r.status).end()
-    const buf = await r.arrayBuffer()
+    const data = await r.json()
     res.setHeader('Content-Type', 'application/pdf')
     res.setHeader('Content-Disposition', `attachment; filename="${req.params.id}.pdf"`)
-    res.send(Buffer.from(buf))
+    res.send(Buffer.from(data.Content, 'base64'))
   } catch (e) {
     res.status(500).json({ message: e.message })
   }
@@ -107,14 +126,14 @@ router.get('/facturama/cfdi/:id/pdf', async (req, res) => {
 // ── Descargar XML ─────────────────────────────────────────────────────────
 router.get('/facturama/cfdi/:id/xml', async (req, res) => {
   try {
-    const r = await fetch(`${baseUrl()}/cfdi/xml/issued/${encodeURIComponent(req.params.id)}`, {
+    const r = await fetch(`${baseUrl()}/Cfdi/xml/issued/${encodeURIComponent(req.params.id)}`, {
       headers: { 'Authorization': authHeader() },
     })
     if (!r.ok) return res.status(r.status).end()
-    const text = await r.text()
+    const data = await r.json()
     res.setHeader('Content-Type', 'application/xml; charset=utf-8')
     res.setHeader('Content-Disposition', `attachment; filename="${req.params.id}.xml"`)
-    res.send(text)
+    res.send(Buffer.from(data.Content, 'base64'))
   } catch (e) {
     res.status(500).json({ message: e.message })
   }

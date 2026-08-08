@@ -26,7 +26,7 @@ BEGIN
         WHERE id_nivel_precio = p_id_nivel_precio AND activo = TRUE
     ) THEN
         p_id_resultado := 0;
-        p_mensaje      := 'El nivel de precio indicado no existe o está inactivo.';
+        p_mensaje           := 'El nivel de precio indicado no existe o está inactivo.';
     ELSE
         INSERT INTO cliente (nombre, telefono, correo, id_nivel_precio, rfc, razon_social, cp_fiscal, regimen_fiscal, uso_cfdi)
         VALUES (p_nombre, p_telefono, p_correo, p_id_nivel_precio, p_rfc, p_razon_social, p_cp_fiscal, p_regimen_fiscal, p_uso_cfdi)
