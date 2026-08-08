@@ -134,102 +134,6 @@ router.post('/precios-vidrio', async (req, res) => {
   } catch (e) { err(res, e) }
 })
 
-// ── Clientes ──────────────────────────────────────────────────────────────
-
-router.get('/clientes', async (req, res) => {
-  try {
-    const { rows } = await query(`
-      SELECT c.*,
-        json_build_object('id_nivel_precio', n.id_nivel_precio, 'nombre', n.nombre) AS nivel_precio
-      FROM cliente c
-      LEFT JOIN nivel_precio n ON n.id_nivel_precio = c.id_nivel_precio
-      ORDER BY c.nombre ASC
-    `)
-    ok(res, rows)
-  } catch (e) { err(res, e) }
-})
-
-router.post('/clientes', async (req, res) => {
-  try {
-    const { nombre, telefono, correo, id_nivel_precio } = req.body
-    const { rows: ins } = await query(
-      'INSERT INTO cliente (nombre, telefono, correo, id_nivel_precio) VALUES ($1,$2,$3,$4) RETURNING id_cliente',
-      [nombre, telefono || null, correo || null, id_nivel_precio || null]
-    )
-    const { rows } = await query(`
-      SELECT c.*,
-        json_build_object('id_nivel_precio', n.id_nivel_precio, 'nombre', n.nombre) AS nivel_precio
-      FROM cliente c LEFT JOIN nivel_precio n ON n.id_nivel_precio = c.id_nivel_precio
-      WHERE c.id_cliente=$1
-    `, [ins[0].id_cliente])
-    ok(res, rows[0])
-  } catch (e) { err(res, e) }
-})
-
-router.put('/clientes/:id', async (req, res) => {
-  try {
-    const campos = req.body
-    const sets = Object.keys(campos).map((k, i) => `${k}=$${i + 1}`).join(', ')
-    const vals = [...Object.values(campos), req.params.id]
-    await query(`UPDATE cliente SET ${sets} WHERE id_cliente=$${vals.length}`, vals)
-    const { rows } = await query(`
-      SELECT c.*,
-        json_build_object('id_nivel_precio', n.id_nivel_precio, 'nombre', n.nombre) AS nivel_precio
-      FROM cliente c LEFT JOIN nivel_precio n ON n.id_nivel_precio = c.id_nivel_precio
-      WHERE c.id_cliente=$1
-    `, [req.params.id])
-    ok(res, rows[0])
-  } catch (e) { err(res, e) }
-})
-
-// ── Procesos ──────────────────────────────────────────────────────────────
-
-router.get('/procesos', async (req, res) => {
-  try {
-    const { rows } = await query(`
-      SELECT p.*,
-        json_build_object('id_unidad_cobro', u.id_unidad_cobro, 'nombre', u.nombre, 'descripcion', u.descripcion) AS unidad_cobro
-      FROM proceso p
-      LEFT JOIN unidad_cobro u ON u.id_unidad_cobro = p.id_unidad_cobro
-      ORDER BY p.nombre ASC
-    `)
-    ok(res, rows)
-  } catch (e) { err(res, e) }
-})
-
-router.post('/procesos', async (req, res) => {
-  try {
-    const { nombre, id_unidad_cobro, precio_unitario = 0, tipo = 'PROCESO', diametro_mm = null } = req.body
-    const { rows: ins } = await query(
-      'INSERT INTO proceso (nombre, id_unidad_cobro, precio_unitario, tipo, diametro_mm) VALUES ($1,$2,$3,$4,$5) RETURNING id_proceso',
-      [nombre, id_unidad_cobro, Number(precio_unitario), tipo, diametro_mm ?? null]
-    )
-    const { rows } = await query(`
-      SELECT p.*,
-        json_build_object('id_unidad_cobro', u.id_unidad_cobro, 'nombre', u.nombre, 'descripcion', u.descripcion) AS unidad_cobro
-      FROM proceso p LEFT JOIN unidad_cobro u ON u.id_unidad_cobro = p.id_unidad_cobro
-      WHERE p.id_proceso=$1
-    `, [ins[0].id_proceso])
-    ok(res, rows[0])
-  } catch (e) { err(res, e) }
-})
-
-router.put('/procesos/:id', async (req, res) => {
-  try {
-    const campos = req.body
-    const sets = Object.keys(campos).map((k, i) => `${k}=$${i + 1}`).join(', ')
-    const vals = [...Object.values(campos), req.params.id]
-    await query(`UPDATE proceso SET ${sets} WHERE id_proceso=$${vals.length}`, vals)
-    const { rows } = await query(`
-      SELECT p.*,
-        json_build_object('id_unidad_cobro', u.id_unidad_cobro, 'nombre', u.nombre, 'descripcion', u.descripcion) AS unidad_cobro
-      FROM proceso p LEFT JOIN unidad_cobro u ON u.id_unidad_cobro = p.id_unidad_cobro
-      WHERE p.id_proceso=$1
-    `, [req.params.id])
-    ok(res, rows[0])
-  } catch (e) { err(res, e) }
-})
-
 // ── Precios de proceso ────────────────────────────────────────────────────
 
 router.get('/precios-proceso', async (req, res) => {
@@ -335,12 +239,19 @@ router.get('/cotizaciones/:id', async (req, res) => {
         WHERE c.id_cotizacion=$1
       `, [req.params.id]),
       query(`
-        SELECT pc.*,
+        SELECT
+          p.id_partida, p.id_cotizacion, pv.id_tipo_vidrio,
+          p.cantidad AS piezas, p.largo_cm, p.ancho_cm, p.metros2,
+          pv.precio_m2 AS precio_m2_aplicado,
+          pv.subtotal_vidrio, pv.precio_vidrio, p.subtotal_procesos,
+          p.subtotal AS subtotal_partida,
+          pv.es_hoja_completa, p.observaciones,
           json_build_object('id_tipo_vidrio', tv.id_tipo_vidrio, 'clave', tv.clave, 'descripcion', tv.descripcion) AS tipo_vidrio
-        FROM partida_cotizacion pc
-        LEFT JOIN tipo_vidrio tv ON tv.id_tipo_vidrio = pc.id_tipo_vidrio
-        WHERE pc.id_cotizacion=$1
-        ORDER BY pc.id_partida ASC
+        FROM partida p
+        JOIN partida_vidrio pv ON pv.id_partida = p.id_partida
+        LEFT JOIN tipo_vidrio tv ON tv.id_tipo_vidrio = pv.id_tipo_vidrio
+        WHERE p.id_cotizacion=$1 AND p.tipo='VIDRIO'
+        ORDER BY p.id_partida ASC
       `, [req.params.id]),
     ])
 
@@ -350,14 +261,18 @@ router.get('/cotizaciones/:id', async (req, res) => {
     let procesos = []
     if (ids.length) {
       const procRes = await query(`
-        SELECT pp.*,
+        SELECT
+          pp.id_partida_proceso,
+          pp.id_partida,
+          pp.id_proceso, pp.id_unidad_cobro,
+          pp.cantidad, pp.precio_unitario, pp.subtotal, pp.sides,
           json_build_object(
             'id_proceso', pr.id_proceso, 'nombre', pr.nombre,
             'unidad_cobro', json_build_object('nombre', uc.nombre)
           ) AS proceso
         FROM partida_proceso pp
         LEFT JOIN proceso      pr ON pr.id_proceso      = pp.id_proceso
-        LEFT JOIN unidad_cobro uc ON uc.id_unidad_cobro = pr.id_unidad_cobro
+        LEFT JOIN unidad_cobro uc ON uc.id_unidad_cobro = pp.id_unidad_cobro
         WHERE pp.id_partida = ANY($1::int[])
       `, [ids])
       procesos = procRes.rows
@@ -374,17 +289,55 @@ router.get('/cotizaciones/:id', async (req, res) => {
       partida_proceso: procesosPorPartida[p.id_partida] ?? [],
     }))
 
-    // Extras (maquila / productos generales) — tabla opcional
+    // Extras (maquila / productos generales)
     let extras = []
     try {
       const extRes = await query(
-        'SELECT * FROM partida_cotizacion_extra WHERE id_cotizacion=$1 ORDER BY id_partida_extra',
+        `SELECT id_partida AS id_partida_extra, id_cotizacion, tipo, descripcion, unidad,
+                cantidad, precio_unitario, subtotal, id_producto_general, notas, observaciones
+         FROM partida
+         WHERE id_cotizacion=$1 AND tipo IN ('MAQUILA','PRODUCTO','EXTRA')
+           AND largo_cm IS NULL
+         ORDER BY id_partida`,
         [req.params.id]
       )
       extras = extRes.rows
-    } catch { /* tabla puede no existir aún */ }
+    } catch { /* no debería fallar, pero se conserva la tolerancia previa */ }
 
-    ok(res, { ...cotRes.rows[0], partidas, extras })
+    // Jobs de maquila dimensionados (largo_cm IS NOT NULL) — mismo tratamiento
+    // CTI que VIDRIO arriba: fila propia en `partida` + sus procesos en
+    // `partida_proceso`, en vez de aplanados a texto+notas como los extras.
+    let maquilas = []
+    const maqRes = await query(
+      `SELECT p.id_partida, p.descripcion, p.largo_cm, p.ancho_cm, p.cantidad, p.metros2,
+              p.subtotal_procesos, p.subtotal, p.observaciones,
+              p.id_espesor, esp.etiqueta AS espesor_label
+       FROM partida p
+       LEFT JOIN espesor esp ON esp.id_espesor = p.id_espesor
+       WHERE p.id_cotizacion=$1 AND p.tipo='MAQUILA' AND p.largo_cm IS NOT NULL
+       ORDER BY p.id_partida`,
+      [req.params.id]
+    )
+    if (maqRes.rows.length) {
+      const { rows: procMaqRows } = await query(
+        `SELECT pp.id_partida, pp.id_proceso, pp.id_unidad_cobro,
+                pr.nombre AS proceso, uc.nombre AS unidad_cobro,
+                pp.cantidad, pp.precio_unitario, pp.subtotal, pp.sides
+         FROM partida_proceso pp
+         LEFT JOIN proceso      pr ON pr.id_proceso      = pp.id_proceso
+         LEFT JOIN unidad_cobro uc ON uc.id_unidad_cobro = pp.id_unidad_cobro
+         WHERE pp.id_partida = ANY($1::int[])`,
+        [maqRes.rows.map(r => r.id_partida)]
+      )
+      const procsPorMaquila = {}
+      for (const pr of procMaqRows) {
+        if (!procsPorMaquila[pr.id_partida]) procsPorMaquila[pr.id_partida] = []
+        procsPorMaquila[pr.id_partida].push(pr)
+      }
+      maquilas = maqRes.rows.map(r => ({ ...r, procesos: procsPorMaquila[r.id_partida] ?? [] }))
+    }
+
+    ok(res, { ...cotRes.rows[0], partidas, extras, maquilas })
   } catch (e) { err(res, e) }
 })
 
@@ -401,50 +354,6 @@ router.put('/cotizaciones/:id', async (req, res) => {
   } catch (e) { err(res, e) }
 })
 
-router.post('/cotizaciones/:id/partidas', async (req, res) => {
-  const client = await pool.connect()
-  try {
-    await client.query('BEGIN')
-    const partida = req.body
-    const { rows: pRows } = await client.query(`
-      INSERT INTO partida_cotizacion
-        (id_cotizacion, id_tipo_vidrio, piezas, largo_cm, ancho_cm, metros2, precio_m2_aplicado,
-         subtotal_vidrio, subtotal_procesos, subtotal_partida, es_hoja_completa)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *
-    `, [
-      req.params.id,
-      partida.id_tipo_vidrio,
-      partida.piezas ?? 1,
-      partida.largo_cm,
-      partida.ancho_cm,
-      partida.metros2,
-      partida.precio_m2_aplicado,
-      partida.subtotal_vidrio,
-      partida.subtotal_procesos ?? 0,
-      partida.subtotal_partida,
-      partida.es_hoja_completa ?? false,
-    ])
-
-    const p = pRows[0]
-    if (partida.procesos?.length) {
-      for (const proc of partida.procesos) {
-        await client.query(`
-          INSERT INTO partida_proceso (id_partida, id_proceso, id_unidad_cobro, cantidad, precio_unitario, subtotal)
-          VALUES ($1,$2,$3,$4,$5,$6)
-        `, [p.id_partida, proc.id_proceso, proc.id_unidad_cobro, proc.cantidad, proc.precio_unitario, proc.subtotal])
-      }
-    }
-
-    await client.query('COMMIT')
-    ok(res, p)
-  } catch (e) {
-    await client.query('ROLLBACK')
-    err(res, e)
-  } finally {
-    client.release()
-  }
-})
-
 // ── Documento de cotización para empresa ──────────────────────────────────
 
 router.get('/cotizaciones/:id/documento-empresa', async (req, res) => {
@@ -457,99 +366,6 @@ router.get('/cotizaciones/:id/documento-empresa', async (req, res) => {
   } catch (e) { err(res, e) }
 })
 
-// ── Actualizar cotización completa (cabecera + partidas) ──────────────────
-
-router.put('/cotizaciones/:id/actualizar', async (req, res) => {
-  const client = await pool.connect()
-  try {
-    await client.query('BEGIN')
-    const { id_nivel_precio, id_cliente, partidas, total } = req.body
-
-    // Borrar procesos y partidas existentes
-    const { rows: existentes } = await client.query(
-      'SELECT id_partida FROM partida_cotizacion WHERE id_cotizacion=$1',
-      [req.params.id]
-    )
-    if (existentes.length) {
-      const ids = existentes.map(p => p.id_partida)
-      await client.query('DELETE FROM partida_proceso WHERE id_partida = ANY($1::int[])', [ids])
-      await client.query('DELETE FROM partida_cotizacion WHERE id_cotizacion=$1', [req.params.id])
-    }
-
-    // Actualizar cabecera
-    await client.query(
-      `UPDATE cotizacion SET id_nivel_precio=$1, id_cliente=$2, total=$3, estatus='FINALIZADA'
-       WHERE id_cotizacion=$4`,
-      [id_nivel_precio, id_cliente || null, Number(total), req.params.id]
-    )
-
-    // Re-insertar partidas
-    for (const partida of (partidas ?? [])) {
-      const { rows: pRows } = await client.query(`
-        INSERT INTO partida_cotizacion
-          (id_cotizacion, id_tipo_vidrio, piezas, largo_cm, ancho_cm, metros2,
-           precio_m2_aplicado, subtotal_vidrio, subtotal_procesos, subtotal_partida, es_hoja_completa)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id_partida
-      `, [
-        req.params.id, partida.id_tipo_vidrio, partida.piezas ?? 1,
-        partida.largo_cm, partida.ancho_cm, partida.metros2,
-        partida.precio_m2_aplicado, partida.subtotal_vidrio,
-        partida.subtotal_procesos ?? 0, partida.subtotal_partida,
-        partida.es_hoja_completa ?? false,
-      ])
-      if (partida.procesos?.length) {
-        for (const proc of partida.procesos) {
-          await client.query(
-            'INSERT INTO partida_proceso (id_partida, id_proceso, id_unidad_cobro, cantidad, precio_unitario, subtotal) VALUES ($1,$2,$3,$4,$5,$6)',
-            [pRows[0].id_partida, proc.id_proceso, proc.id_unidad_cobro, proc.cantidad, proc.precio_unitario, proc.subtotal]
-          )
-        }
-      }
-    }
-
-    await client.query('COMMIT')
-    ok(res, { ok: true })
-  } catch (e) {
-    await client.query('ROLLBACK')
-    err(res, e)
-  } finally {
-    client.release()
-  }
-})
-
-// ── Partidas extra (maquila / productos) ──────────────────────────────────
-
-router.get('/cotizaciones/:id/extras', async (req, res) => {
-  try {
-    const { rows } = await query(
-      'SELECT * FROM partida_cotizacion_extra WHERE id_cotizacion=$1 ORDER BY id_partida_extra',
-      [req.params.id]
-    )
-    ok(res, rows)
-  } catch (e) { err(res, e) }
-})
-
-router.post('/cotizaciones/:id/extras', async (req, res) => {
-  try {
-    const { tipo, descripcion, unidad, cantidad, precio_unitario, subtotal, id_producto_general, notas, observaciones } = req.body
-    const { rows } = await query(
-      `INSERT INTO partida_cotizacion_extra
-         (id_cotizacion, tipo, descripcion, unidad, cantidad, precio_unitario, subtotal, id_producto_general, notas, observaciones)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
-      [req.params.id, tipo, descripcion, unidad ?? 'pza', Number(cantidad),
-       Number(precio_unitario), Number(subtotal), id_producto_general ?? null, notas ?? null, observaciones ?? null]
-    )
-    ok(res, rows[0])
-  } catch (e) { err(res, e) }
-})
-
-router.delete('/cotizaciones/:id/extras', async (req, res) => {
-  try {
-    await query('DELETE FROM partida_cotizacion_extra WHERE id_cotizacion=$1', [req.params.id])
-    ok(res, { ok: true })
-  } catch (e) { err(res, e) }
-})
-
 router.delete('/cotizaciones/:id', async (req, res) => {
   const client = await pool.connect()
   try {
@@ -559,13 +375,8 @@ router.delete('/cotizaciones/:id', async (req, res) => {
     )
     if (!rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ message: 'Cotización no encontrada' }) }
     if (rows[0].estatus === 'CONVERTIDA') { await client.query('ROLLBACK'); return res.status(400).json({ message: 'No se puede borrar una cotización convertida en pedido' }) }
-    const { rows: partidas } = await client.query('SELECT id_partida FROM partida_cotizacion WHERE id_cotizacion=$1', [req.params.id])
-    if (partidas.length) {
-      const ids = partidas.map(p => p.id_partida)
-      await client.query('DELETE FROM partida_proceso WHERE id_partida = ANY($1::int[])', [ids])
-      await client.query('DELETE FROM partida_cotizacion WHERE id_cotizacion=$1', [req.params.id])
-    }
-    await client.query('DELETE FROM partida_cotizacion_extra WHERE id_cotizacion=$1', [req.params.id])
+    // PROCESO/satellite children cascade-delete automatically via FKs
+    await client.query('DELETE FROM partida WHERE id_cotizacion=$1', [req.params.id])
     await client.query('DELETE FROM cotizacion WHERE id_cotizacion=$1', [req.params.id])
     await client.query('COMMIT')
     ok(res, { ok: true })

@@ -10,7 +10,7 @@ function TicketPreview({ venta }) {
     <div className="ticket-preview">
       <div className="ticket-header">
         <h2>VIDRIO TEMPLADO Y ALUMINIO ROSALES</h2>
-        <p style={{ fontWeight: 700 }}>ARTE EN VIDRIO</p>
+        <p style={{ fontStyle: 'italic', fontWeight: 700 }}>Calidad que se ve, confianza que perdura</p>
       </div>
       <hr className="ticket-divider" />
       <div className="ticket-row"><span>Folio:</span><strong>{venta.folio}</strong></div>

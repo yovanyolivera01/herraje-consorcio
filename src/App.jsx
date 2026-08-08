@@ -29,6 +29,7 @@ import HistorialMaquila         from './pages/Cotizacion/HistorialMaquila'
 import HistorialHerraje         from './pages/Herraje/HistorialHerraje'
 import ReporteVidrio            from './pages/Cotizacion/ReporteVidrio'
 import RegistrarEgreso          from './pages/Egresos/RegistrarEgreso'
+import HistorialFacturas        from './pages/Cotizacion/HistorialFacturas'
 
 
 export default function App() {
@@ -67,6 +68,7 @@ export default function App() {
                   <Route path="cot/maquila/historial"    element={<Navigate to="/cot/historial-maquila" replace />} />
                   <Route path="herraje/historial"        element={<HistorialHerraje />} />
                   <Route path="cot/reporte-vidrio"       element={<ReporteVidrio />} />
+                  <Route path="cot/facturas"             element={<HistorialFacturas />} />
 
                   {/* ── Módulo de Gestión de Personal ── */}
                   <Route path="personal/empleados" element={<Empleados />} />

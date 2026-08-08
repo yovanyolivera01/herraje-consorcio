@@ -6,11 +6,15 @@ function ClienteModal({ cliente, onClose, onSave }) {
   const { nivelesPrecio } = useCotizacion()
   const vidrieroId = nivelesPrecio.find(n => n.nombre.toLowerCase().includes('vidriero'))?.id_nivel_precio ?? ''
   const [form, setForm] = useState({
-    nombre:          cliente?.nombre          ?? '',
-    telefono:        cliente?.telefono        ?? '',
-    correo:          cliente?.correo          ?? '',
-    id_nivel_precio: cliente?.id_nivel_precio ?? vidrieroId,
-    credito_activo:  cliente?.credito_activo  ?? false,
+    nombre:          cliente?.nombre           ?? '',
+    telefono:        cliente?.telefono         ?? '',
+    correo:          cliente?.correo           ?? '',
+    id_nivel_precio: cliente?.id_nivel_precio  ?? vidrieroId,
+    rfc:             cliente?.rfc              ?? '',
+    razon_social:    cliente?.razon_social     ?? '',
+    cp_fiscal:       cliente?.cp_fiscal        ?? '',
+    regimen_fiscal:  cliente?.regimen_fiscal   ?? '',
+    uso_cfdi:        cliente?.uso_cfdi         ?? '',
   })
   const [errors, setErrors] = useState({})
   const [saving, setSaving] = useState(false)
@@ -32,10 +36,14 @@ function ClienteModal({ cliente, onClose, onSave }) {
     setSaving(true)
     await onSave({
       nombre:          form.nombre.trim(),
-      telefono:        form.telefono.trim() || null,
-      correo:          form.correo.trim()   || null,
+      telefono:        form.telefono.trim()       || null,
+      correo:          form.correo.trim()         || null,
       id_nivel_precio: form.id_nivel_precio ? Number(form.id_nivel_precio) : null,
-      credito_activo:  form.credito_activo,
+      rfc:             form.rfc.trim().toUpperCase()           || null,
+      razon_social:    form.razon_social.trim().toUpperCase()  || null,
+      cp_fiscal:       form.cp_fiscal.trim()                   || null,
+      regimen_fiscal:  form.regimen_fiscal                     || null,
+      uso_cfdi:        form.uso_cfdi                           || null,
     })
     setSaving(false)
   }
@@ -101,16 +109,74 @@ function ClienteModal({ cliente, onClose, onSave }) {
               </select>
               <div className="form-hint">Se aplicara automaticamente al crear una cotizacion para este cliente</div>
             </div>
-            <div className="form-group">
-              <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+
+            <div style={{ borderTop: '1px solid var(--border)', margin: '8px 0 14px', paddingTop: 14 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 12 }}>
+                Datos de facturación (opcional)
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label">RFC</label>
+                  <input
+                    className="form-input"
+                    value={form.rfc}
+                    onChange={e => setForm(f => ({ ...f, rfc: e.target.value.toUpperCase() }))}
+                    placeholder="XAXX010101000"
+                    maxLength={15}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">C.P. fiscal</label>
+                  <input
+                    className="form-input"
+                    value={form.cp_fiscal}
+                    onChange={set('cp_fiscal')}
+                    placeholder="00000"
+                    maxLength={5}
+                    inputMode="numeric"
+                  />
+                </div>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Razón social</label>
                 <input
-                  type="checkbox"
-                  checked={form.credito_activo}
-                  onChange={e => setForm(f => ({ ...f, credito_activo: e.target.checked }))}
+                  className="form-input"
+                  value={form.razon_social}
+                  onChange={e => setForm(f => ({ ...f, razon_social: e.target.value.toUpperCase() }))}
+                  placeholder="NOMBRE O RAZÓN SOCIAL"
                 />
-                <span className="form-label" style={{ margin: 0 }}>Crédito activo</span>
-              </label>
-              <div className="form-hint">Marca al cliente como cliente de crédito frecuente</div>
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label">Régimen fiscal</label>
+                  <select className="form-select" value={form.regimen_fiscal} onChange={set('regimen_fiscal')}>
+                    <option value="">-- Seleccionar --</option>
+                    <option value="601">601 - Personas Morales</option>
+                    <option value="603">603 - Personas Morales sin fines de lucro</option>
+                    <option value="605">605 - Sueldos y Salarios</option>
+                    <option value="606">606 - Arrendamiento</option>
+                    <option value="608">608 - Demás ingresos</option>
+                    <option value="612">612 - Actividades Empresariales</option>
+                    <option value="616">616 - Sin obligaciones fiscales</option>
+                    <option value="621">621 - Incorporación Fiscal</option>
+                    <option value="626">626 - Régimen Simplificado de Confianza</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Uso CFDI</label>
+                  <select className="form-select" value={form.uso_cfdi} onChange={set('uso_cfdi')}>
+                    <option value="">-- Seleccionar --</option>
+                    <option value="G01">G01 - Adquisición de mercancias</option>
+                    <option value="G02">G02 - Devoluciones o bonificaciones</option>
+                    <option value="G03">G03 - Gastos en general</option>
+                    <option value="I01">I01 - Construcciones</option>
+                    <option value="I03">I03 - Equipo de transporte</option>
+                    <option value="I04">I04 - Equipo de cómputo</option>
+                    <option value="P01">P01 - Por definir</option>
+                    <option value="S01">S01 - Sin efectos fiscales</option>
+                  </select>
+                </div>
+              </div>
             </div>
 
           </div>
@@ -394,11 +460,6 @@ export default function Clientes() {
     else showToast(cliente.activo ? 'Cliente desactivado' : 'Cliente activado ✅')
   }
 
-  const handleToggleCredito = async (cliente) => {
-    const { error } = await editCliente(cliente.id_cliente, { credito_activo: !cliente.credito_activo })
-    if (error) showToast(error, 'error')
-    else showToast(cliente.credito_activo ? 'Crédito desactivado' : 'Crédito habilitado 💳')
-  }
 
   const filtered = clientes
     .filter(c => filtroActivo === 'todos' || (filtroActivo === 'activos' ? c.activo : !c.activo))
@@ -477,14 +538,9 @@ export default function Clientes() {
                       )}
                     </td>
                     <td data-label="Estado">
-                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                        <span className={`badge ${c.activo ? 'badge-green' : 'badge-gray'}`}>
-                          {c.activo ? 'Activo' : 'Inactivo'}
-                        </span>
-                        {c.credito_activo && (
-                          <span className="badge badge-blue">Crédito</span>
-                        )}
-                      </div>
+                      <span className={`badge ${c.activo ? 'badge-green' : 'badge-gray'}`}>
+                        {c.activo ? 'Activo' : 'Inactivo'}
+                      </span>
                     </td>
                     <td data-label="">
                       <div style={{ display: 'flex', gap: 2 }}>

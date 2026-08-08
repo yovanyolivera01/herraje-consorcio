@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test'
 const BASE_URL = 'http://localhost:5173'
 const USERNAME = 'user'
 const PASSWORD = '129'
-
+ 
 test.beforeEach(async ({ page }) => {
   await page.goto(`${BASE_URL}/login`)
   await page.locator('input[autocomplete="username"]').fill(USERNAME)

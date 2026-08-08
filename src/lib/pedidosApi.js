@@ -61,10 +61,10 @@ export const crearPedidoDirecto = async ({ id_cliente, id_nivel_precio, partidas
   return data.id_pedido
 }
 
-export const crearPedidoDirectoConExtras = async ({ id_cliente, id_nivel_precio, partidas, tipo_pago, monto_anticipo, extras, total, metodo_pago, observaciones }) => {
+export const crearPedidoDirectoConExtras = async ({ id_cliente, id_nivel_precio, partidas, maquilas, tipo_pago, monto_anticipo, extras, total, metodo_pago, observaciones }) => {
   const data = await apiFetch('/pedidos/directo-con-extras', {
     method: 'POST',
-    body: { id_cliente: id_cliente ?? null, id_nivel_precio, partidas, tipo_pago, monto_anticipo: Number(monto_anticipo), extras, total: Number(total), metodo_pago: metodo_pago || null, observaciones: observaciones || null },
+    body: { id_cliente: id_cliente ?? null, id_nivel_precio, partidas, maquilas: maquilas ?? [], tipo_pago, monto_anticipo: Number(monto_anticipo), extras, total: Number(total), metodo_pago: metodo_pago || null, observaciones: observaciones || null },
   })
   return data.id_pedido
 }
@@ -158,6 +158,7 @@ export const getDetallePedido = async (id_pedido) => {
       cantidad:        Number(pr.cantidad_unidades),
       precio_unitario: Number(pr.precio_unitario),
       subtotal:        Number(pr.subtotal),
+      sidesML:         pr.sides ?? null,
     })
   }
 
@@ -173,6 +174,8 @@ export const getDetallePedido = async (id_pedido) => {
     cliente:  { nombre: cab.cliente ?? 'Mostrador', telefono: cab.telefono_cliente ?? '' },
     nivel:    { nombre: cab.nivel_precio ?? '' },
     total:    Number(cab.total),
+    piezasMaquilaRecibidas: Number(cab.piezas_maquila_recibidas ?? 0),
+    piezasVidrioVendidas:   Number(cab.piezas_vidrio_vendidas ?? 0),
     tipo_pago:    cab.tipo_pago,
     forma_pago:   cab.tipo_pago,
     metodo_pago:  cab.metodo_pago ?? null,
@@ -183,20 +186,44 @@ export const getDetallePedido = async (id_pedido) => {
     estatus:      cab.estatus,
     observaciones: cab.observaciones ?? '',
     extras: data.extras ?? [],
-    partidas: (data.partidas ?? []).map(p => ({
-      id:                 p.id_partida_pedido,
-      clave_vidrio:       p.tipo_vidrio      ?? '—',
-      descripcion_vidrio: '',
-      largo_cm:           Number(p.largo_cm),
-      ancho_cm:           Number(p.ancho_cm),
-      metros2:            Number(p.metros_cuadrados),
-      precio_m2_aplicado: Number(p.precio_m2),
-      subtotal_vidrio:    Number(p.subtotal_vidrio),
-      subtotal_procesos:  Number(p.subtotal_procesos),
-      subtotal_partida:   Number(p.total_partida),
-      cantidad:           p.cantidad,
-      procesos:           procesosPorPartida[p.id_partida_pedido] ?? [],
-    })),
+    partidas: [
+      ...(data.partidas ?? []).map(p => ({
+        id:                 p.id_partida_pedido,
+        clave_vidrio:       p.tipo_vidrio      ?? '—',
+        descripcion_vidrio: p.observaciones    ?? '',
+        largo_cm:           Number(p.largo_cm),
+        ancho_cm:           Number(p.ancho_cm),
+        metros2:            Number(p.metros_cuadrados),
+        precio_m2_aplicado: Number(p.precio_m2),
+        subtotal_vidrio:    Number(p.subtotal_vidrio),
+        precio_vidrio:      Number(p.precio_vidrio),
+        subtotal_procesos:  Number(p.subtotal_procesos),
+        subtotal_partida:   Number(p.total_partida),
+        cantidad:           p.cantidad,
+        procesos:           procesosPorPartida[p.id_partida_pedido] ?? [],
+      })),
+      ...(data.maquilas ?? []).map(m => ({
+        id:               m.id_partida,
+        tipo:             'MAQUILA',
+        descripcion:      m.descripcion ?? '',
+        largo_cm:         Number(m.largo_cm),
+        ancho_cm:         Number(m.ancho_cm),
+        piezas:           Number(m.cantidad),
+        cantidad:         Number(m.cantidad),
+        metros2:          Number(m.metros2),
+        subtotal_procesos: Number(m.subtotal_procesos),
+        subtotal_partida: Number(m.subtotal),
+        espesor_label:    m.espesor_label ?? null,
+        procesos: (m.procesos ?? []).map(pr => ({
+          nombre:          pr.proceso        ?? '',
+          unidad:          pr.unidad_cobro   ?? '',
+          cantidad:        Number(pr.cantidad),
+          precio_unitario: Number(pr.precio_unitario),
+          subtotal:        Number(pr.subtotal),
+          sidesML:         pr.sides ?? null,
+        })),
+      })),
+    ],
   }
 }
 

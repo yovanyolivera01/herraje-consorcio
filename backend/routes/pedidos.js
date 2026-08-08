@@ -8,11 +8,11 @@ function err(res, e, status = 500) { res.status(status).json({ message: e.messag
 async function guardarObsPartidas(id_pedido, obs) {
   if (!obs || !obs.some(o => o)) return
   const { rows } = await query(
-    'SELECT id_partida_pedido FROM partida_pedido WHERE id_pedido=$1 ORDER BY id_partida_pedido ASC',
+    "SELECT id_partida FROM partida WHERE id_pedido=$1 AND tipo='VIDRIO' ORDER BY id_partida ASC",
     [id_pedido]
   )
   for (let i = 0; i < Math.min(rows.length, obs.length); i++) {
-    if (obs[i]) await query('UPDATE partida_pedido SET observaciones=$1 WHERE id_partida_pedido=$2', [obs[i], rows[i].id_partida_pedido])
+    if (obs[i]) await query('UPDATE partida SET observaciones=$1 WHERE id_partida=$2', [obs[i], rows[i].id_partida])
   }
 }
 
@@ -29,6 +29,15 @@ router.post('/pedidos/convertir', async (req, res) => {
     if (!row || row.out_mensaje?.startsWith('ERROR')) {
       return res.status(400).json({ message: row?.out_mensaje ?? 'Error al convertir cotización' })
     }
+    // Ensure id_cotizacion is always linked (SP may skip it when no vidrio partidas)
+    await query('UPDATE pedido SET id_cotizacion=$1 WHERE id_pedido=$2 AND id_cotizacion IS NULL', [id_cotizacion, row.out_id_pedido])
+    // If cotización had no vidrio partidas, mark pedido as MAQUILA
+    try {
+      const { rows: pcRows } = await query("SELECT COUNT(*) AS cnt FROM partida WHERE id_cotizacion=$1 AND tipo='VIDRIO'", [id_cotizacion])
+      if (Number(pcRows[0].cnt) === 0) {
+        await query("UPDATE pedido SET tipo_pedido='MAQUILA' WHERE id_pedido=$1", [row.out_id_pedido])
+      }
+    } catch {}
     if (metodo_pago) await query('UPDATE pedido SET metodo_pago=$1 WHERE id_pedido=$2', [metodo_pago, row.out_id_pedido])
     if (observaciones) await query('UPDATE pedido SET observaciones=$1 WHERE id_pedido=$2', [observaciones, row.out_id_pedido])
     await guardarObsPartidas(row.out_id_pedido, partidas_obs)
@@ -70,37 +79,25 @@ router.post('/pedidos/directo', async (req, res) => {
 
 router.post('/pedidos/directo-con-extras', async (req, res) => {
   try {
-    const { id_cliente, id_nivel_precio, partidas, tipo_pago, monto_anticipo, extras, total, metodo_pago, observaciones } = req.body
-    let id_pedido, folio
+    const { id_cliente, id_nivel_precio, partidas, maquilas, tipo_pago, monto_anticipo, extras, total, metodo_pago, observaciones } = req.body
 
-    if ((partidas ?? []).length > 0) {
-      // Has vidrio partidas — use stored proc
-      const { rows } = await query(
-        'SELECT * FROM sp_crear_pedido_directo($1, $2, $3, $4, $5)',
-        [id_cliente ?? null, id_nivel_precio, tipo_pago, Number(monto_anticipo), JSON.stringify(partidas)]
-      )
-      const row = rows[0]
-      if (!row || row.out_mensaje?.startsWith('ERROR')) {
-        return res.status(400).json({ message: row?.out_mensaje ?? 'Error al crear el pedido' })
-      }
-      id_pedido = row.out_id_pedido
-      folio     = row.out_folio
-      // Update total to include extras
-      if (total != null) {
-        await query('UPDATE pedido SET total=$1 WHERE id_pedido=$2', [Number(total), id_pedido])
-      }
-    } else {
-      // Maquila/herraje only — direct INSERT (no vidrio partidas)
-      const realTotal = total ?? (extras ?? []).reduce((s, e) => s + Number(e.subtotal), 0)
-      const saldo = Number(realTotal) - Number(monto_anticipo)
-      const { rows: pRows } = await query(
-        `INSERT INTO pedido (id_cliente, id_nivel_precio, total, tipo_pago, monto_anticipo, saldo_pendiente, estatus, tipo_pedido, folio)
-         VALUES ($1, $2, $3, $4, $5, $6, 'PENDIENTE', 'VIDRIO', 'TMP') RETURNING id_pedido`,
-        [id_cliente ?? null, id_nivel_precio ?? null, Number(realTotal), tipo_pago, Number(monto_anticipo), saldo]
-      )
-      id_pedido = pRows[0].id_pedido
-      folio     = `PED-${String(id_pedido).padStart(5, '0')}`
-      await query('UPDATE pedido SET folio=$1 WHERE id_pedido=$2', [folio, id_pedido])
+    const { rows } = await query(
+      'SELECT * FROM sp_crear_pedido_directo($1, $2, $3, $4, $5, $6)',
+      [id_cliente ?? null, id_nivel_precio, tipo_pago, Number(monto_anticipo), JSON.stringify(partidas ?? []), JSON.stringify(maquilas ?? [])]
+    )
+    const row = rows[0]
+    if (!row || row.out_mensaje?.startsWith('ERROR')) {
+      return res.status(400).json({ message: row?.out_mensaje ?? 'Error al crear el pedido' })
+    }
+    const id_pedido = row.out_id_pedido
+    const folio     = row.out_folio
+
+    // total (frontend grand total) also covers flat extras the SP never
+    // sees — recompute saldo_pendiente here too, otherwise it stays at
+    // whatever the SP derived from vidrio+maquila alone.
+    if (total != null) {
+      const saldo = tipo_pago === 'LIQUIDADO' ? 0 : Number(total) - Number(monto_anticipo)
+      await query('UPDATE pedido SET total=$1, saldo_pendiente=$2 WHERE id_pedido=$3', [Number(total), saldo, id_pedido])
     }
 
     if (metodo_pago) await query('UPDATE pedido SET metodo_pago=$1 WHERE id_pedido=$2', [metodo_pago, id_pedido])
@@ -108,7 +105,7 @@ router.post('/pedidos/directo-con-extras', async (req, res) => {
     await guardarObsPartidas(id_pedido, (partidas ?? []).map(p => p.observaciones || null))
     for (const extra of (extras ?? [])) {
       await query(
-        `INSERT INTO partida_pedido_extra (id_pedido, tipo, descripcion, unidad, cantidad, precio_unitario, subtotal, id_producto_general, notas, observaciones)
+        `INSERT INTO partida (id_pedido, tipo, descripcion, unidad, cantidad, precio_unitario, subtotal, id_producto_general, notas, observaciones)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
         [id_pedido, extra.tipo, extra.descripcion ?? '', extra.unidad ?? 'pza',
          Number(extra.cantidad), Number(extra.precio_unitario), Number(extra.subtotal),
@@ -238,10 +235,12 @@ router.get('/pedidos/:id', async (req, res) => {
     const cab = { ...cabRes.rows[0], metodo_pago: mpRes.rows[0]?.metodo_pago ?? null }
     let extras = []
     const id_cotizacion = cab.id_cotizacion ?? null
+    const EXTRA_WHERE = `tipo IN ('MAQUILA','PRODUCTO','EXTRA') AND largo_cm IS NULL`
     if (id_cotizacion) {
       try {
         const extRes = await query(
-          'SELECT tipo, descripcion, unidad, cantidad, precio_unitario, subtotal, notas FROM partida_cotizacion_extra WHERE id_cotizacion=$1 ORDER BY id_partida_extra',
+          `SELECT tipo, descripcion, unidad, cantidad, precio_unitario, subtotal, notas
+           FROM partida WHERE id_cotizacion=$1 AND ${EXTRA_WHERE} ORDER BY id_partida`,
           [id_cotizacion]
         )
         extras = extRes.rows
@@ -249,14 +248,44 @@ router.get('/pedidos/:id', async (req, res) => {
     } else {
       try {
         const extRes = await query(
-          'SELECT tipo, descripcion, unidad, cantidad, precio_unitario, subtotal, notas FROM partida_pedido_extra WHERE id_pedido=$1 ORDER BY id_partida_extra',
+          `SELECT tipo, descripcion, unidad, cantidad, precio_unitario, subtotal, notas
+           FROM partida WHERE id_pedido=$1 AND ${EXTRA_WHERE} ORDER BY id_partida`,
           [id]
         )
         extras = extRes.rows
       } catch {}
     }
 
-    ok(res, { cabecera: cab, partidas: partRes.rows, procesos: procRes.rows, extras })
+    // Dimensioned MAQUILA jobs (real largo_cm/ancho_cm, own PROCESO children) —
+    // separate from the flat MAQUILA/PRODUCTO/EXTRA charges above.
+    let maquilas = []
+    const maqRes = await query(
+      `SELECT p.id_partida, p.descripcion, p.largo_cm, p.ancho_cm, p.cantidad, p.metros2, p.subtotal_procesos, p.subtotal,
+              p.id_espesor, esp.etiqueta AS espesor_label
+       FROM partida p
+       LEFT JOIN espesor esp ON esp.id_espesor = p.id_espesor
+       WHERE p.id_pedido=$1 AND p.tipo='MAQUILA' AND p.largo_cm IS NOT NULL
+       ORDER BY p.id_partida`,
+      [id]
+    )
+    if (maqRes.rows.length) {
+      const { rows: procMaqRows } = await query(
+        `SELECT pp.id_partida, pr.nombre AS proceso, uc.nombre AS unidad_cobro,
+                pp.cantidad, pp.precio_unitario, pp.subtotal, pp.sides
+         FROM partida_proceso pp
+         LEFT JOIN proceso      pr ON pr.id_proceso      = pp.id_proceso
+         LEFT JOIN unidad_cobro uc ON uc.id_unidad_cobro = pp.id_unidad_cobro
+         WHERE pp.id_partida = ANY($1::int[])`,
+        [maqRes.rows.map(r => r.id_partida)]
+      )
+      const procsPorMaquila = {}
+      for (const pr of procMaqRows) {
+        (procsPorMaquila[pr.id_partida] ??= []).push(pr)
+      }
+      maquilas = maqRes.rows.map(r => ({ ...r, procesos: procsPorMaquila[r.id_partida] ?? [] }))
+    }
+
+    ok(res, { cabecera: cab, partidas: partRes.rows, procesos: procRes.rows, extras, maquilas })
   } catch (e) { err(res, e) }
 })
 

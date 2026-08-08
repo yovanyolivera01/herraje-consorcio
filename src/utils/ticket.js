@@ -1,4 +1,6 @@
 import logoUrl from '../assets/images/logoVR_b64.txt?raw'
+import jsPDF from 'jspdf'
+import html2canvas from 'html2canvas'
 
 /**
  * Imprime un ticket de vidrio (cotización o pedido) via iframe.
@@ -37,62 +39,72 @@ export function printTicketVidrio(detalle) {
     const totVid  = cuVid * pzas
     const hasProc = (p.procesos ?? []).length > 0
     const procSubtotal = (p.procesos ?? []).reduce((s, pr) => s + Number(pr.subtotal), 0)
-    const exactSubtotal = Number(p.subtotal_vidrio ?? p.subtotal_partida) + procSubtotal
+    const exactSubtotal = Number(p.subtotal_partida)
     const procRows = (p.procesos ?? []).map(pr => {
       const cuPr  = Number(pr.subtotal) / pzas
       const totPr = cuPr * pzas
+      const allSides = pr.sidesML?.top && pr.sidesML?.bottom && pr.sidesML?.left && pr.sidesML?.right
+      const icon = (pr.sidesML && !allSides) ? glassIconSVG(pr.sidesML, p.largo_cm, p.ancho_cm) : ''
       return `
-      <div class="row5" style="padding-left:10px;font-size:11px">
-        <span class="c-cant"></span>
-        <span class="c-med"></span>
-        <span class="c-desc">+ ${pr.nombre}</span>
-        <span class="c-cu">$${cuPr.toFixed(2)}</span>
-        <span class="c-tot">$${totPr.toFixed(2)}</span>
-      </div>`
+      <tr style="font-size:11px">
+        <td colspan="3" style="padding-left:10px"><div style="display:flex;align-items:center">${icon}<span>+ ${pr.nombre}</span></div></td>
+        <td class="c-cu">$${cuPr.toFixed(2)}</td>
+        <td class="c-tot">$${totPr.toFixed(2)}</td>
+      </tr>`
     }).join('')
     const subtotalRow = hasProc ? `
-      <div class="row5" style="font-size:11px;font-weight:600;border-top:1px dashed #ccc;margin-top:2px;padding-top:2px">
-        <span class="c-cant"></span>
-        <span class="c-med"></span>
-        <span class="c-desc">Subtotal</span>
-        <span class="c-cu">$${(exactSubtotal / pzas).toFixed(2)}</span>
-        <span class="c-tot">$${exactSubtotal.toFixed(2)}</span>
-      </div>` : ''
+      <tr style="font-size:11px;font-weight:600;border-top:1px dashed #ccc">
+        <td colspan="3">Subtotal</td>
+        <td class="c-cu">$${(exactSubtotal / pzas).toFixed(2)}</td>
+        <td class="c-tot">$${exactSubtotal.toFixed(2)}</td>
+      </tr>` : ''
+    const descRow = p.descripcion_vidrio ? `
+      <tr>
+        <td></td>
+        <td colspan="4" style="font-size:11px;color:#555;padding-bottom:2px">${p.descripcion_vidrio}</td>
+      </tr>` : ''
     return `
-      <div class="partida">
-        <div class="row5 bold">
-          <span class="c-cant">${pzas}</span>
-          <span class="c-med">${p.largo_cm}×${p.ancho_cm}</span>
-          <span class="c-desc">${p.clave}</span>
-          <span class="c-cu">$${cuVid.toFixed(2)}</span>
-          <span class="c-tot">$${totVid.toFixed(2)}</span>
-        </div>
-        ${procRows}
-        ${subtotalRow}
-      </div>`
+      <tr class="bold">
+        <td class="c-cant">${pzas}</td>
+        <td class="c-med">${p.largo_cm}×${p.ancho_cm}</td>
+        <td>${p.clave}</td>
+        <td class="c-cu">$${cuVid.toFixed(2)}</td>
+        <td class="c-tot">$${totVid.toFixed(2)}</td>
+      </tr>
+      ${descRow}
+      ${procRows}
+      ${subtotalRow}`
   }
 
   const renderMaquila = p => {
     if (p.largo_cm && Number(p.largo_cm) > 0) {
       const pzas  = p.piezas ?? 1
-      const dimStr = `${p.largo_cm}×${p.ancho_cm}cm`
-      const clave = (p.clave && p.clave !== dimStr) ? ` · ${p.clave}` : ''
+      const cuMaq = Number(p.subtotal_partida) / pzas
       const procRows = (p.procesos ?? []).map(pr => {
-        const cu = pr.precio_unitario != null ? ` · $${Number(pr.precio_unitario).toFixed(2)}` : ''
+        const allSides = pr.sidesML?.top && pr.sidesML?.bottom && pr.sidesML?.left && pr.sidesML?.right
+        const icon = (pr.sidesML && !allSides) ? glassIconSVG(pr.sidesML, p.largo_cm, p.ancho_cm) : ''
         return `
-        <div class="row" style="padding-left:10px;font-size:12px">
-          <span>+${pr.nombre}${cu}</span><span>$${Number(pr.subtotal ?? 0).toFixed(2)}</span>
-        </div>`
+        <tr style="font-size:11px">
+          <td colspan="3" style="padding-left:10px"><div style="display:flex;align-items:center">${icon}<span>+ ${pr.nombre}</span></div></td>
+          <td class="c-cu">${pr.precio_unitario != null ? `$${Number(pr.precio_unitario).toFixed(2)}` : ''}</td>
+          <td class="c-tot">$${Number(pr.subtotal ?? 0).toFixed(2)}</td>
+        </tr>`
       }).join('')
+      const descRow = p.descripcion ? `
+        <tr>
+          <td></td>
+          <td colspan="4" style="font-size:11px;color:#555;padding-bottom:2px">${p.descripcion}</td>
+        </tr>` : ''
       return `
-        <div class="partida">
-          <div class="row bold">
-            <span>${pzas} · ${p.largo_cm}×${p.ancho_cm}cm${clave}</span>
-            <span>$${Number(p.subtotal_partida).toFixed(2)}</span>
-          </div>
-          ${procRows}
-          ${p.descripcion ? `<div style="font-size:11px;padding-left:10px;margin-bottom:2px">${p.descripcion}</div>` : ''}
-          </div>`
+        <tr class="bold">
+          <td class="c-cant">${pzas}</td>
+          <td class="c-med">${p.largo_cm}×${p.ancho_cm}</td>
+          <td>${p.clave ?? ''}</td>
+          <td class="c-cu">$${cuMaq.toFixed(2)}</td>
+          <td class="c-tot">$${Number(p.subtotal_partida).toFixed(2)}</td>
+        </tr>
+        ${descRow}
+        ${procRows}`
     }
     const label = p.descripcion || p.clave || '—'
     const notasProcs = (parseMaqNotas(p)?.procesos) ?? []
@@ -104,29 +116,34 @@ export function printTicketVidrio(detalle) {
       const pLargo = dm?.[1], pAncho = dm?.[2]
       const procList = procsStr.split(', ')
       const procRows = procList.map((pr, i) => {
-        const sides = notasProcs[i]?.sidesML
+        const procData = notasProcs[i]
+        const sides = procData?.sidesML
         const allSides = sides?.top && sides?.bottom && sides?.left && sides?.right
         const icon = (sides && !allSides && pLargo && pAncho) ? glassIconSVG(sides, pLargo, pAncho) : ''
-        const txt = icon ? pr.replace(/\s*\[[TBLR]+\]/g, '') : pr
-        return `<div style="display:flex;align-items:center;padding-left:10px;font-size:11px;margin-bottom:1px">${icon}<span>+${txt}</span></div>`
+        const txt = pr.replace(/\s*\[[TBLR]+\]/g, '')
+        const cu  = procData?.precio_unitario != null ? `$${Number(procData.precio_unitario).toFixed(2)}` : ''
+        const tot = procData?.subtotal != null ? `$${Number(procData.subtotal).toFixed(2)}` : ''
+        return `<tr style="font-size:11px"><td colspan="3" style="padding-left:10px"><div style="display:flex;align-items:center">${icon}<span>+${txt}</span></div></td><td class="c-cu">${cu}</td><td class="c-tot">${tot}</td></tr>`
       }).join('')
       return `
-        <div class="partida">
-          <div class="row bold"><span>${dimsStr}</span><span>$${Number(p.subtotal_partida).toFixed(2)}</span></div>
-          ${procRows}
-        </div>`
+        <tr class="bold">
+          <td class="c-cant"></td>
+          <td class="c-med"></td>
+          <td>${dimsStr}</td>
+          <td class="c-cu"></td>
+          <td class="c-tot">$${Number(p.subtotal_partida).toFixed(2)}</td>
+        </tr>
+        ${procRows}`
     }
     const cu  = p.precio_unitario != null ? `$${Number(p.precio_unitario).toFixed(2)}` : ''
-    const tot = `$${Number(p.subtotal_partida).toFixed(2)}`
     return `
-      <div class="partida">
-        <div style="display:flex;align-items:baseline;font-size:11px;margin-bottom:2px;gap:2px">
-          <span style="width:18px;flex-shrink:0"></span>
-          <span style="flex:1">${label}</span>
-          <span style="width:50px;flex-shrink:0;text-align:right">${cu}</span>
-          <span style="width:50px;flex-shrink:0;text-align:right;font-weight:700">${tot}</span>
-        </div>
-      </div>`
+      <tr class="bold">
+        <td class="c-cant">${p.cantidad ?? 1}</td>
+        <td class="c-med"></td>
+        <td>${label}</td>
+        <td class="c-cu">${cu}</td>
+        <td class="c-tot">$${Number(p.subtotal_partida).toFixed(2)}</td>
+      </tr>`
   }
 
   const renderHerraje = p => `
@@ -139,37 +156,28 @@ export function printTicketVidrio(detalle) {
 
   const sectionLbl = text => `<div class="section-lbl">${text}</div>`
 
-  const colHeader = `<div class="row5 col-header">
-    <span class="c-cant">Cant</span>
-    <span class="c-med">Medida</span>
-    <span class="c-desc">Descripción</span>
-    <span class="c-cu">c/u</span>
-    <span class="c-tot">Total</span>
-  </div>`
+  const colHeader = `<table class="tbl-vidrio"><thead><tr>
+    <th class="c-cant">Cant</th>
+    <th class="c-med">Medida</th>
+    <th>Descripción</th>
+    <th class="c-cu">c/u</th>
+    <th class="c-tot">Total</th>
+  </tr></thead><tbody>`
 
-  const maqColHeader = `<div style="display:flex;align-items:baseline;font-size:9px;color:#555;border-bottom:1px dashed #aaa;margin-bottom:3px;gap:2px">
-    <span style="width:18px;flex-shrink:0"></span>
-    <span style="flex:1;padding-left:4px">Descripción</span>
-    <span style="width:50px;flex-shrink:0;text-align:right">C.U.</span>
-    <span style="width:50px;flex-shrink:0;text-align:right">Total</span>
-  </div>`
+  const totalCalculado = detalle.partidas.reduce((sum, p) => sum + Number(p.subtotal_partida), 0)
 
-  const totalCalculado = detalle.partidas.reduce((sum, p) => {
-    if (p.tipo && p.tipo !== 'VIDRIO') return sum + Number(p.subtotal_partida)
-    const procSubtotal = (p.procesos ?? []).reduce((s, pr) => s + Number(pr.subtotal), 0)
-    return sum + Number(p.subtotal_vidrio ?? p.subtotal_partida) + procSubtotal
-  }, 0)
-
-  const totalPzasVidrio  = vidrios.reduce((s, p) => s + Number(p.piezas ?? p.cantidad ?? 1), 0)
-  const totalPzasMaquila = maquilas.reduce((s, p) => s + Number(p.piezas ?? p.cantidad ?? 1), 0)
+  const totalPzasVidrio  = detalle.piezasVidrioVendidas ??
+    vidrios.reduce((s, p) => s + Number(p.piezas ?? p.cantidad ?? 1), 0)
+  const totalPzasMaquila = detalle.piezasMaquilaRecibidas ??
+    maquilas.reduce((s, p) => s + Number(p.piezas ?? p.cantidad ?? 1), 0)
   const piezasResumen = [
-    totalPzasVidrio  > 0 ? `<div class="row" style="font-size:11px;color:#555"><span>Piezas vendidas:</span><span><strong>${totalPzasVidrio}</strong></span></div>`  : '',
+    (vidrios.length > 0 && totalPzasVidrio  > 0) ? `<div class="row" style="font-size:11px;color:#555"><span>Piezas vendidas:</span><span><strong>${totalPzasVidrio}</strong></span></div>`  : '',
     totalPzasMaquila > 0 ? `<div class="row" style="font-size:11px;color:#555"><span>Piezas maquila recibidas:</span><span><strong>${totalPzasMaquila}</strong></span></div>` : '',
   ].join('')
 
   let rows = ''
-  if (vidrios.length)    rows += sectionLbl('Vidrio') + colHeader + vidrios.map(renderVidrio).join('')
-  if (maquilas.length)   rows += sectionLbl('Maquila') + maqColHeader + maquilas.map(renderMaquila).join('')
+  if (vidrios.length)    rows += sectionLbl('Vidrio') + colHeader + vidrios.map(renderVidrio).join('') + '</tbody></table>'
+  if (maquilas.length)   rows += sectionLbl('Maquila') + colHeader + maquilas.map(renderMaquila).join('') + '</tbody></table>'
   if (extrasProc.length) rows += sectionLbl('Proceso Extra') + extrasProc.map(p => `
     <div class="row"><span>${p.cantidad ?? 1} · ${p.descripcion ?? '—'}</span><span>$${Number(p.subtotal_partida).toFixed(2)}</span></div>`).join('')
   if (herrajes.length)   rows += sectionLbl('Herraje') + herrajes.map(renderHerraje).join('')
@@ -230,13 +238,14 @@ export function printTicketVidrio(detalle) {
     .section-lbl { font-size: 10px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; border-bottom: 1px dashed #888; padding-bottom: 2px; margin: 6px 0 3px; }
     .total-row { font-size: 15px; font-weight: 700; }
     .footer { margin-top: 10px; font-size: 12px; }
-    .row5 { display: flex; align-items: baseline; margin-bottom: 3px; font-size: 11px; }
-    .c-cant { width: 22px; flex-shrink: 0; }
-    .c-med  { width: 54px; flex-shrink: 0; }
-    .c-desc { flex: 1; padding-left: 4px; }
-    .c-cu   { width: 42px; flex-shrink: 0; text-align: right; }
-    .c-tot  { width: 46px; flex-shrink: 0; text-align: right; }
-    .col-header { font-size: 9px; color: #555; border-bottom: 1px dashed #aaa; margin-bottom: 3px; }
+    .tbl-vidrio { width: 100%; border-collapse: collapse; font-size: 10px; margin-bottom: 3px; }
+    .tbl-vidrio td, .tbl-vidrio th { vertical-align: baseline; padding: 1px 0; }
+    .tbl-vidrio thead th { font-size: 9px; font-weight: 400; color: #555; text-align: left; border-bottom: 1px dashed #aaa; padding-bottom: 3px; }
+    .tbl-vidrio .bold td { font-weight: 700; }
+    .c-cant { width: 22px; }
+    .c-med  { width: 54px; }
+    .c-cu   { width: 48px; text-align: right; padding-left: 6px; }
+    .c-tot  { width: 52px; text-align: right; padding-left: 6px; }
   </style>
 </head>
 <body>
@@ -259,7 +268,7 @@ export function printTicketVidrio(detalle) {
   ${detalle.observaciones ? `<div style="font-size:11px;margin-bottom:4px;display:flex;gap:4px"><span style="white-space:nowrap;color:#555">Obs:</span><span>${detalle.observaciones}</span></div>` : ''}
   <hr class="divider">
   ${rows}
-  ${piezasResumen}
+  ${piezasResumen ? `<hr class="divider">${piezasResumen}` : ''}
   <hr class="divider">
   <div class="row total-row"><span>TOTAL:</span><span>$${totalCalculado.toFixed(2)}</span></div>
   ${pagoRows}
@@ -294,45 +303,81 @@ export function printTicketVidrio(detalle) {
  * Imprime el detalle de un pedido pendiente como ticket de 80mm.
  */
 export function printPedidoPendiente(detalle) {
+  const vidrios  = detalle.partidas.filter(p => !p.tipo || p.tipo === 'VIDRIO')
+  const maquilas = detalle.partidas.filter(p => p.tipo === 'MAQUILA')
   const extras = detalle.extras ?? []
   const extrasTotal = extras.reduce((sum, e) => sum + Number(e.subtotal), 0)
-  const totalCalculado = detalle.partidas.reduce((sum, p) => {
-    const procSubtotal = (p.procesos ?? []).reduce((s, pr) => s + Number(pr.subtotal), 0)
-    return sum + Number(p.subtotal_vidrio ?? p.subtotal_partida) + procSubtotal
-  }, 0) + extrasTotal
-  const totalPzasVidrio  = detalle.partidas.reduce((s, p) => s + Number(p.cantidad ?? 1), 0)
-  const totalPzasMaquila = extras.filter(e => e.tipo === 'MAQUILA').reduce((s, e) => s + Number(e.cantidad ?? 1), 0)
+  const totalCalculado = detalle.partidas.reduce((sum, p) => sum + Number(p.subtotal_partida), 0) + extrasTotal
+  const totalPzasVidrio  = detalle.piezasVidrioVendidas ??
+    vidrios.reduce((s, p) => s + Number(p.cantidad ?? 1), 0)
+  const totalPzasMaquila = detalle.piezasMaquilaRecibidas ??
+    (maquilas.reduce((s, p) => s + Number(p.piezas ?? p.cantidad ?? 1), 0) +
+     extras.filter(e => e.tipo === 'MAQUILA').reduce((s, e) => s + Number(e.cantidad ?? 1), 0))
   const piezasResumen = [
-    totalPzasVidrio  > 0 ? `<div class="row" style="font-size:11px;color:#555"><span>Piezas vendidas:</span><span><strong>${totalPzasVidrio}</strong></span></div>`  : '',
+    (vidrios.length > 0 && totalPzasVidrio  > 0) ? `<div class="row" style="font-size:11px;color:#555"><span>Piezas vendidas:</span><span><strong>${totalPzasVidrio}</strong></span></div>`  : '',
     totalPzasMaquila > 0 ? `<div class="row" style="font-size:11px;color:#555"><span>Piezas maquila recibidas:</span><span><strong>${totalPzasMaquila}</strong></span></div>` : '',
   ].join('')
-  const rows = detalle.partidas.map((p, i) => {
-    const cant = p.cantidad ?? 1
-    const procSubtotal = (p.procesos ?? []).reduce((s, pr) => s + Number(pr.subtotal), 0)
-    const exactSubtotal = Number(p.subtotal_vidrio ?? p.subtotal_partida) + procSubtotal
+  const rows = vidrios.map((p, i) => {
+    const cant        = p.cantidad ?? 1
+    const vidSubtotal = Number(p.subtotal_vidrio ?? p.subtotal_partida)
+    const hasProc     = (p.procesos ?? []).length > 0
     const procRows = (p.procesos ?? []).map(pr => {
       const cantLabel = pr.cantidad && pr.cantidad !== 1 ? ` × ${pr.cantidad}` : ''
       return `<div class="row" style="padding-left:12px;font-size:11px;color:#444">
         <span>+ ${pr.nombre}${cantLabel}</span><span>$${Number(pr.subtotal).toFixed(2)}</span>
       </div>`
     }).join('')
+    const subtotalRow = hasProc ? `
+      <div class="row" style="padding-top:3px;border-top:1px dashed #ccc;margin-top:2px;font-weight:700;font-size:12px">
+        <span>Subtotal</span><span>$${Number(p.subtotal_partida).toFixed(2)}</span>
+      </div>` : ''
 
+    const cuVid = vidSubtotal / cant
     return `
       <div class="partida">
-        <div class="row" style="margin-bottom:2px">
-          <span class="bold" style="font-size:13px">${cant}- ${p.largo_cm}×${p.ancho_cm} ${p.clave_vidrio}</span>
-          <span class="bold" style="font-size:13px">$${exactSubtotal.toFixed(2)}</span>
+        <div style="display:flex;align-items:baseline;margin-bottom:2px;gap:6px">
+          <span class="bold" style="font-size:13px;flex:1">${cant}- ${p.largo_cm}×${p.ancho_cm} ${p.clave_vidrio}</span>
+          <span style="font-size:11px;color:#444;flex-shrink:0">$${cuVid.toFixed(2)} c/u</span>
+          <span class="bold" style="font-size:13px;flex-shrink:0">$${vidSubtotal.toFixed(2)}</span>
         </div>
         <div style="font-size:11px;color:#444;margin-bottom:3px;padding-left:12px">
           ${p.clave_vidrio}${p.descripcion_vidrio ? ' — ' + p.descripcion_vidrio : ''} · ${Number(p.metros2).toFixed(4)} m²
         </div>
         ${procRows}
+        ${subtotalRow}
       </div>`
   }).join('<div style="border-top:1px dashed #ccc;margin:5px 0"></div>')
 
+  const maquilaDimHtml = maquilas.length === 0 ? '' : `
+    <div style="font-weight:700;font-size:11px;margin:8px 0 3px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px dashed #888;padding-bottom:2px">
+      Maquila
+    </div>
+    ${maquilas.map(p => {
+      const procs = p.procesos ?? []
+      const procRows = procs.length === 1
+        ? `<div style="font-size:11px;color:#444;padding-left:12px">+ ${procs[0].nombre}</div>`
+        : procs.length === 0 ? '' : procs.map(pr => `
+        <div style="display:flex;padding-left:12px;font-size:11px;color:#444;gap:6px">
+          <span style="flex:1">+ ${pr.nombre}</span>
+          <span style="flex-shrink:0">${pr.precio_unitario != null ? `$${Number(pr.precio_unitario).toFixed(2)}` : ''}</span>
+          <span style="flex-shrink:0">$${Number(pr.subtotal ?? 0).toFixed(2)}</span>
+        </div>`).join('')
+      const cuMaq = Number(p.subtotal_partida) / Number(p.piezas ?? p.cantidad ?? 1)
+      return `
+      <div class="partida">
+        <div style="display:flex;align-items:baseline;margin-bottom:2px;gap:6px">
+          <span class="bold" style="font-size:13px;flex:1">${p.piezas ?? p.cantidad ?? 1}- ${p.largo_cm}×${p.ancho_cm}cm${p.espesor_label ? ' · ' + p.espesor_label : ''}</span>
+          <span style="font-size:11px;color:#444;flex-shrink:0">$${cuMaq.toFixed(2)} c/u</span>
+          <span class="bold" style="font-size:13px;flex-shrink:0">$${Number(p.subtotal_partida).toFixed(2)}</span>
+        </div>
+        ${p.descripcion ? `<div style="font-size:11px;color:#444;margin-bottom:3px;padding-left:12px">${p.descripcion}</div>` : ''}
+        ${procRows}
+      </div>`
+    }).join('<div style="border-top:1px dashed #ccc;margin:5px 0"></div>')}`
+
   const extrasHtml = extras.length === 0 ? '' : `
     <div style="font-weight:700;font-size:11px;margin:8px 0 3px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px dashed #888;padding-bottom:2px">
-      Maquila / Extras
+      Extras
     </div>
     <div style="display:flex;align-items:baseline;font-size:9px;color:#555;border-bottom:1px dashed #aaa;margin-bottom:3px;gap:2px">
       <span style="flex:1;padding-left:4px">Descripción</span>
@@ -377,11 +422,12 @@ export function printPedidoPendiente(detalle) {
 <body>
   <div class="header center">
     <h1>VIDRIO TEMPLADO Y ALUMINIO ROSALES</h1>
+    <p style="font-style:italic;font-weight:700">Calidad que se ve, confianza que perdura</p>
     <p>Rosales #35 C.P. 55270, Granjas Valle de Guadalupe</p>
     <p>Ecatepec de Morelos, Estado de Mexico</p>
     <p>Tel: 5523134256, 5522161432, 5547912671</p>
     <p>rosalesvidriotempladofernando@gmail.com</p>
-    <p>${extras.length > 0 && detalle.partidas.length === 0 ? 'Pedido maquila' : 'Pedido vidrio'}</p>
+    <p>${vidrios.length === 0 && (maquilas.length > 0 || extras.length > 0) ? 'Pedido maquila' : 'Pedido vidrio'}</p>
   </div>
   <hr class="divider">
   <div class="row"><span>Pedido:</span><span class="bold">${detalle.folio}</span></div>
@@ -391,9 +437,10 @@ export function printPedidoPendiente(detalle) {
   <div class="row"><span>Cliente:</span><span class="bold">${detalle.cliente?.nombre ?? 'Mostrador'}</span></div>
   ${detalle.nivel?.nombre ? `<div class="row"><span>Nivel:</span><span>${detalle.nivel.nombre}</span></div>` : ''}
   <hr class="divider">
-  ${detalle.partidas.length > 0 ? `<div style="font-weight:700;font-size:11px;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px dashed #888;padding-bottom:2px">Vidrio</div>${rows}` : ''}
+  ${vidrios.length > 0 ? `<div style="font-weight:700;font-size:11px;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px dashed #888;padding-bottom:2px">Vidrio</div>${rows}` : ''}
+  ${maquilaDimHtml}
   ${extrasHtml}
-  ${piezasResumen}
+  ${piezasResumen ? `<hr class="divider">${piezasResumen}` : ''}
   <hr class="divider">
   <div class="row total-row"><span>TOTAL</span><span>$${totalCalculado.toFixed(2)}</span></div>
   <hr class="divider-thin">
@@ -690,22 +737,20 @@ export function printCotizacionCarta(detalle) {
  * Imprime un pedido en hoja A4 con encabezado de marca completo.
  * Acepta el mismo objeto detalle que printTicketVidrio (tipo: 'pedido').
  */
-export function printPedidoA4(detalle) {
+export async function printPedidoA4(detalle) {
   const vidrios    = detalle.partidas.filter(p => !p.tipo || p.tipo === 'VIDRIO')
   const maquilas   = detalle.partidas.filter(p => p.tipo === 'MAQUILA')
   const extrasProc = detalle.partidas.filter(p => p.tipo === 'EXTRA')
   const herrajes   = detalle.partidas.filter(p => p.tipo === 'HERRAJE' || p.tipo === 'PRODUCTO')
 
-  const totalCalculado = detalle.partidas.reduce((sum, p) => {
-    if (p.tipo && p.tipo !== 'VIDRIO') return sum + Number(p.subtotal_partida)
-    const procSubtotal = (p.procesos ?? []).reduce((s, pr) => s + Number(pr.subtotal), 0)
-    return sum + Number(p.subtotal_vidrio ?? p.subtotal_partida) + procSubtotal
-  }, 0)
+  const totalCalculado = detalle.partidas.reduce((sum, p) => sum + Number(p.subtotal_partida), 0)
 
-  const totalPzasVidrio  = vidrios.reduce((s, p) => s + Number(p.piezas ?? p.cantidad ?? 1), 0)
-  const totalPzasMaquila = maquilas.reduce((s, p) => s + Number(p.piezas ?? p.cantidad ?? 1), 0)
+  const totalPzasVidrio  = detalle.piezasVidrioVendidas ??
+    vidrios.reduce((s, p) => s + Number(p.piezas ?? p.cantidad ?? 1), 0)
+  const totalPzasMaquila = detalle.piezasMaquilaRecibidas ??
+    maquilas.reduce((s, p) => s + Number(p.piezas ?? p.cantidad ?? 1), 0)
   const piezasResumen = (totalPzasVidrio > 0 || totalPzasMaquila > 0) ? `
-    <div style="display:flex;gap:24px;font-size:12px;color:#444;margin-bottom:8px;margin-top:4px">
+    <div class="pblock" style="display:flex;gap:24px;font-size:12px;color:#444;margin-bottom:8px;margin-top:4px">
       ${totalPzasVidrio  > 0 ? `<span>Piezas vendidas: <strong>${totalPzasVidrio}</strong></span>`  : ''}
       ${totalPzasMaquila > 0 ? `<span>Piezas maquila recibidas: <strong>${totalPzasMaquila}</strong></span>` : ''}
     </div>` : ''
@@ -718,7 +763,7 @@ export function printPedidoA4(detalle) {
     const bg      = idx % 2 === 0 ? '#fff' : '#fafafa'
     const hasProc = (p.procesos ?? []).length > 0
     const procSubtotal = (p.procesos ?? []).reduce((s, pr) => s + Number(pr.subtotal), 0)
-    const exactSubtotal = Number(p.subtotal_vidrio ?? p.subtotal_partida) + procSubtotal
+    const exactSubtotal = Number(p.subtotal_partida)
     const procSubRows = (p.procesos ?? []).map(pr => {
       const cuPr  = Number(pr.subtotal) / pzas
       const totPr = cuPr * pzas
@@ -739,7 +784,14 @@ export function printPedidoA4(detalle) {
         <td style="text-align:right;font-weight:700">$${exactSubtotal.toFixed(2)}</td>
         <td></td>
       </tr>` : ''
+    const descRow = p.descripcion_vidrio ? `
+      <tr style="background:${bg}">
+        <td></td>
+        <td colspan="4" style="font-size:11px;color:#555;padding-top:0">${p.descripcion_vidrio}</td>
+        <td></td>
+      </tr>` : ''
     return `
+      <tbody class="pblock">
       <tr style="background:${bg}">
         <td style="text-align:center;font-weight:700">${pzas}</td>
         <td style="font-size:11px">${p.largo_cm}×${p.ancho_cm} cm · ${m2} m²</td>
@@ -748,8 +800,10 @@ export function printPedidoA4(detalle) {
         <td style="text-align:right;font-weight:600">$${totVid.toFixed(2)}</td>
         <td></td>
       </tr>
+      ${descRow}
       ${procSubRows}
-      ${subtotalSubRow}`
+      ${subtotalSubRow}
+      </tbody>`
   }).join('')
 
   const vidrioSection = vidrios.length === 0 ? '' : `
@@ -763,13 +817,13 @@ export function printPedidoA4(detalle) {
         <th style="text-align:right">Total</th>
         <th></th>
       </tr></thead>
-      <tbody>${vidrioRows}</tbody>
+      ${vidrioRows}
     </table>`
 
   const maquilaRows = maquilas.map((p, idx) => {
     const hasDims = p.largo_cm && Number(p.largo_cm) > 0
     const dims = hasDims
-      ? `${p.piezas ?? p.cantidad ?? 1} · ${p.largo_cm}×${p.ancho_cm}cm${p.descripcion ? ' · ' + p.descripcion : ''}`
+      ? `${p.piezas ?? p.cantidad ?? 1} · ${p.largo_cm}×${p.ancho_cm}cm${p.clave ? ' · ' + p.clave : ''}${p.descripcion ? ' · ' + p.descripcion : ''}`
       : (p.descripcion ?? p.clave ?? '—')
     const bg = `background:${idx % 2 === 0 ? '#fff' : '#fafafa'}`
     if (hasDims && (p.procesos ?? []).length > 0) {
@@ -782,12 +836,15 @@ export function printPedidoA4(detalle) {
           <td style="text-align:right;font-size:11px;color:#555">$${Number(pr.subtotal ?? 0).toFixed(2)}</td>
         </tr>`
       }).join('')
+      const cuMaq = Number(p.subtotal_partida) / Number(p.piezas ?? p.cantidad ?? 1)
       return `
+      <tbody class="pblock">
       <tr style="${bg}">
         <td style="font-weight:600">${dims}</td>
-        <td></td>
+        <td style="text-align:right;font-size:11px">$${cuMaq.toFixed(2)}</td>
         <td style="text-align:right;font-weight:600">$${Number(p.subtotal_partida).toFixed(2)}</td>
-      </tr>${procRows}`
+      </tr>${procRows}
+      </tbody>`
     }
     // Extra-only path: parse description for dims + ML processes with glass icons
     if (!hasDims) {
@@ -800,13 +857,16 @@ export function printPedidoA4(detalle) {
         const pLargo = dm?.[1], pAncho = dm?.[2]
         const procList = procsStr.split(', ')
         const procTrs = procList.map((pr, i) => {
-          const sides = notasProcs[i]?.sidesML
+          const procData = notasProcs[i]
+          const sides = procData?.sidesML
           const allSides = sides?.top && sides?.bottom && sides?.left && sides?.right
           const icon = (sides && !allSides && pLargo && pAncho) ? glassIconSVG(sides, pLargo, pAncho) : ''
-          const txt = icon ? pr.replace(/\s*\[[TBLR]+\]/g, '') : pr
-          return `<tr><td style="font-size:11px;color:#555;padding-left:14px"><div style="display:flex;align-items:center">${icon}<span>+${txt}</span></div></td><td></td><td></td></tr>`
+          const txt = pr.replace(/\s*\[[TBLR]+\]/g, '')
+          const cu  = procData?.precio_unitario != null ? `$${Number(procData.precio_unitario).toFixed(2)}` : ''
+          const tot = procData?.subtotal != null ? `$${Number(procData.subtotal).toFixed(2)}` : ''
+          return `<tr><td style="font-size:11px;color:#555;padding-left:14px"><div style="display:flex;align-items:center">${icon}<span>+${txt}</span></div></td><td style="text-align:right;font-size:11px;color:#555">${cu}</td><td style="text-align:right;font-size:11px;color:#555">${tot}</td></tr>`
         }).join('')
-        return `<tr style="${bg}"><td style="font-weight:600">${dimsStr}</td><td></td><td style="text-align:right;font-weight:600">$${Number(p.subtotal_partida).toFixed(2)}</td></tr>${procTrs}`
+        return `<tbody class="pblock"><tr style="${bg}"><td style="font-weight:600">${dimsStr}</td><td></td><td style="text-align:right;font-weight:600">$${Number(p.subtotal_partida).toFixed(2)}</td></tr>${procTrs}</tbody>`
       }
     }
     const cuVal = p.precio_unitario != null
@@ -814,11 +874,13 @@ export function printPedidoA4(detalle) {
       : (p.cantidad ? Number(p.subtotal_partida) / Number(p.cantidad) : null)
     const cu  = cuVal != null ? `$${Number(cuVal).toFixed(2)}` : '—'
     return `
+      <tbody class="pblock">
       <tr style="${bg}">
         <td style="font-weight:600">${dims}</td>
         <td style="text-align:right">${cu}</td>
         <td style="text-align:right;font-weight:600">$${Number(p.subtotal_partida).toFixed(2)}</td>
-      </tr>`
+      </tr>
+      </tbody>`
   }).join('')
 
   const maquilaSection = maquilas.length === 0 ? '' : `
@@ -829,16 +891,18 @@ export function printPedidoA4(detalle) {
         <th style="text-align:right">C.U.</th>
         <th style="text-align:right">Total</th>
       </tr></thead>
-      <tbody>${maquilaRows}</tbody>
+      ${maquilaRows}
     </table>`
 
   const extraProcRows = extrasProc.map((p, idx) => `
+    <tbody class="pblock">
     <tr style="background:${idx % 2 === 0 ? '#fff' : '#fafafa'}">
       <td>${p.descripcion ?? '—'}</td>
       <td style="text-align:center">${p.cantidad ?? 1}</td>
       <td style="text-align:right;font-size:11px">$${Number(p.precio_unitario ?? 0).toFixed(2)}</td>
       <td style="text-align:right;font-weight:600">$${Number(p.subtotal_partida).toFixed(2)}</td>
-    </tr>`).join('')
+    </tr>
+    </tbody>`).join('')
 
   const extraProcSection = extrasProc.length === 0 ? '' : `
     <div class="section-title" style="margin-top:16px">Proceso Extra</div>
@@ -849,15 +913,17 @@ export function printPedidoA4(detalle) {
         <th style="text-align:right">P.U.</th>
         <th style="text-align:right">Total</th>
       </tr></thead>
-      <tbody>${extraProcRows}</tbody>
+      ${extraProcRows}
     </table>`
 
   const herrajeRows = herrajes.map((p, idx) => `
+    <tbody class="pblock">
     <tr style="background:${idx % 2 === 0 ? '#fff' : '#fafafa'}">
       <td>${p.descripcion ?? '—'}</td>
       <td style="text-align:center">${p.cantidad ?? 1}</td>
       <td style="text-align:right;font-weight:600">$${Number(p.subtotal_partida).toFixed(2)}</td>
-    </tr>`).join('')
+    </tr>
+    </tbody>`).join('')
 
   const herrajeSection = herrajes.length === 0 ? '' : `
     <div class="section-title" style="margin-top:16px">Herraje / Producto</div>
@@ -867,7 +933,7 @@ export function printPedidoA4(detalle) {
         <th style="text-align:center">Cant</th>
         <th style="text-align:right">Total</th>
       </tr></thead>
-      <tbody>${herrajeRows}</tbody>
+      ${herrajeRows}
     </table>`
 
   const pagoInfo = (() => {
@@ -886,9 +952,12 @@ export function printPedidoA4(detalle) {
     return `${mp}<div class="pago-row"><span>Método de entrega:</span><span class="bold">${fp}</span></div>`
   })()
 
+  const esCot = detalle.tipo === 'cotizacion'
   const esMaquila = (maquilas.length > 0 || extrasProc.length > 0) && vidrios.length === 0
-  const titulo = esMaquila ? 'PEDIDO DE MAQUILA' : herrajes.length > 0 && vidrios.length === 0 ? 'PEDIDO DE HERRAJE' : 'PEDIDO DE VIDRIO'
-  const pie = detalle.esEntregado ? '¡Gracias por su compra!' : detalle.formaPago === 'POR COBRAR' ? 'Entregado.' : 'Pendiente de entrega.'
+  const titulo = esCot ? 'COTIZACIÓN' : esMaquila ? 'PEDIDO DE MAQUILA' : herrajes.length > 0 && vidrios.length === 0 ? 'PEDIDO DE HERRAJE' : 'PEDIDO DE VIDRIO'
+  const pie = esCot ? 'Cotización con vigencia de 15 días. No es un comprobante de pago.'
+    : detalle.esEntregado ? '¡Gracias por su compra!' : detalle.formaPago === 'POR COBRAR' ? 'Entregado.' : 'Pendiente de entrega.'
+  const folioLabel = esCot ? 'Cotización N°:' : 'Pedido N°:'
 
   const html = `<!DOCTYPE html>
 <html lang="es">
@@ -896,9 +965,8 @@ export function printPedidoA4(detalle) {
   <meta charset="UTF-8">
   <title>${titulo} ${detalle.folio}</title>
   <style>
-    @page { margin: 0; size: A4 portrait; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 13px; color: #111; -webkit-print-color-adjust: exact; print-color-adjust: exact; padding: 12mm 14mm; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 13px; color: #111; padding: 14px 18px; }
     .brand-header { display: flex; align-items: center; gap: 16px; padding-bottom: 14px; border-bottom: 2px solid #1a3a6b; margin-bottom: 18px; }
     .brand-logo { width: 80px; height: auto; flex-shrink: 0; }
     .brand-name { font-size: 17px; font-weight: 900; letter-spacing: 1px; color: #1a3a6b; }
@@ -912,6 +980,7 @@ export function printPedidoA4(detalle) {
     .cliente-box .c-detail { color: #555; font-size: 12px; margin-top: 3px; }
     .section-title { font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #1a3a6b; border-bottom: 2px solid #1a3a6b; padding-bottom: 4px; margin-bottom: 8px; }
     table { width: 100%; border-collapse: collapse; margin-bottom: 6px; }
+    thead { display: table-header-group; }
     th { background: #1a3a6b; color: #fff; padding: 7px 9px; font-size: 11px; text-align: left; }
     td { padding: 6px 9px; border-bottom: 1px solid #eee; font-size: 12px; vertical-align: top; }
     .total-box { display: flex; justify-content: flex-end; margin: 16px 0; }
@@ -923,70 +992,149 @@ export function printPedidoA4(detalle) {
   </style>
 </head>
 <body>
-  <div class="brand-header">
-    <img src="${logoUrl}" class="brand-logo" alt="Logo">
-    <div>
-      <div class="brand-name">VIDRIO TEMPLADO Y ALUMINIO ROSALES</div>
-      <div class="brand-detail" style="font-style:italic;color:#1565c0;font-weight:600;margin-top:2px">Calidad que se ve, confianza que perdura</div>
-      <div class="brand-detail">Rosales #35 C.P. 55270, Granjas Valle de Guadalupe · Ecatepec de Morelos, Estado de Mexico</div>
-      <div class="brand-detail">Tel: 5523134256, 5522161432, 5547912671 · rosalesvidriotempladofernando@gmail.com</div>
+  <div id="pdf-header-block">
+    <div class="brand-header">
+      <img src="${logoUrl}" class="brand-logo" alt="Logo">
+      <div>
+        <div class="brand-name">VIDRIO TEMPLADO Y ALUMINIO ROSALES</div>
+        <div class="brand-detail" style="font-style:italic;color:#1565c0;font-weight:600;margin-top:2px">Calidad que se ve, confianza que perdura</div>
+        <div class="brand-detail">Rosales #35 C.P. 55270, Granjas Valle de Guadalupe · Ecatepec de Morelos, Estado de Mexico</div>
+        <div class="brand-detail">Tel: 5523134256, 5522161432, 5547912671 · rosalesvidriotempladofernando@gmail.com</div>
+      </div>
     </div>
   </div>
+  <div id="pdf-body-block">
+    <div class="pblock">
+      <div class="doc-info">
+        <div class="doc-titulo">${titulo}</div>
+        <div class="doc-meta">
+          <div>${folioLabel} <strong>${detalle.folio}</strong></div>
+          ${detalle.foliosCot ? `<div>Cotización: <strong>${detalle.foliosCot}</strong></div>` : ''}
+          <div>Fecha: <strong>${detalle.fecha}</strong></div>
+          ${detalle.hora ? `<div>Hora: <strong>${detalle.hora}</strong></div>` : ''}
+        </div>
+      </div>
 
-  <div class="doc-info">
-    <div class="doc-titulo">${titulo}</div>
-    <div class="doc-meta">
-      <div>Pedido N°: <strong>${detalle.folio}</strong></div>
-      ${detalle.foliosCot ? `<div>Cotización: <strong>${detalle.foliosCot}</strong></div>` : ''}
-      <div>Fecha: <strong>${detalle.fecha}</strong></div>
-      ${detalle.hora ? `<div>Hora: <strong>${detalle.hora}</strong></div>` : ''}
+      <div class="cliente-box">
+        <div class="c-nombre">${detalle.clienteNombre ?? 'Mostrador'}</div>
+        <div class="c-detail">${detalle.nivelNombre ? `Nivel: ${detalle.nivelNombre}` : ''}</div>
+        ${detalle.observaciones ? `<div class="c-detail" style="margin-top:2px"><em>Obs: ${detalle.observaciones}</em></div>` : ''}
+      </div>
     </div>
+    ${vidrioSection}
+    ${maquilaSection}
+    ${extraProcSection}
+    ${herrajeSection}
+
+    ${piezasResumen}
+    <div class="total-box pblock">
+      <div class="total-inner">TOTAL: $${totalCalculado.toFixed(2)}</div>
+    </div>
+
+    ${esCot ? '' : `<div class="pago-box pblock">${pagoInfo}</div>`}
+
+    <div class="footer-doc pblock">${pie}<br>Vidrio Templado y Aluminio Rosales · Tel: 5523134256, 5522161432, 5547912671</div>
+    ${detalle.esCancelado
+      ? `<div class="pblock" style="margin-top:14px;text-align:center;font-size:13px;font-weight:700;letter-spacing:2px;border:2px solid #991b1b;padding:8px;color:#991b1b">⚠ PEDIDO CANCELADO — REIMPRESIÓN ⚠</div>`
+      : detalle.esReimpresion
+        ? `<div class="pblock" style="margin-top:14px;text-align:center;font-size:11px;font-weight:700;letter-spacing:2px;border:1.5px dashed #999;padding:6px;color:#555">*** REIMPRESIÓN — PEDIDO ENTREGADO ***</div>`
+        : ''}
   </div>
-
-  <div class="cliente-box">
-    <div class="c-nombre">${detalle.clienteNombre ?? 'Mostrador'}</div>
-    <div class="c-detail">${detalle.nivelNombre ? `Nivel: ${detalle.nivelNombre}` : ''}</div>
-    ${detalle.observaciones ? `<div class="c-detail" style="margin-top:2px"><em>Obs: ${detalle.observaciones}</em></div>` : ''}
-  </div>
-
-  ${vidrioSection}
-  ${maquilaSection}
-  ${extraProcSection}
-  ${herrajeSection}
-
-  ${piezasResumen}
-  <div class="total-box">
-    <div class="total-inner">TOTAL: $${totalCalculado.toFixed(2)}</div>
-  </div>
-
-  <div class="pago-box">${pagoInfo}</div>
-
-  <div class="footer-doc">${pie}<br>Vidrio Templado y Aluminio Rosales · Tel: 5523134256, 5522161432, 5547912671</div>
-  ${detalle.esCancelado
-    ? `<div style="margin-top:14px;text-align:center;font-size:13px;font-weight:700;letter-spacing:2px;border:2px solid #991b1b;padding:8px;color:#991b1b">⚠ PEDIDO CANCELADO — REIMPRESIÓN ⚠</div>`
-    : detalle.esReimpresion
-      ? `<div style="margin-top:14px;text-align:center;font-size:11px;font-weight:700;letter-spacing:2px;border:1.5px dashed #999;padding:6px;color:#555">*** REIMPRESIÓN — PEDIDO ENTREGADO ***</div>`
-      : ''}
 </body>
 </html>`
 
-  let iframe = document.getElementById('__pedido_a4_frame__')
-  if (!iframe) {
-    iframe = document.createElement('iframe')
-    iframe.id = '__pedido_a4_frame__'
-    iframe.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;border:none;visibility:hidden'
-    document.body.appendChild(iframe)
-  }
-  iframe.contentDocument.open()
-  iframe.contentDocument.write(html)
-  iframe.contentDocument.close()
-  setTimeout(() => {
-    try { iframe.contentWindow.focus(); iframe.contentWindow.print() }
-    catch {
-      const win = window.open('', '_blank', 'width=820,height=1060')
-      if (win) { win.document.write(html); win.document.close(); win.focus(); setTimeout(() => win.print(), 400) }
+  // Se genera un PDF real (en vez de imprimir el HTML crudo vía iframe) para
+  // que el diálogo de impresión de Chrome no le agregue su encabezado/pie
+  // nativo con la URL/IP del servidor — eso solo ocurre al imprimir una
+  // página HTML, no al imprimir un PDF ya renderizado.
+  const contenedor = document.createElement('div')
+  contenedor.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px;background:#fff;'
+  contenedor.innerHTML = html
+  document.body.appendChild(contenedor)
+
+  try {
+    const scale = 2
+    const headerEl = contenedor.querySelector('#pdf-header-block')
+
+    // Cada partida vive en su propio <tbody class="pblock"> (o <div class="pblock">
+    // para las secciones sin tabla) — así medimos su posición ANTES de rasterizar,
+    // para nunca cortar una partida a la mitad entre dos hojas.
+    const pblocks = Array.from(contenedor.querySelectorAll('.pblock'))
+    const blockRanges = pblocks.map(el => ({
+      top:    Math.round(el.offsetTop * scale),
+      bottom: Math.round((el.offsetTop + el.offsetHeight) * scale),
+    }))
+    const headerPxHeight = Math.round(headerEl.offsetHeight * scale)
+
+    const [canvas, headerCanvas] = await Promise.all([
+      html2canvas(contenedor, { scale, useCORS: true, backgroundColor: '#ffffff', logging: false }),
+      html2canvas(headerEl,   { scale, useCORS: true, backgroundColor: '#ffffff', logging: false }),
+    ])
+
+    const pdf    = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+    const pageW  = pdf.internal.pageSize.getWidth()
+    const pageH  = pdf.internal.pageSize.getHeight()
+    const margin = 8
+    const maxW   = pageW - margin * 2
+
+    const pxPerMM    = canvas.width / maxW
+    const headerMM   = headerPxHeight / pxPerMM
+    const headerGapMM = 4
+    const bodyMaxHmm = pageH - margin * 2 - headerMM - headerGapMM
+    const bodyMaxHpx = Math.round(bodyMaxHmm * pxPerMM)
+
+    // Si el corte natural cae dentro de una partida, retrocede al inicio de esa
+    // partida para que pase completa a la siguiente hoja (a menos que la partida
+    // por sí sola ya sea más alta que una hoja — ahí no queda opción).
+    const snapCut = (desiredY, minY) => {
+      for (const r of blockRanges) {
+        if (desiredY > r.top && desiredY < r.bottom) {
+          return r.top > minY ? r.top : desiredY
+        }
+      }
+      return desiredY
     }
-  }, 350)
+
+    // 1a pasada: solo calcula dónde cae cada corte, sin dibujar nada — así
+    // sabemos el total de hojas ANTES de dibujar la primera (para "Página X de Y").
+    const pageSlices = []
+    let cursorY = headerPxHeight
+    while (cursorY < canvas.height) {
+      let sliceEnd = Math.min(cursorY + bodyMaxHpx, canvas.height)
+      sliceEnd = snapCut(sliceEnd, cursorY)
+      const sliceH = sliceEnd - cursorY
+      if (sliceH <= 0) break
+      pageSlices.push({ start: cursorY, end: sliceEnd })
+      cursorY = sliceEnd
+    }
+    const totalPages = pageSlices.length
+
+    // 2a pasada: dibuja cada hoja con su encabezado repetido y el contador de página.
+    pageSlices.forEach(({ start, end }, idx) => {
+      if (idx > 0) pdf.addPage()
+      pdf.addImage(headerCanvas.toDataURL('image/png'), 'PNG', margin, margin, maxW, headerMM)
+
+      const sliceH = end - start
+      const slice = document.createElement('canvas')
+      slice.width  = canvas.width
+      slice.height = sliceH
+      slice.getContext('2d').drawImage(canvas, 0, start, canvas.width, sliceH, 0, 0, canvas.width, sliceH)
+      pdf.addImage(slice.toDataURL('image/png'), 'PNG', margin, margin + headerMM + headerGapMM, maxW, sliceH / pxPerMM)
+
+      if (totalPages > 1) {
+        pdf.setFontSize(9)
+        pdf.setTextColor(130, 130, 130)
+        pdf.text(`Página ${idx + 1} de ${totalPages}`, pageW - margin, pageH - 4, { align: 'right' })
+      }
+    })
+
+    const nombreArchivo = `${detalle.tipo === 'cotizacion' ? 'Cotizacion' : 'Pedido'}_${detalle.folio ?? ''}.pdf`
+    const blobUrl = pdf.output('bloburl')
+    const win = window.open(blobUrl, '_blank')
+    if (!win) pdf.save(nombreArchivo)
+  } finally {
+    document.body.removeChild(contenedor)
+  }
 }
 
 /**

@@ -52,23 +52,28 @@ router.get('/maquila/cotizaciones/:id', async (req, res) => {
         WHERE c.id_cotizacion = $1
       `, [id]),
       query(`
-        SELECT pm.*,
+        SELECT
+          pm.id_partida AS id_partida_maquila, pm.id_cotizacion, pm.descripcion,
+          pm.largo_cm, pm.ancho_cm, pm.cantidad, pm.metros2,
+          pm.subtotal_procesos, pm.subtotal AS subtotal_partida, pm.fecha_registro,
+          pm.id_espesor, esp.etiqueta AS espesor_label,
           json_agg(json_build_object(
-            'id_proceso_pm',    ppm.id_proceso_pm,
+            'id_proceso_pm',    ppm.id_partida_proceso,
             'id_proceso',       ppm.id_proceso,
             'nombre',           pr.nombre,
             'unidad',           uc.nombre,
-            'cantidad_unidades', ppm.cantidad_unidades,
+            'cantidad_unidades', ppm.cantidad,
             'precio_unitario',  ppm.precio_unitario,
             'subtotal',         ppm.subtotal
-          )) FILTER (WHERE ppm.id_proceso_pm IS NOT NULL) AS procesos
-        FROM partida_maquila pm
-        LEFT JOIN proceso_partida_maquila ppm ON ppm.id_partida_maquila = pm.id_partida_maquila
+          )) FILTER (WHERE ppm.id_partida_proceso IS NOT NULL) AS procesos
+        FROM partida pm
+        LEFT JOIN partida_proceso ppm ON ppm.id_partida = pm.id_partida
         LEFT JOIN proceso      pr ON pr.id_proceso      = ppm.id_proceso
-        LEFT JOIN unidad_cobro uc ON uc.id_unidad_cobro = pr.id_unidad_cobro
-        WHERE pm.id_cotizacion = $1
-        GROUP BY pm.id_partida_maquila
-        ORDER BY pm.id_partida_maquila
+        LEFT JOIN unidad_cobro uc ON uc.id_unidad_cobro = ppm.id_unidad_cobro
+        LEFT JOIN espesor      esp ON esp.id_espesor    = pm.id_espesor
+        WHERE pm.id_cotizacion = $1 AND pm.tipo = 'MAQUILA' AND pm.largo_cm IS NOT NULL
+        GROUP BY pm.id_partida, esp.etiqueta
+        ORDER BY pm.id_partida
       `, [id]),
     ])
     if (!cotRes.rows.length) return res.status(404).json({ message: 'Cotización no encontrada' })
@@ -78,10 +83,10 @@ router.get('/maquila/cotizaciones/:id', async (req, res) => {
 
 router.post('/maquila/cotizaciones/:id/partidas', async (req, res) => {
   try {
-    const { descripcion, largo_cm, ancho_cm, cantidad, procesos } = req.body
+    const { descripcion, largo_cm, ancho_cm, cantidad, procesos, id_espesor } = req.body
     const { rows } = await query(
-      'SELECT * FROM sp_agregar_partida_maquila($1, $2, $3, $4, $5, $6)',
-      [req.params.id, descripcion ?? null, Number(largo_cm), Number(ancho_cm), Number(cantidad), JSON.stringify(procesos ?? [])]
+      'SELECT * FROM sp_agregar_partida_maquila($1, $2, $3, $4, $5, $6, $7)',
+      [req.params.id, descripcion ?? null, Number(largo_cm), Number(ancho_cm), Number(cantidad), JSON.stringify(procesos ?? []), id_espesor ? Number(id_espesor) : null]
     )
     const row = rows[0]
     if (!row || row.p_id_partida === 0)
@@ -179,7 +184,7 @@ router.post('/maquila/pedidos/convertir-directo', async (req, res) => {
         [row.p_id_pedido]
       )
       await client.query(
-        "UPDATE partida_pedido_maquila SET estatus_entrega = 'ENTREGADO', fecha_entrega_real = NOW() WHERE id_pedido = $1",
+        "UPDATE partida SET estatus_entrega = 'ENTREGADO', fecha_entrega_real = NOW() WHERE id_pedido = $1 AND tipo = 'MAQUILA' AND largo_cm IS NOT NULL",
         [row.p_id_pedido]
       )
     }
@@ -234,53 +239,85 @@ router.get('/maquila/pedidos/:id', async (req, res) => {
         WHERE p.id_pedido = $1
       `, [id]),
       query(`
-        SELECT ppm.*,
+        SELECT
+          ppm.id_partida AS id_partida_ped_maq, ppm.id_pedido, ppm.descripcion,
+          ppm.largo_cm, ppm.ancho_cm, ppm.cantidad, ppm.metros2,
+          ppm.subtotal_procesos, ppm.subtotal AS subtotal_partida,
+          ppm.estatus_entrega, ppm.fecha_entrega_real,
+          ppm.id_espesor, esp.etiqueta AS espesor_label,
           json_agg(json_build_object(
             'nombre',            pr.nombre,
             'unidad',            uc.nombre,
-            'cantidad_unidades', pppm.cantidad_unidades,
+            'cantidad_unidades', pppm.cantidad,
             'precio_unitario',   pppm.precio_unitario,
             'subtotal',          pppm.subtotal
-          )) FILTER (WHERE pppm.id IS NOT NULL) AS procesos
-        FROM partida_pedido_maquila ppm
-        LEFT JOIN proceso_partida_pedido_maquila pppm ON pppm.id_partida_ped_maq = ppm.id_partida_ped_maq
+          )) FILTER (WHERE pppm.id_partida_proceso IS NOT NULL) AS procesos
+        FROM partida ppm
+        LEFT JOIN partida_proceso pppm ON pppm.id_partida = ppm.id_partida
         LEFT JOIN proceso      pr ON pr.id_proceso      = pppm.id_proceso
-        LEFT JOIN unidad_cobro uc ON uc.id_unidad_cobro = pr.id_unidad_cobro
-        WHERE ppm.id_pedido = $1
-        GROUP BY ppm.id_partida_ped_maq
-        ORDER BY ppm.id_partida_ped_maq
+        LEFT JOIN unidad_cobro uc ON uc.id_unidad_cobro = pppm.id_unidad_cobro
+        LEFT JOIN espesor      esp ON esp.id_espesor    = ppm.id_espesor
+        WHERE ppm.id_pedido = $1 AND ppm.tipo = 'MAQUILA' AND ppm.largo_cm IS NOT NULL
+        GROUP BY ppm.id_partida, esp.etiqueta
+        ORDER BY ppm.id_partida
       `, [id]),
     ])
     if (!pedRes.rows.length) return res.status(404).json({ message: 'Pedido no encontrado' })
 
     let partidas = partidasRes.rows
 
-    // Si no hay snapshot en partida_pedido_maquila, leer desde partida_maquila via id_cotizacion
+    // Si no hay snapshot en el pedido, leer las partidas de la cotizacion de maquila
     if (partidas.length === 0 && pedRes.rows[0].id_cotizacion) {
       const fallback = await query(`
-        SELECT pm.id_partida_maquila AS id_partida_ped_maq,
+        SELECT pm.id_partida AS id_partida_ped_maq,
                pm.descripcion, pm.largo_cm, pm.ancho_cm, pm.cantidad,
-               pm.metros2, pm.subtotal_partida, 'PENDIENTE' AS estatus_entrega,
+               pm.metros2, pm.subtotal AS subtotal_partida, 'PENDIENTE' AS estatus_entrega,
                NULL AS fecha_entrega_real,
+               pm.id_espesor, esp.etiqueta AS espesor_label,
           json_agg(json_build_object(
             'nombre',            pr.nombre,
             'unidad',            uc.nombre,
-            'cantidad_unidades', ppm.cantidad_unidades,
+            'cantidad_unidades', ppm.cantidad,
             'precio_unitario',   ppm.precio_unitario,
             'subtotal',          ppm.subtotal
-          )) FILTER (WHERE ppm.id_proceso_pm IS NOT NULL) AS procesos
-        FROM partida_maquila pm
-        LEFT JOIN proceso_partida_maquila ppm ON ppm.id_partida_maquila = pm.id_partida_maquila
+          )) FILTER (WHERE ppm.id_partida_proceso IS NOT NULL) AS procesos
+        FROM partida pm
+        LEFT JOIN partida_proceso ppm ON ppm.id_partida = pm.id_partida
         LEFT JOIN proceso      pr ON pr.id_proceso      = ppm.id_proceso
-        LEFT JOIN unidad_cobro uc ON uc.id_unidad_cobro = pr.id_unidad_cobro
-        WHERE pm.id_cotizacion = $1
-        GROUP BY pm.id_partida_maquila
-        ORDER BY pm.id_partida_maquila
+        LEFT JOIN unidad_cobro uc ON uc.id_unidad_cobro = ppm.id_unidad_cobro
+        LEFT JOIN espesor      esp ON esp.id_espesor    = pm.id_espesor
+        WHERE pm.id_cotizacion = $1 AND pm.tipo = 'MAQUILA' AND pm.largo_cm IS NOT NULL
+        GROUP BY pm.id_partida, esp.etiqueta
+        ORDER BY pm.id_partida
       `, [pedRes.rows[0].id_cotizacion])
       partidas = fallback.rows
     }
 
-    ok(res, { ...pedRes.rows[0], partidas })
+    // Fetch extras when no maquila partidas found
+    let extras = []
+    if (partidas.length === 0) {
+      const idCot = pedRes.rows[0].id_cotizacion
+      const EXTRA_WHERE = `tipo IN ('MAQUILA','PRODUCTO','EXTRA') AND largo_cm IS NULL`
+      try {
+        if (idCot) {
+          const extRes = await query(
+            `SELECT tipo, descripcion, unidad, cantidad, precio_unitario, subtotal, notas
+             FROM partida WHERE id_cotizacion=$1 AND ${EXTRA_WHERE} ORDER BY id_partida`,
+            [idCot]
+          )
+          extras = extRes.rows
+        } else {
+          const extRes = await query(
+            `SELECT tipo, descripcion, unidad, cantidad, precio_unitario, subtotal, notas
+             FROM partida WHERE id_pedido=$1 AND ${EXTRA_WHERE} ORDER BY id_partida`,
+            [id]
+          )
+          extras = extRes.rows
+        }
+      } catch {}
+    }
+
+    ok(res, { ...pedRes.rows[0], partidas, extras })
   } catch (e) { err(res, e) }
 })
 
@@ -289,16 +326,16 @@ router.post('/maquila/partidas-pedido/:id/entregar', async (req, res) => {
   try {
     await client.query('BEGIN')
     const { rows: pmRows } = await client.query(
-      `UPDATE partida_pedido_maquila
+      `UPDATE partida
        SET estatus_entrega = 'ENTREGADO', fecha_entrega_real = NOW()
-       WHERE id_partida_ped_maq = $1 RETURNING id_pedido`,
+       WHERE id_partida = $1 AND tipo = 'MAQUILA' AND largo_cm IS NOT NULL RETURNING id_pedido`,
       [req.params.id]
     )
     if (!pmRows.length) { await client.query('ROLLBACK'); return res.status(404).json({ message: 'Partida no encontrada' }) }
 
     const id_pedido = pmRows[0].id_pedido
     const { rows: todas } = await client.query(
-      'SELECT estatus_entrega FROM partida_pedido_maquila WHERE id_pedido = $1',
+      "SELECT estatus_entrega FROM partida WHERE id_pedido = $1 AND tipo = 'MAQUILA' AND largo_cm IS NOT NULL",
       [id_pedido]
     )
     const entregadas  = todas.filter(r => r.estatus_entrega === 'ENTREGADO').length
