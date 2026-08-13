@@ -4,5 +4,5 @@
 -- to every process attached to it), so it belongs on `partida`, same
 -- reasoning as largo_cm/ancho_cm living there instead of on
 -- partida_proceso.
-
+ -- IN PRODUCTION
 ALTER TABLE partida ADD COLUMN id_espesor INTEGER REFERENCES espesor(id_espesor);

@@ -8,4 +8,5 @@
 -- still in the code is checking an always-true condition. Dropping the
 -- dead column and those now-meaningless checks.
 
+-- IN PRODUCTION 
 ALTER TABLE partida DROP COLUMN id_partida_padre;

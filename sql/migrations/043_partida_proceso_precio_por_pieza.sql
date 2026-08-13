@@ -6,6 +6,8 @@
 --                                     maquila + ALL its processes together)
 -- This is the one missing piece: what THIS process costs per piece.
 
+-- IN PRODUCTION
+
 ALTER TABLE partida_proceso ADD COLUMN precio_por_pieza NUMERIC;
 
 UPDATE partida_proceso pp

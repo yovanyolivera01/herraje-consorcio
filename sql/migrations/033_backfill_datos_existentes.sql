@@ -8,6 +8,7 @@
 -- `partida` already has rows, to prevent accidental double-insertion.
 --
 -- Nothing is deleted from the old tables — this is a copy, not a move.
+-- MIGRATION PEDIDIOS
 
 DO $$
 DECLARE

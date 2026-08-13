@@ -1,3 +1,4 @@
+--IN PRODUCTION
 -- Run this once in your PostgreSQL database
 CREATE TABLE IF NOT EXISTS factura_cfdi (
   id_factura       SERIAL PRIMARY KEY,

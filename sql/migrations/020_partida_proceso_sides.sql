@@ -1,3 +1,5 @@
+-- in production
+
 ALTER TABLE partida_proceso
   ADD COLUMN IF NOT EXISTS sides JSONB;
 

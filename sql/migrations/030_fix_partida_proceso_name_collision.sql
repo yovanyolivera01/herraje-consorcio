@@ -12,6 +12,8 @@
 -- migration/removal per the broader cutover), then create the actual
 -- CTI satellite table under the clean `partida_proceso` name.
 
+-- IN PRODUCTION
+
 ALTER TABLE partida_proceso RENAME TO partida_proceso_legacy;
 
 CREATE TABLE partida_proceso (

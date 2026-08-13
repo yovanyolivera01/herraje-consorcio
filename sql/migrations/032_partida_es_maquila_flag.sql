@@ -13,6 +13,8 @@
 -- line item (tipo='MAQUILA' but no dimensions), since those never
 -- represent a client-supplied physical piece.
 
+-- IN PRODUCTION
+
 ALTER TABLE partida ADD COLUMN es_maquila BOOLEAN NOT NULL DEFAULT FALSE;
 
 CREATE OR REPLACE FUNCTION trg_partida_set_es_maquila() RETURNS TRIGGER AS $$

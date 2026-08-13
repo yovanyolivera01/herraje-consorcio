@@ -8,6 +8,7 @@
 -- partida_proceso automatically looks up its own parent's tipo and
 -- stamps es_maquila accordingly — the app can't get it wrong, and
 -- doesn't need to know about it at all.
+-- IN PRODUCTION
 
 ALTER TABLE partida_proceso ADD COLUMN es_maquila BOOLEAN NOT NULL DEFAULT FALSE;
 

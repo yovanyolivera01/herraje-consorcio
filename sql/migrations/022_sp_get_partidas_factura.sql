@@ -2,6 +2,7 @@
 -- Vidrio pieces fold their attached processes into one subtotal per piece
 -- (total_partida already includes subtotal_procesos); extras are already
 -- one-row-per-line-item on their own tables.
+-- IN PRODUCTION
 CREATE OR REPLACE FUNCTION public.sp_getPartidasForFactura(p_id_pedido integer)
  RETURNS TABLE(descripcion text, cantidad numeric, precio_unitario numeric, subtotal numeric)
  LANGUAGE sql

@@ -19,6 +19,8 @@
 -- MAQUILA job gets the same CTI treatment (largo_cm/ancho_cm/metros2 on
 -- the parent row, real PROCESO child rows) instead of being flattened
 -- into a text descripcion.
+-- IN PRODUCTION
+
 DROP FUNCTION IF EXISTS public.sp_crear_pedido_directo(integer, integer, text, numeric, jsonb);
 
 CREATE OR REPLACE FUNCTION public.sp_crear_pedido_directo(p_id_cliente integer, p_id_nivel_precio integer, p_tipo_pago text, p_monto_anticipo numeric, p_partidas jsonb, p_maquilas jsonb DEFAULT '[]'::jsonb)

@@ -16,6 +16,8 @@
 -- migration (verified via `SELECT tipo, COUNT(*) FROM partida GROUP BY
 -- tipo` returning zero rows).
 
+-- IN PRODUCTION
+
 CREATE TABLE IF NOT EXISTS partida_vidrio (
   id_partida       INTEGER PRIMARY KEY REFERENCES partida(id_partida) ON DELETE CASCADE,
   id_tipo_vidrio   INTEGER NOT NULL REFERENCES tipo_vidrio(id_tipo_vidrio),

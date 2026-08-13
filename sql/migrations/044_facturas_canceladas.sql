@@ -2,7 +2,7 @@
 -- cancelación (motivo, sustitución, acuse de Facturama), separada de
 -- factura_cfdi (que solo guarda la emisión). factura_cfdi.status ya
 -- existía (default 'active') — se reutiliza para marcar 'cancelled'.
-
+ -- IN PRODUCTION
 CREATE TABLE IF NOT EXISTS factura_cancelada (
   id_factura_cancelada SERIAL PRIMARY KEY,
   id_factura           INTEGER NOT NULL REFERENCES factura_cfdi(id_factura) ON DELETE CASCADE,

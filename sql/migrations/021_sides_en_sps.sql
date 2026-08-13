@@ -1,4 +1,6 @@
 -- sp_crear_pedido_directo: carry sidesML through into partida_proceso_pedido.sides
+-- IN PRODUCTION
+
 CREATE OR REPLACE FUNCTION public.sp_crear_pedido_directo(p_id_cliente integer, p_id_nivel_precio integer, p_tipo_pago text, p_monto_anticipo numeric, p_partidas jsonb)
  RETURNS TABLE(out_id_pedido integer, out_folio text, out_mensaje text)
  LANGUAGE plpgsql

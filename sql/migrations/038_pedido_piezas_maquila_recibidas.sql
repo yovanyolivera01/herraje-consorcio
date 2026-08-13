@@ -4,5 +4,5 @@
 -- creates or converts a pedido with MAQUILA content:
 -- sp_crear_pedido_directo, sp_convertir_cotizacion_a_pedido,
 -- sp_convertir_maquila_a_pedido.
-
+-- IN PRODUCTION
 ALTER TABLE pedido ADD COLUMN piezas_maquila_recibidas NUMERIC NOT NULL DEFAULT 0;

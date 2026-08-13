@@ -1,3 +1,5 @@
+-- IN PRODUCTION
+
 CREATE OR REPLACE FUNCTION public.sp_insertar_factura_cfdi(
     p_id_pedido       integer,
     p_folio_pedido    character varying,

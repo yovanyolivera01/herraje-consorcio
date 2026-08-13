@@ -6,7 +6,7 @@
 --
 -- This migration only CREATES the new table — it does not migrate existing
 -- data or touch any application code yet. Safe to run: purely additive.
-
+-- IN PRODUCTION
 CREATE TABLE IF NOT EXISTS partida (
   id_partida          SERIAL PRIMARY KEY,
 

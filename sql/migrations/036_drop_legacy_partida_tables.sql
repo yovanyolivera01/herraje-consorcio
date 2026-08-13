@@ -20,6 +20,8 @@
 -- Leaving both in place rather than touching audit history as a side
 -- effect of a schema cleanup.
 
+-- IN PRODUCTION
+
 CREATE OR REPLACE VIEW v_pedidos_por_cobrar AS
 SELECT
   p.id_pedido,

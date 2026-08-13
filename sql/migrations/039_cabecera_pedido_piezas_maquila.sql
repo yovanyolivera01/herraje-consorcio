@@ -2,6 +2,8 @@
 -- (created ad-hoc directly against the DB at some point) — redefining
 -- it here to also expose pedido.piezas_maquila_recibidas (038) and
 -- pedido.piezas_vidrio_vendidas (040).
+-- IN PRODUCTION
+
 
 DROP FUNCTION IF EXISTS public.sp_obtener_cabecera_pedido(integer);
 

@@ -2,6 +2,7 @@
 -- whole partida) and precio_m2 (price per m²) — no unit price for just
 -- the glass (per piece), parallel to how partida.precio_unitario already
 -- stores the combined (glass+procesos) unit price. Adding that here.
+-- IN PRODUCTION
 
 ALTER TABLE partida_vidrio ADD COLUMN precio_vidrio NUMERIC;
 
