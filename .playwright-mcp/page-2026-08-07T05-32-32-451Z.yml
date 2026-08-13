@@ -1,0 +1,290 @@
+- generic [ref=f23e6]:
+  - complementary [ref=f23e7]:
+    - img "Vidreria Rosales" [ref=f23e9]
+    - textbox "Buscar módulo..." [ref=f23e11]
+    - navigation [ref=f23e12]:
+      - button "Herraje" [ref=f23e14] [cursor=pointer]
+      - button "Ventas" [ref=f23e23] [cursor=pointer]
+      - generic [ref=f23e32]:
+        - button "Reportes" [ref=f23e33] [cursor=pointer]
+        - generic [ref=f23e42]:
+          - generic [ref=f23e43]: Reportes
+          - link "Ventas netas" [ref=f23e44] [cursor=pointer]:
+            - /url: /cot/ventas
+          - link "Historial facturas" [ref=f23e50] [cursor=pointer]:
+            - /url: /cot/facturas
+          - link "Reporte Vidrio" [ref=f23e56] [cursor=pointer]:
+            - /url: /cot/reporte-vidrio
+          - link "Cotizaciones" [ref=f23e60] [cursor=pointer]:
+            - /url: /cot/historial
+          - link "Historial de maquila" [ref=f23e64] [cursor=pointer]:
+            - /url: /cot/historial-maquila
+          - link "Historial de herraje" [ref=f23e71] [cursor=pointer]:
+            - /url: /herraje/historial
+      - button "Almacén" [ref=f23e78] [cursor=pointer]
+      - button "Catalogos" [ref=f23e87] [cursor=pointer]
+      - button "Personal" [ref=f23e94] [cursor=pointer]
+      - button "Egresos" [ref=f23e105] [cursor=pointer]
+    - button "Cerrar sesión" [ref=f23e114] [cursor=pointer]
+    - generic [ref=f23e118]:
+      - button "Compactar menú" [ref=f23e119] [cursor=pointer]
+      - button "Modo oscuro" [ref=f23e122] [cursor=pointer]
+  - main [ref=f23e125]:
+    - generic [ref=f23e126]:
+      - generic [ref=f23e127]:
+        - generic [ref=f23e128]: Historial de Ventas
+        - generic [ref=f23e129]:
+          - button "Entregados" [ref=f23e130] [cursor=pointer]
+          - button "Cancelados" [ref=f23e131] [cursor=pointer]
+          - button "Por cobrar" [ref=f23e132] [cursor=pointer]
+          - button "Anticipo" [ref=f23e133] [cursor=pointer]
+          - button "Pendientes" [ref=f23e134] [cursor=pointer]
+      - generic [ref=f23e135]:
+        - textbox "Buscar folio, cliente..." [ref=f23e136]
+        - button "↻ Actualizar" [ref=f23e137] [cursor=pointer]
+        - button "⬇ Excel" [ref=f23e138] [cursor=pointer]
+    - generic [ref=f23e139]:
+      - generic [ref=f23e140]:
+        - generic [ref=f23e141]: "Desde:"
+        - textbox [ref=f23e142]: 2026-08-03
+        - generic [ref=f23e143]: "Hasta:"
+        - textbox [ref=f23e144]: 2026-08-06
+        - button "Esta semana" [ref=f23e145] [cursor=pointer]
+        - button "Todos" [ref=f23e147] [cursor=pointer]
+        - button "Liquidado" [ref=f23e148] [cursor=pointer]
+        - button "Anticipo" [ref=f23e149] [cursor=pointer]
+      - generic [ref=f23e150]:
+        - generic [ref=f23e151]:
+          - generic [ref=f23e152]: Ventas en periodo
+          - generic [ref=f23e153]: "20"
+        - generic [ref=f23e154]:
+          - generic [ref=f23e155]: Total acumulado
+          - generic [ref=f23e156]: $105912.78
+      - generic [ref=f23e158]:
+        - table [ref=f23e159]:
+          - rowgroup [ref=f23e160]:
+            - row [ref=f23e161]:
+              - columnheader "Folio" [ref=f23e162]
+              - columnheader "Entregado" [ref=f23e163]
+              - columnheader "Cliente" [ref=f23e164]
+              - columnheader "Pago" [ref=f23e165]
+              - columnheader "Total" [ref=f23e166]
+              - columnheader [ref=f23e167]
+          - rowgroup [ref=f23e168]:
+            - row [ref=f23e169] [cursor=pointer]:
+              - cell "PED-190" [ref=f23e170]
+              - cell "06/08/2026" [ref=f23e172]
+              - cell "Mostrador" [ref=f23e173]
+              - cell "Liquidado" [ref=f23e174]
+              - cell "$1612.17" [ref=f23e176]
+              - cell [ref=f23e177]:
+                - button "Ver detalle" [active] [ref=f23e178]
+            - row [ref=f23e179] [cursor=pointer]:
+              - cell "PED-189" [ref=f23e180]
+              - cell "06/08/2026" [ref=f23e182]
+              - cell "Mostrador" [ref=f23e183]
+              - cell "Liquidado" [ref=f23e184]
+              - cell "$9133.80" [ref=f23e186]
+              - cell [ref=f23e187]:
+                - button "Ver detalle" [ref=f23e188]
+            - row [ref=f23e189] [cursor=pointer]:
+              - cell "PED-188" [ref=f23e190]
+              - cell "06/08/2026" [ref=f23e192]
+              - cell "Mostrador" [ref=f23e193]
+              - cell "Liquidado" [ref=f23e194]
+              - cell "$9133.80" [ref=f23e196]
+              - cell [ref=f23e197]:
+                - button "Ver detalle" [ref=f23e198]
+            - row [ref=f23e199] [cursor=pointer]:
+              - cell "PED-187" [ref=f23e200]
+              - cell "06/08/2026" [ref=f23e202]
+              - cell "Mostrador" [ref=f23e203]
+              - cell "Liquidado" [ref=f23e204]
+              - cell "$9133.80" [ref=f23e206]
+              - cell [ref=f23e207]:
+                - button "Ver detalle" [ref=f23e208]
+            - row [ref=f23e209] [cursor=pointer]:
+              - cell "PED-186" [ref=f23e210]
+              - cell "06/08/2026" [ref=f23e212]
+              - cell "Mostrador" [ref=f23e213]
+              - cell "Liquidado" [ref=f23e214]
+              - cell "$5547.00" [ref=f23e216]
+              - cell [ref=f23e217]:
+                - button "Ver detalle" [ref=f23e218]
+            - row [ref=f23e219] [cursor=pointer]:
+              - cell "PED-185" [ref=f23e220]
+              - cell "05/08/2026" [ref=f23e222]
+              - cell "Mostrador" [ref=f23e223]
+              - cell "Liquidado" [ref=f23e224]
+              - cell "$3456.30" [ref=f23e226]
+              - cell [ref=f23e227]:
+                - button "Ver detalle" [ref=f23e228]
+            - row [ref=f23e229] [cursor=pointer]:
+              - cell "PED-184" [ref=f23e230]
+              - cell "05/08/2026" [ref=f23e232]
+              - cell "Mostrador" [ref=f23e233]
+              - cell "Liquidado" [ref=f23e234]
+              - cell "$1480.00" [ref=f23e236]
+              - cell [ref=f23e237]:
+                - button "Ver detalle" [ref=f23e238]
+            - row [ref=f23e239] [cursor=pointer]:
+              - cell "PED-183" [ref=f23e240]
+              - cell "05/08/2026" [ref=f23e242]
+              - cell "Mostrador" [ref=f23e243]
+              - cell "Liquidado" [ref=f23e244]
+              - cell "$100.00" [ref=f23e246]
+              - cell [ref=f23e247]:
+                - button "Ver detalle" [ref=f23e248]
+            - row [ref=f23e249] [cursor=pointer]:
+              - cell "PED-181" [ref=f23e250]
+              - cell "04/08/2026" [ref=f23e252]
+              - cell "Mostrador" [ref=f23e253]
+              - cell "Liquidado" [ref=f23e254]
+              - cell "$5547.00" [ref=f23e256]
+              - cell [ref=f23e257]:
+                - button "Ver detalle" [ref=f23e258]
+            - row [ref=f23e259] [cursor=pointer]:
+              - cell "PED-180" [ref=f23e260]
+              - cell "04/08/2026" [ref=f23e262]
+              - cell "Mostrador" [ref=f23e263]
+              - cell "Liquidado" [ref=f23e264]
+              - cell "$5547.00" [ref=f23e266]
+              - cell [ref=f23e267]:
+                - button "Ver detalle" [ref=f23e268]
+            - row [ref=f23e269] [cursor=pointer]:
+              - cell "PED-179" [ref=f23e270]
+              - cell "04/08/2026" [ref=f23e272]
+              - cell "Mostrador" [ref=f23e273]
+              - cell "Liquidado" [ref=f23e274]
+              - cell "$5547.00" [ref=f23e276]
+              - cell [ref=f23e277]:
+                - button "Ver detalle" [ref=f23e278]
+            - row [ref=f23e279] [cursor=pointer]:
+              - cell "PED-177" [ref=f23e280]
+              - cell "03/08/2026" [ref=f23e282]
+              - cell "Mostrador" [ref=f23e283]
+              - cell "Liquidado" [ref=f23e284]
+              - cell "$602.70" [ref=f23e286]
+              - cell [ref=f23e287]:
+                - button "Ver detalle" [ref=f23e288]
+            - row [ref=f23e289] [cursor=pointer]:
+              - cell "PED-176" [ref=f23e290]
+              - cell "03/08/2026" [ref=f23e292]
+              - cell "Mostrador" [ref=f23e293]
+              - cell "Liquidado" [ref=f23e294]
+              - cell "$5547.00" [ref=f23e296]
+              - cell [ref=f23e297]:
+                - button "Ver detalle" [ref=f23e298]
+            - row [ref=f23e299] [cursor=pointer]:
+              - cell "PED-175" [ref=f23e300]
+              - cell "03/08/2026" [ref=f23e302]
+              - cell "Mostrador" [ref=f23e303]
+              - cell "Liquidado" [ref=f23e304]
+              - cell "$602.70" [ref=f23e306]
+              - cell [ref=f23e307]:
+                - button "Ver detalle" [ref=f23e308]
+            - row [ref=f23e309] [cursor=pointer]:
+              - cell "PED-173" [ref=f23e310]
+              - cell "03/08/2026" [ref=f23e312]
+              - cell "Mostrador" [ref=f23e313]
+              - cell "Liquidado" [ref=f23e314]
+              - cell "$21681.00" [ref=f23e316]
+              - cell [ref=f23e317]:
+                - button "Ver detalle" [ref=f23e318]
+            - row [ref=f23e319] [cursor=pointer]:
+              - cell "PED-172" [ref=f23e320]
+              - cell "03/08/2026" [ref=f23e322]
+              - cell "Mostrador" [ref=f23e323]
+              - cell "Liquidado" [ref=f23e324]
+              - cell "$602.70" [ref=f23e326]
+              - cell [ref=f23e327]:
+                - button "Ver detalle" [ref=f23e328]
+            - row [ref=f23e329] [cursor=pointer]:
+              - cell "PED-168" [ref=f23e330]
+              - cell "03/08/2026" [ref=f23e332]
+              - cell "Mostrador" [ref=f23e333]
+              - cell "Liquidado" [ref=f23e334]
+              - cell "$5547.00" [ref=f23e336]
+              - cell [ref=f23e337]:
+                - button "Ver detalle" [ref=f23e338]
+            - row [ref=f23e339] [cursor=pointer]:
+              - cell "PED-167" [ref=f23e340]
+              - cell "03/08/2026" [ref=f23e342]
+              - cell "Mostrador" [ref=f23e343]
+              - cell "Liquidado" [ref=f23e344]
+              - cell "$5508.47" [ref=f23e346]
+              - cell [ref=f23e347]:
+                - button "Ver detalle" [ref=f23e348]
+            - row [ref=f23e349] [cursor=pointer]:
+              - cell "PED-166" [ref=f23e350]
+              - cell "03/08/2026" [ref=f23e352]
+              - cell "Mostrador" [ref=f23e353]
+              - cell "Liquidado" [ref=f23e354]
+              - cell "$6062.89" [ref=f23e356]
+              - cell [ref=f23e357]:
+                - button "Ver detalle" [ref=f23e358]
+            - row [ref=f23e359] [cursor=pointer]:
+              - cell "PED-165" [ref=f23e360]
+              - cell "03/08/2026" [ref=f23e362]
+              - cell "Mostrador" [ref=f23e363]
+              - cell "Liquidado" [ref=f23e364]
+              - cell "$3520.45" [ref=f23e366]
+              - cell [ref=f23e367]:
+                - button "Ver detalle" [ref=f23e368]
+        - generic [ref=f23e369]: "Total del periodo: $105912.78"
+    - generic [ref=f23e371]:
+      - generic [ref=f23e372]:
+        - generic [ref=f23e373]:
+          - generic [ref=f23e374]: Venta — PED-190
+          - generic [ref=f23e375]: "Entregado: 06/08/2026 · Mostrador"
+        - button "✕" [ref=f23e376] [cursor=pointer]
+      - generic [ref=f23e378]:
+        - generic [ref=f23e379]:
+          - heading "VIDRIO TEMPLADO Y ALUMINIO ROSALES" [level=2] [ref=f23e380]
+          - paragraph [ref=f23e381]: COMPROBANTE DE VENTA
+        - separator [ref=f23e382]
+        - generic [ref=f23e383]:
+          - generic [ref=f23e384]: "Pedido:"
+          - strong [ref=f23e385]: PED-190
+        - generic [ref=f23e386]:
+          - generic [ref=f23e387]: "Fecha:"
+          - generic [ref=f23e388]: 06/08/2026
+        - generic [ref=f23e389]:
+          - generic [ref=f23e390]: "Entregado:"
+          - generic [ref=f23e391]: 06/08/2026
+        - generic [ref=f23e392]:
+          - generic [ref=f23e393]: "Cliente:"
+          - generic [ref=f23e394]: Mostrador
+        - separator [ref=f23e395]
+        - generic [ref=f23e396]: Maquila
+        - generic [ref=f23e397]:
+          - generic [ref=f23e398]:
+            - generic [ref=f23e399]: 3 - 90×90cm · 6MM
+            - generic [ref=f23e400]: $1612.17
+          - generic [ref=f23e401]:
+            - generic [ref=f23e402]: + bisel
+            - generic [ref=f23e403]: $100.00
+            - generic [ref=f23e404]: $1080.00
+          - generic [ref=f23e405]:
+            - generic [ref=f23e406]: + C/P/B
+            - generic [ref=f23e407]: $50.00
+            - generic [ref=f23e408]: $121.50
+          - generic [ref=f23e409]:
+            - generic [ref=f23e410]: + maquila de esmerila
+            - generic [ref=f23e411]: $80.00
+            - generic [ref=f23e412]: $194.40
+          - generic [ref=f23e413]:
+            - generic [ref=f23e414]: + Pulido
+            - generic [ref=f23e415]: $89.00
+            - generic [ref=f23e416]: $216.27
+        - separator [ref=f23e417]
+        - generic [ref=f23e418]:
+          - generic [ref=f23e419]: TOTAL
+          - generic [ref=f23e420]: $1612.17
+        - separator [ref=f23e421]
+        - generic [ref=f23e422]: ¡Gracias por su compra!
+      - generic [ref=f23e423]:
+        - button "Cerrar" [ref=f23e424] [cursor=pointer]
+        - button "🧾 Facturar" [ref=f23e425] [cursor=pointer]
+        - button "🖨️ Ticket" [ref=f23e426] [cursor=pointer]
+        - button "🖨️ Hoja A4" [ref=f23e427] [cursor=pointer]

@@ -1,0 +1,162 @@
+- generic [ref=f20e6]:
+  - complementary [ref=f20e7]:
+    - img "Vidreria Rosales" [ref=f20e9]
+    - textbox "Buscar módulo..." [ref=f20e11]
+    - navigation [ref=f20e12]:
+      - button "Herraje" [ref=f20e14] [cursor=pointer]
+      - generic [ref=f20e22]:
+        - button "Ventas" [ref=f20e23] [cursor=pointer]
+        - generic [ref=f20e33]:
+          - generic [ref=f20e34]: Ventas
+          - link "Nueva cotizacion" [ref=f20e35] [cursor=pointer]:
+            - /url: /cot/nueva
+      - button "Reportes" [ref=f20e42] [cursor=pointer]
+      - button "Almacén" [ref=f20e51] [cursor=pointer]
+      - button "Catalogos" [ref=f20e60] [cursor=pointer]
+      - button "Personal" [ref=f20e67] [cursor=pointer]
+      - button "Egresos" [ref=f20e78] [cursor=pointer]
+    - button "Cerrar sesión" [ref=f20e87] [cursor=pointer]
+    - generic [ref=f20e91]:
+      - button "Compactar menú" [ref=f20e92] [cursor=pointer]
+      - button "Modo oscuro" [ref=f20e95] [cursor=pointer]
+  - main [ref=f20e98]:
+    - generic [ref=f20e99]: Nueva Cotizacion
+    - generic [ref=f20e103]:
+      - generic [ref=f20e104]:
+        - generic [ref=f20e105]:
+          - generic [ref=f20e106]:
+            - button "🪟 Vidrio" [ref=f20e107] [cursor=pointer]
+            - button "🔧 Maquila" [active] [ref=f20e108] [cursor=pointer]
+            - button "🧰 Herraje" [ref=f20e109] [cursor=pointer]
+          - generic [ref=f20e110] [cursor=pointer]:
+            - generic [ref=f20e111]:
+              - generic [ref=f20e112]: Publico
+              - generic [ref=f20e113]: · Mostrador
+            - generic [ref=f20e114]: ▾
+          - generic [ref=f20e115]:
+            - generic [ref=f20e116]:
+              - generic [ref=f20e117]: Nivel de precio *
+              - generic [ref=f20e118]:
+                - button "Publico" [ref=f20e119] [cursor=pointer]
+                - button "Carpintero" [ref=f20e121] [cursor=pointer]
+                - button "Vidriero" [ref=f20e123] [cursor=pointer]
+                - button "POR HOJA" [ref=f20e125] [cursor=pointer]
+                - button "Vidriero 2" [ref=f20e127] [cursor=pointer]
+            - generic [ref=f20e129]:
+              - generic [ref=f20e130]: Cliente (opcional)
+              - combobox [ref=f20e131]:
+                - option "-- Mostrador --" [selected]
+                - option "Abizael"
+                - option "carlos"
+                - option "el mero mero"
+                - option "el mero mero"
+                - option "el mero mero"
+                - option "EL PEPE PEREZ"
+                - option "Juan manuel Perez Pradex"
+                - option "juan manuel vazques"
+                - option "Pablito sola martinez"
+                - option "Pedrito"
+                - option "Vidrios del Norte"
+                - option "Vidrios del Norte"
+                - option "yovany Abizael"
+        - generic [ref=f20e227]:
+          - generic [ref=f20e228]:
+            - generic [ref=f20e229]:
+              - generic [ref=f20e230]: Medida *
+              - textbox "98x45 o 3-98x45" [ref=f20e231]:
+                - /placeholder: 98x45  o  3-98x45
+              - generic [ref=f20e232]: largo×ancho o pzas-largo×ancho
+            - generic [ref=f20e233]:
+              - generic [ref=f20e234]: Espesor *
+              - generic [ref=f20e235]:
+                - button "3MM" [ref=f20e236] [cursor=pointer]
+                - button "4MM" [ref=f20e237] [cursor=pointer]
+                - button "6MM" [ref=f20e238] [cursor=pointer]
+                - button "9MM" [ref=f20e239] [cursor=pointer]
+          - generic [ref=f20e240]:
+            - generic [ref=f20e241]: Descripcion (opcional)
+            - textbox "Marco izquierdo, puerta principal..." [ref=f20e242]
+          - generic [ref=f20e243]:
+            - generic [ref=f20e244]: Procesos *
+            - generic [ref=f20e245]:
+              - generic [ref=f20e246]:
+                - generic [ref=f20e247]: m²
+                - generic [ref=f20e249] [cursor=pointer]:
+                  - checkbox
+                  - generic [ref=f20e250]: C/P/B
+                - generic [ref=f20e252] [cursor=pointer]:
+                  - checkbox
+                  - generic [ref=f20e253]: maquila de esmerila
+                - generic [ref=f20e255] [cursor=pointer]:
+                  - checkbox
+                  - generic [ref=f20e256]: Pulido
+                - generic [ref=f20e257]: ml
+                - generic [ref=f20e259] [cursor=pointer]:
+                  - checkbox
+                  - generic [ref=f20e260]: bisel
+                - generic [ref=f20e262] [cursor=pointer]:
+                  - checkbox
+                  - generic [ref=f20e263]: El lavabo
+                - generic [ref=f20e265] [cursor=pointer]:
+                  - checkbox
+                  - generic [ref=f20e266]: Filo muerto
+              - generic [ref=f20e267]:
+                - generic [ref=f20e268]: Barrenos
+                - generic [ref=f20e269] [cursor=pointer]:
+                  - checkbox [ref=f20e270]
+                  - generic [ref=f20e271]: Barreno 10mm
+                - generic [ref=f20e272] [cursor=pointer]:
+                  - checkbox [ref=f20e273]
+                  - generic [ref=f20e274]: Barreno 40mm
+                - generic [ref=f20e275]: Saques
+                - generic [ref=f20e276] [cursor=pointer]:
+                  - checkbox [ref=f20e277]
+                  - generic [ref=f20e278]: gabillan
+                - generic [ref=f20e279] [cursor=pointer]:
+                  - checkbox [ref=f20e280]
+                  - generic [ref=f20e281]: miki
+                - generic [ref=f20e282] [cursor=pointer]:
+                  - checkbox [ref=f20e283]
+                  - generic [ref=f20e284]: saque simple
+                - generic [ref=f20e285]: Extras
+                - generic [ref=f20e286]:
+                  - generic [ref=f20e287] [cursor=pointer]:
+                    - checkbox [ref=f20e288]
+                    - generic [ref=f20e289]: canaleta
+                  - generic [ref=f20e290]: sin precio
+                - generic [ref=f20e292] [cursor=pointer]:
+                  - checkbox [ref=f20e293]
+                  - generic [ref=f20e294]: Cargada
+                - generic [ref=f20e296] [cursor=pointer]:
+                  - checkbox [ref=f20e297]
+                  - generic [ref=f20e298]: Colocación
+                - generic [ref=f20e300] [cursor=pointer]:
+                  - checkbox [ref=f20e301]
+                  - generic [ref=f20e302]: Descargada
+                - generic [ref=f20e304] [cursor=pointer]:
+                  - checkbox [ref=f20e305]
+                  - generic [ref=f20e306]: flete largo
+                - generic [ref=f20e308] [cursor=pointer]:
+                  - checkbox [ref=f20e309]
+                  - generic [ref=f20e310]: Kit
+          - button "🔧 Agregar maquila" [disabled] [ref=f20e311]
+        - generic [ref=f20e203]:
+          - generic [ref=f20e204]: 📋
+          - heading "Sin partidas" [level=3] [ref=f20e205]
+          - paragraph [ref=f20e206]: Ingresa una medida y agrega piezas de vidrio
+      - generic [ref=f20e208]:
+        - generic [ref=f20e209]: Resumen
+        - generic [ref=f20e210]: Nivel de precio
+        - generic [ref=f20e211]: Publico
+        - generic [ref=f20e214]:
+          - generic [ref=f20e215]: Partidas
+          - generic [ref=f20e216]: "0"
+        - generic [ref=f20e217]:
+          - generic [ref=f20e218]: Total m²
+          - generic [ref=f20e219]: "0.0000"
+        - generic [ref=f20e221]:
+          - generic [ref=f20e222]: Total
+          - generic [ref=f20e223]: $0.00
+        - button "📦 Convertir a pedido" [disabled] [ref=f20e224]
+        - button "✓ Solo cotizar" [disabled] [ref=f20e225]
+        - button "Limpiar" [disabled] [ref=f20e226]

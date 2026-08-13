@@ -1,0 +1,95 @@
+- generic [ref=f20e6]:
+  - complementary [ref=f20e7]:
+    - img "Vidreria Rosales" [ref=f20e9]
+    - textbox "Buscar módulo..." [ref=f20e11]
+    - navigation [ref=f20e12]:
+      - button "Herraje" [ref=f20e14] [cursor=pointer]
+      - generic [ref=f20e22]:
+        - button "Ventas" [ref=f20e23] [cursor=pointer]
+        - generic [ref=f20e33]:
+          - generic [ref=f20e34]: Ventas
+          - link "Nueva cotizacion" [ref=f20e35] [cursor=pointer]:
+            - /url: /cot/nueva
+      - button "Reportes" [ref=f20e42] [cursor=pointer]
+      - button "Almacén" [ref=f20e51] [cursor=pointer]
+      - button "Catalogos" [ref=f20e60] [cursor=pointer]
+      - button "Personal" [ref=f20e67] [cursor=pointer]
+      - button "Egresos" [ref=f20e78] [cursor=pointer]
+    - button "Cerrar sesión" [ref=f20e87] [cursor=pointer]
+    - generic [ref=f20e91]:
+      - button "Compactar menú" [ref=f20e92] [cursor=pointer]
+      - button "Modo oscuro" [ref=f20e95] [cursor=pointer]
+  - main [ref=f20e98]:
+    - generic [ref=f20e99]:
+      - generic [ref=f20e100]:
+        - generic [ref=f20e101]: Pedido creado — PED-190
+        - generic [ref=f20e397]: Liquidado · Entregado al momento
+      - generic [ref=f20e346]:
+        - button "🖨️ Ticket" [ref=f20e398] [cursor=pointer]
+        - button "🖨️ Hoja" [ref=f20e399] [cursor=pointer]
+        - button "Cancelar pedido" [ref=f20e400] [cursor=pointer]
+        - button "+ Nueva cotizacion" [ref=f20e401] [cursor=pointer]
+    - generic [ref=f20e102]:
+      - generic [ref=f20e402]:
+        - text: ✅ Pedido
+        - strong [ref=f20e403]: PED-190
+        - text: registrado correctamente.
+      - generic [ref=f20e404]:
+        - generic [ref=f20e405]:
+          - heading "VIDRIO TEMPLADO Y ALUMINIO ROSALES" [level=2] [ref=f20e406]
+          - paragraph [ref=f20e407]: Calidad que se ve, confianza que perdura
+          - paragraph [ref=f20e408]: Pedido
+        - separator [ref=f20e409]
+        - generic [ref=f20e410]:
+          - generic [ref=f20e411]: "Pedido:"
+          - strong [ref=f20e412]: PED-190
+        - generic [ref=f20e413]:
+          - generic [ref=f20e414]: "Fecha:"
+          - generic [ref=f20e415]: 06/08/2026
+        - generic [ref=f20e416]:
+          - generic [ref=f20e417]: "Cliente:"
+          - generic [ref=f20e418]: Mostrador
+        - separator [ref=f20e419]
+        - separator [ref=f20e420]
+        - generic [ref=f20e421]: Maquila
+        - generic [ref=f20e422]:
+          - generic [ref=f20e423]: Cant · Medida · Descripción
+          - generic [ref=f20e424]: C.U.
+          - generic [ref=f20e425]: Total
+        - generic [ref=f20e426]:
+          - generic [ref=f20e427]:
+            - generic [ref=f20e428]: 3 · 90×90cm · 6MM
+            - generic [ref=f20e429]: $537.39
+            - generic [ref=f20e430]: $1612.17
+          - generic [ref=f20e431]:
+            - generic [ref=f20e432]: + C/P/B
+            - generic [ref=f20e433]: $50.00
+            - generic [ref=f20e434]: $121.50
+          - generic [ref=f20e435]:
+            - generic [ref=f20e436]: + maquila de esmerila
+            - generic [ref=f20e437]: $80.00
+            - generic [ref=f20e438]: $194.40
+          - generic [ref=f20e439]:
+            - generic [ref=f20e440]: + Pulido
+            - generic [ref=f20e441]: $89.00
+            - generic [ref=f20e442]: $216.27
+          - generic [ref=f20e443]:
+            - generic [ref=f20e444]: + bisel
+            - generic [ref=f20e445]: $100.00
+            - generic [ref=f20e446]: $1080.00
+        - separator [ref=f20e447]
+        - generic [ref=f20e448]:
+          - generic [ref=f20e449]: "Piezas maquila recibidas:"
+          - generic [ref=f20e450]: "3"
+        - separator [ref=f20e451]
+        - generic [ref=f20e452]:
+          - generic [ref=f20e453]: TOTAL
+          - generic [ref=f20e454]: $1612.17
+        - generic [ref=f20e455]:
+          - generic [ref=f20e456]: "Método de pago:"
+          - generic [ref=f20e457]: Efectivo
+        - generic [ref=f20e458]:
+          - generic [ref=f20e459]: "Método de entrega:"
+          - generic [ref=f20e460]: Liquidado
+        - separator [ref=f20e461]
+        - generic [ref=f20e462]: ¡Gracias por su compra!

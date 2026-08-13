@@ -1,0 +1,75 @@
+- generic [ref=f2e6]:
+  - complementary [ref=f2e7]:
+    - img "Vidreria Rosales" [ref=f2e9]
+    - textbox "Buscar módulo..." [ref=f2e11]
+    - navigation [ref=f2e12]:
+      - button "Herraje" [ref=f2e14] [cursor=pointer]
+      - generic [ref=f2e22]:
+        - button "Ventas" [ref=f2e23] [cursor=pointer]
+        - generic [ref=f2e33]:
+          - generic [ref=f2e34]: Ventas
+          - link "Nueva cotizacion" [ref=f2e35] [cursor=pointer]:
+            - /url: /cot/nueva
+      - button "Reportes" [ref=f2e42] [cursor=pointer]
+      - button "Almacén" [ref=f2e51] [cursor=pointer]
+      - button "Catalogos" [ref=f2e60] [cursor=pointer]
+      - button "Personal" [ref=f2e67] [cursor=pointer]
+      - button "Egresos" [ref=f2e78] [cursor=pointer]
+    - button "Cerrar sesión" [ref=f2e87] [cursor=pointer]
+    - generic [ref=f2e91]:
+      - button "Compactar menú" [ref=f2e92] [cursor=pointer]
+      - button "Modo oscuro" [ref=f2e95] [cursor=pointer]
+  - main [ref=f2e98]:
+    - generic [ref=f2e99]:
+      - generic [ref=f2e100]:
+        - generic [ref=f2e101]: Pedido creado — PED-184
+        - generic [ref=f2e339]: Liquidado · Entregado al momento
+      - generic [ref=f2e231]:
+        - button "🖨️ Ticket" [ref=f2e340] [cursor=pointer]
+        - button "🖨️ Hoja" [ref=f2e341] [cursor=pointer]
+        - button "Cancelar pedido" [ref=f2e342] [cursor=pointer]
+        - button "+ Nueva cotizacion" [ref=f2e343] [cursor=pointer]
+    - generic [ref=f2e102]:
+      - generic [ref=f2e344]:
+        - text: ✅ Pedido
+        - strong [ref=f2e345]: PED-184
+        - text: registrado correctamente.
+      - generic [ref=f2e346]:
+        - generic [ref=f2e347]:
+          - heading "VIDRIO TEMPLADO Y ALUMINIO ROSALES" [level=2] [ref=f2e348]
+          - paragraph [ref=f2e349]: Calidad que se ve, confianza que perdura
+          - paragraph [ref=f2e350]: Pedido
+        - separator [ref=f2e351]
+        - generic [ref=f2e352]:
+          - generic [ref=f2e353]: "Pedido:"
+          - strong [ref=f2e354]: PED-184
+        - generic [ref=f2e355]:
+          - generic [ref=f2e356]: "Fecha:"
+          - generic [ref=f2e357]: 05/08/2026
+        - generic [ref=f2e358]:
+          - generic [ref=f2e359]: "Cliente:"
+          - generic [ref=f2e360]: Mostrador
+        - separator [ref=f2e361]
+        - separator [ref=f2e362]
+        - generic [ref=f2e363]: Proceso Extra
+        - generic [ref=f2e364]:
+          - generic [ref=f2e365]: 3 · Cargada
+          - generic [ref=f2e366]: $180.00
+        - generic [ref=f2e367]:
+          - generic [ref=f2e368]: 2 · flete largo
+          - generic [ref=f2e369]: $800.00
+        - generic [ref=f2e370]:
+          - generic [ref=f2e371]: 5 · Kit
+          - generic [ref=f2e372]: $500.00
+        - separator [ref=f2e373]
+        - generic [ref=f2e374]:
+          - generic [ref=f2e375]: TOTAL
+          - generic [ref=f2e376]: $1480.00
+        - generic [ref=f2e377]:
+          - generic [ref=f2e378]: "Método de pago:"
+          - generic [ref=f2e379]: Efectivo
+        - generic [ref=f2e380]:
+          - generic [ref=f2e381]: "Método de entrega:"
+          - generic [ref=f2e382]: Liquidado
+        - separator [ref=f2e383]
+        - generic [ref=f2e384]: ¡Gracias por su compra!

@@ -1,0 +1,69 @@
+- generic [ref=e22]:
+  - complementary [ref=e23]:
+    - img "Vidreria Rosales" [ref=e163]
+    - textbox "Buscar módulo..." [ref=e165]
+    - navigation [ref=e29]:
+      - button "Herraje" [ref=e31] [cursor=pointer]
+      - generic [ref=e50]:
+        - button "Ventas" [ref=e51] [cursor=pointer]
+        - generic [ref=e157]:
+          - generic [ref=e172]: Ventas
+          - link "Nueva cotizacion" [ref=e158] [cursor=pointer]:
+            - /url: /cot/nueva
+      - button "Reportes" [ref=e58] [cursor=pointer]
+      - button "Almacén" [ref=e64] [cursor=pointer]
+      - button "Catalogos" [ref=e70] [cursor=pointer]
+      - button "Personal" [ref=e74] [cursor=pointer]
+      - button "Egresos" [ref=e82] [cursor=pointer]
+    - button "Cerrar sesión" [ref=e88] [cursor=pointer]
+    - generic [ref=e92]:
+      - button "Compactar menú" [ref=e189] [cursor=pointer]
+      - button "Modo oscuro" [ref=e96] [cursor=pointer]
+  - main [ref=e99]:
+    - generic [ref=e219]:
+      - generic [ref=e220]:
+        - generic [ref=e221]: Pedido creado — PED-183
+        - generic [ref=e436]: Liquidado · Entregado al momento
+      - generic [ref=e349]:
+        - button "🖨️ Ticket" [ref=e437] [cursor=pointer]
+        - button "🖨️ Hoja" [ref=e438] [cursor=pointer]
+        - button "Cancelar pedido" [ref=e439] [cursor=pointer]
+        - button "+ Nueva cotizacion" [ref=e440] [cursor=pointer]
+    - generic [ref=e222]:
+      - generic [ref=e441]:
+        - text: ✅ Pedido
+        - strong [ref=e442]: PED-183
+        - text: registrado correctamente.
+      - generic [ref=e443]:
+        - generic [ref=e444]:
+          - heading "VIDRIO TEMPLADO Y ALUMINIO ROSALES" [level=2] [ref=e445]
+          - paragraph [ref=e446]: Calidad que se ve, confianza que perdura
+          - paragraph [ref=e447]: Pedido
+        - separator [ref=e448]
+        - generic [ref=e449]:
+          - generic [ref=e450]: "Pedido:"
+          - strong [ref=e451]: PED-183
+        - generic [ref=e452]:
+          - generic [ref=e453]: "Fecha:"
+          - generic [ref=e454]: 05/08/2026
+        - generic [ref=e455]:
+          - generic [ref=e456]: "Cliente:"
+          - generic [ref=e457]: Mostrador
+        - separator [ref=e458]
+        - separator [ref=e459]
+        - generic [ref=e460]: Proceso Extra
+        - generic [ref=e461]:
+          - generic [ref=e462]: 1 · Kit
+          - generic [ref=e463]: $100.00
+        - separator [ref=e464]
+        - generic [ref=e465]:
+          - generic [ref=e466]: TOTAL
+          - generic [ref=e467]: $100.00
+        - generic [ref=e468]:
+          - generic [ref=e469]: "Método de pago:"
+          - generic [ref=e470]: Efectivo
+        - generic [ref=e471]:
+          - generic [ref=e472]: "Método de entrega:"
+          - generic [ref=e473]: Liquidado
+        - separator [ref=e474]
+        - generic [ref=e475]: ¡Gracias por su compra!

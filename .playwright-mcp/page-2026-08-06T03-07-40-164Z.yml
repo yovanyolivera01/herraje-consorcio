@@ -1,0 +1,120 @@
+- generic [ref=f5e6]:
+  - complementary [ref=f5e7]:
+    - img "Vidreria Rosales" [ref=f5e9]
+    - textbox "Buscar módulo..." [ref=f5e11]
+    - navigation [ref=f5e12]:
+      - button "Herraje" [ref=f5e14] [cursor=pointer]
+      - button "Ventas" [ref=f5e41] [cursor=pointer]
+      - generic [ref=f5e50]:
+        - button "Reportes" [ref=f5e51] [cursor=pointer]
+        - generic [ref=f5e172]:
+          - generic [ref=f5e173]: Reportes
+          - link "Ventas netas" [ref=f5e174] [cursor=pointer]:
+            - /url: /cot/ventas
+          - link "Historial facturas" [ref=f5e180] [cursor=pointer]:
+            - /url: /cot/facturas
+          - link "Reporte Vidrio" [ref=f5e186] [cursor=pointer]:
+            - /url: /cot/reporte-vidrio
+          - link "Cotizaciones" [active] [ref=f5e190] [cursor=pointer]:
+            - /url: /cot/historial
+          - link "Historial de maquila" [ref=f5e194] [cursor=pointer]:
+            - /url: /cot/historial-maquila
+          - link "Historial de herraje" [ref=f5e201] [cursor=pointer]:
+            - /url: /herraje/historial
+      - button "Almacén" [ref=f5e60] [cursor=pointer]
+      - button "Catalogos" [ref=f5e69] [cursor=pointer]
+      - button "Personal" [ref=f5e76] [cursor=pointer]
+      - button "Egresos" [ref=f5e87] [cursor=pointer]
+    - button "Cerrar sesión" [ref=f5e96] [cursor=pointer]
+    - generic [ref=f5e100]:
+      - button "Compactar menú" [ref=f5e101] [cursor=pointer]
+      - button "Modo oscuro" [ref=f5e104] [cursor=pointer]
+  - main [ref=f5e107]:
+    - generic [ref=f5e207]:
+      - generic [ref=f5e208]:
+        - generic [ref=f5e209]: Historial de Cotizaciones
+        - generic [ref=f5e210]: 4 cotizaciones de vidrio
+      - button "↻ Actualizar" [ref=f5e211] [cursor=pointer]
+    - generic [ref=f5e212]:
+      - generic [ref=f5e213]:
+        - button "◻ Cotizaciones vidrio" [ref=f5e214] [cursor=pointer]
+        - button "🔨 Maquila" [ref=f5e215] [cursor=pointer]
+      - generic [ref=f5e216]:
+        - generic [ref=f5e217]:
+          - generic [ref=f5e218]: Total cotizaciones
+          - generic [ref=f5e219]: "4"
+        - generic [ref=f5e220]:
+          - generic [ref=f5e221]: En periodo
+          - generic [ref=f5e222]: "4"
+        - generic [ref=f5e223]:
+          - generic [ref=f5e224]: Monto en periodo
+          - generic [ref=f5e225]: $15122.36
+      - generic [ref=f5e227]:
+        - generic: 🔍
+        - textbox "Buscar por folio, cliente o nivel..." [ref=f5e228]
+      - generic [ref=f5e229]:
+        - generic [ref=f5e230]: "Fecha:"
+        - textbox [ref=f5e231]
+        - generic [ref=f5e232]: al
+        - textbox [ref=f5e233]
+        - combobox [ref=f5e234]:
+          - option "Todos los estados" [selected]
+          - option "Borrador"
+          - option "Finalizada"
+          - option "Cancelada"
+          - option "Convertida"
+      - table [ref=f5e237]:
+        - rowgroup [ref=f5e238]:
+          - row [ref=f5e239]:
+            - columnheader "Folio" [ref=f5e240]
+            - columnheader "Fecha" [ref=f5e241]
+            - columnheader "Cliente" [ref=f5e242]
+            - columnheader "Nivel" [ref=f5e243]
+            - columnheader "Total" [ref=f5e244]
+            - columnheader "Estado" [ref=f5e245]
+            - columnheader "Acciones" [ref=f5e246]
+        - rowgroup [ref=f5e247]:
+          - row [ref=f5e248] [cursor=pointer]:
+            - cell "COT-00061" [ref=f5e249]
+            - cell "05/08/2026 21:05" [ref=f5e251]
+            - cell "Mostrador" [ref=f5e252]
+            - cell "Publico" [ref=f5e253]
+            - cell "$3456.30" [ref=f5e255]
+            - cell "Finalizada" [ref=f5e256]
+            - cell [ref=f5e258]:
+              - button "Editar" [ref=f5e259]
+              - button "Convertir a pedido" [ref=f5e263]
+              - button "Borrar" [ref=f5e267]
+          - row [ref=f5e271] [cursor=pointer]:
+            - cell "COT-00033" [ref=f5e272]
+            - cell "21/07/2026 23:22" [ref=f5e274]
+            - cell "Mostrador" [ref=f5e275]
+            - cell "Publico" [ref=f5e276]
+            - cell "$11087.00" [ref=f5e278]
+            - cell "Finalizada" [ref=f5e279]
+            - cell [ref=f5e281]:
+              - button "Editar" [ref=f5e282]
+              - button "Convertir a pedido" [ref=f5e286]
+              - button "Borrar" [ref=f5e290]
+          - row [ref=f5e294] [cursor=pointer]:
+            - cell "COT-00003" [ref=f5e295]
+            - cell "20/06/2026 12:44" [ref=f5e297]
+            - cell "Mostrador" [ref=f5e298]
+            - cell "Publico" [ref=f5e299]
+            - cell "$579.06" [ref=f5e301]
+            - cell "Finalizada" [ref=f5e302]
+            - cell [ref=f5e304]:
+              - button "Editar" [ref=f5e305]
+              - button "Convertir a pedido" [ref=f5e309]
+              - button "Borrar" [ref=f5e313]
+          - row [ref=f5e317] [cursor=pointer]:
+            - cell "COT-00001" [ref=f5e318]
+            - cell "13/06/2026 13:30" [ref=f5e320]
+            - cell "Mostrador" [ref=f5e321]
+            - cell "Publico" [ref=f5e322]
+            - cell "$0.00" [ref=f5e324]
+            - cell "Finalizada" [ref=f5e325]
+            - cell [ref=f5e327]:
+              - button "Editar" [ref=f5e328]
+              - button "Convertir a pedido" [ref=f5e332]
+              - button "Borrar" [ref=f5e336]

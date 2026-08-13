@@ -18,6 +18,25 @@ function extractError(data) {
   return data?.message ?? data?.Message ?? JSON.stringify(data)
 }
 
+// ── Diagnóstico: lugares de expedición configurados en la cuenta ──────────
+// Ruta temporal para depurar el error "ExpeditionPlace debe existir..." —
+// muestra qué CPs están realmente registrados en el Perfil Fiscal de
+// Facturama, sin exponer credenciales.
+router.get('/facturama/lugares-expedicion', async (req, res) => {
+  try {
+    const r = await fetch(`${baseUrl()}/BranchOffice`, {
+      headers: { 'Authorization': authHeader() },
+    })
+    const text = await r.text()
+    let data
+    try { data = JSON.parse(text) } catch { data = text }
+    if (!r.ok) return res.status(r.status).json({ message: extractError(data) })
+    res.json(data)
+  } catch (e) {
+    res.status(500).json({ message: e.message })
+  }
+})
+
 // ── Crear CFDI 4.0 y guardar en BD ───────────────────────────────────────
 router.post('/facturama/cfdi', async (req, res) => {
   const { _id_pedido, _folio_pedido, _total_cfdi, ...cfdiBody } = req.body
@@ -32,6 +51,8 @@ router.post('/facturama/cfdi', async (req, res) => {
   if (cfdiBody.Receiver && RFC_GENERICOS.includes(cfdiBody.Receiver.Rfc) && process.env.FACTURAMA_CP_EMISOR) {
     cfdiBody.Receiver.TaxZipCode = process.env.FACTURAMA_CP_EMISOR
   }
+
+  console.log('[facturama] payload enviado:', JSON.stringify(cfdiBody, null, 2))
 
   try {
     const r = await fetch(`${baseUrl()}/3/cfdis`, {
@@ -68,6 +89,49 @@ router.post('/facturama/cfdi', async (req, res) => {
       }
     } catch (dbErr) {
       console.error('[facturama] No se pudo guardar en BD:', dbErr.message)
+    }
+
+    res.json(data)
+  } catch (e) {
+    res.status(500).json({ message: e.message })
+  }
+})
+
+// ── Cancelar un CFDI ────────────────────────────────────────────────────
+router.delete('/facturama/cfdi/:id_factura/cancelar', async (req, res) => {
+  const { id_factura } = req.params
+  const { motivo = '02', uuid_sustitucion = '' } = req.body
+  try {
+    const { rows: facRows } = await query('SELECT uuid_cfdi FROM factura_cfdi WHERE id_factura=$1', [id_factura])
+    const uuid_cfdi = facRows[0]?.uuid_cfdi
+    if (!uuid_cfdi) return res.status(404).json({ message: 'Factura no encontrada' })
+
+    const params = new URLSearchParams({ type: 'issued', motive: motivo })
+    if (uuid_sustitucion) params.set('uuidReplacement', uuid_sustitucion)
+
+    const r = await fetch(`${baseUrl()}/cfdi/${encodeURIComponent(uuid_cfdi)}?${params}`, {
+      method:  'DELETE',
+      headers: { 'Authorization': authHeader() },
+    })
+    const rawText = await r.text()
+    let data = {}
+    try { data = rawText ? JSON.parse(rawText) : {} } catch { /* respuesta no-JSON */ }
+    if (!r.ok) {
+      console.error(`[facturama-cancel] ${r.status} ${r.statusText} — ${rawText || '(cuerpo vacío)'}`)
+      const msg = Object.keys(data).length ? extractError(data) : `${r.status} ${r.statusText}: ${rawText || 'sin detalle'}`
+      return res.status(r.status).json({ message: msg })
+    }
+
+    try {
+      const { rows: cancRows } = await query(
+        'SELECT * FROM sp_cancelar_factura($1,$2,$3,$4,$5,$6)',
+        [id_factura, uuid_cfdi, motivo, uuid_sustitucion || null, data.Status ?? null, data.AcuseXmlBase64 ?? null]
+      )
+      if (!cancRows[0]?.p_id_factura_cancelada) {
+        console.error('[facturama-cancel] No se pudo guardar en BD:', cancRows[0]?.p_mensaje)
+      }
+    } catch (dbErr) {
+      console.error('[facturama-cancel] No se pudo guardar en BD:', dbErr.message)
     }
 
     res.json(data)

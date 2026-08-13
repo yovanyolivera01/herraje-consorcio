@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { fmt5, hoyMX, lunesMX } from '../../lib/utils'
-import { getFacturas, getCFDIPdfUrl, getCFDIXmlUrl } from '../../lib/facturamaApi'
+import { getFacturas, getCFDIPdfUrl, getCFDIXmlUrl, cancelarCFDI } from '../../lib/facturamaApi'
 
 const TZ = 'America/Mexico_City'
 function fmtFecha(isoStr) {
@@ -11,6 +11,79 @@ function fmtFecha(isoStr) {
   }).format(new Date(isoStr))
 }
 
+const MOTIVOS_CANCELACION = [
+  ['02', '02 - Comprobante emitido con errores sin relación'],
+  ['01', '01 - Comprobante emitido con errores con relación (requiere folio de sustitución)'],
+  ['03', '03 - La operación no se llevó a cabo'],
+  ['04', '04 - Operación nominativa relacionada en factura global'],
+]
+
+function CancelarModal({ factura, onClose, onCancelada }) {
+  const [motivo,           setMotivo]           = useState('02')
+  const [uuidSustitucion,  setUuidSustitucion]  = useState('')
+  const [loading,          setLoading]          = useState(false)
+  const [error,            setError]            = useState(null)
+
+  const handleConfirmar = async () => {
+    if (motivo === '01' && !uuidSustitucion.trim()) {
+      setError('El motivo 01 requiere el folio fiscal (UUID) del comprobante que sustituye a este')
+      return
+    }
+    setLoading(true)
+    setError(null)
+    try {
+      await cancelarCFDI(factura.id_factura, motivo, uuidSustitucion.trim())
+      onCancelada()
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal" onClick={e => e.stopPropagation()}>
+        <div className="modal-header">
+          <div>
+            <div className="modal-title">Cancelar factura</div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+              {factura.serie ?? ''}{factura.serie ? '-' : ''}{factura.folio_cfdi ?? factura.uuid_cfdi?.slice(0, 8)}
+            </div>
+          </div>
+          <button className="btn-icon" onClick={onClose}>✕</button>
+        </div>
+        <div className="modal-body">
+          <div className="form-group">
+            <label className="form-label required">Motivo de cancelación</label>
+            <select className="form-select" value={motivo} onChange={e => { setMotivo(e.target.value); setError(null) }}>
+              {MOTIVOS_CANCELACION.map(([val, label]) => <option key={val} value={val}>{label}</option>)}
+            </select>
+          </div>
+          {motivo === '01' && (
+            <div className="form-group">
+              <label className="form-label required">Folio fiscal (UUID) de sustitución</label>
+              <input
+                className="form-input"
+                value={uuidSustitucion}
+                onChange={e => { setUuidSustitucion(e.target.value); setError(null) }}
+                placeholder="00000000-0000-0000-0000-000000000000"
+              />
+            </div>
+          )}
+          {error && <div className="alert alert-error" style={{ marginTop: 8 }}>❌ {error}</div>}
+        </div>
+        <div className="modal-footer">
+          <button className="btn btn-outline" onClick={onClose} disabled={loading}>Cerrar</button>
+          <button className="btn btn-primary" style={{ background: '#dc2626', borderColor: '#dc2626' }} onClick={handleConfirmar} disabled={loading}>
+            {loading ? 'Cancelando...' : 'Confirmar cancelación'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function HistorialFacturas() {
   const [facturas,   setFacturas]   = useState([])
   const [loading,    setLoading]    = useState(true)
@@ -18,6 +91,7 @@ export default function HistorialFacturas() {
   const [fechaDesde, setFechaDesde] = useState(lunesMX)
   const [fechaHasta, setFechaHasta] = useState(hoyMX)
   const [busqueda,   setBusqueda]   = useState('')
+  const [cancelando, setCancelando] = useState(null)
 
   const cargar = useCallback(async () => {
     setLoading(true)
@@ -121,6 +195,7 @@ export default function HistorialFacturas() {
                       <th>Receptor</th>
                       <th style={{ textAlign: 'right' }}>Total</th>
                       <th style={{ width: 120, textAlign: 'center' }}>Archivos</th>
+                      <th style={{ width: 110, textAlign: 'center' }}>Estatus</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -142,7 +217,7 @@ export default function HistorialFacturas() {
                             : '—'}
                         </td>
                         <td style={{ fontSize: 13 }}>
-                          {f.serie || f.folio_cfdi ? `${f.serie ?? ''}-${f.folio_cfdi ?? ''}` : '—'}
+                          {[f.serie, f.folio_cfdi].filter(Boolean).join('-') || '—'}
                         </td>
                         <td style={{ fontSize: 13, color: 'var(--text-muted)' }}>
                           {fmtFecha(f.fecha_emision)}
@@ -182,6 +257,15 @@ export default function HistorialFacturas() {
                             )}
                           </div>
                         </td>
+                        <td style={{ textAlign: 'center' }}>
+                          {f.status === 'cancelled' ? (
+                            <span className="badge" style={{ background: '#fee2e2', color: '#991b1b' }}>Cancelada</span>
+                          ) : f.uuid_cfdi ? (
+                            <button className="btn btn-outline btn-sm" style={{ color: '#dc2626', borderColor: '#dc2626', fontSize: 11 }} onClick={() => setCancelando(f)}>
+                              Cancelar
+                            </button>
+                          ) : '—'}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -218,13 +302,20 @@ export default function HistorialFacturas() {
                   </div>
                   {f.uuid_cfdi && (
                     <div className="hist-card-footer">
-                      <div style={{ display: 'flex', gap: 6 }}>
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
                         <a href={getCFDIPdfUrl(f.uuid_cfdi)} target="_blank" rel="noreferrer" className="btn btn-outline btn-sm" style={{ textDecoration: 'none' }}>
                           📄 PDF
                         </a>
                         <a href={getCFDIXmlUrl(f.uuid_cfdi)} target="_blank" rel="noreferrer" className="btn btn-outline btn-sm" style={{ textDecoration: 'none' }}>
                           📋 XML
                         </a>
+                        {f.status === 'cancelled' ? (
+                          <span className="badge" style={{ background: '#fee2e2', color: '#991b1b' }}>Cancelada</span>
+                        ) : (
+                          <button className="btn btn-outline btn-sm" style={{ color: '#dc2626', borderColor: '#dc2626' }} onClick={() => setCancelando(f)}>
+                            Cancelar
+                          </button>
+                        )}
                       </div>
                     </div>
                   )}
@@ -234,6 +325,14 @@ export default function HistorialFacturas() {
           </>
         )}
       </div>
+
+      {cancelando && (
+        <CancelarModal
+          factura={cancelando}
+          onClose={() => setCancelando(null)}
+          onCancelada={() => { setCancelando(null); cargar() }}
+        />
+      )}
     </>
   )
 }

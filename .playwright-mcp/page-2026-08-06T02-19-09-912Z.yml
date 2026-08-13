@@ -1,0 +1,151 @@
+- generic [ref=e22]:
+  - complementary [ref=e23]:
+    - img "Vidreria Rosales" [ref=e163]
+    - textbox "Buscar módulo..." [ref=e165]
+    - navigation [ref=e29]:
+      - button "Herraje" [ref=e31] [cursor=pointer]
+      - generic [ref=e50]:
+        - button "Ventas" [ref=e51] [cursor=pointer]
+        - generic [ref=e157]:
+          - generic [ref=e172]: Ventas
+          - link "Nueva cotizacion" [ref=e158] [cursor=pointer]:
+            - /url: /cot/nueva
+      - button "Reportes" [ref=e58] [cursor=pointer]
+      - button "Almacén" [ref=e64] [cursor=pointer]
+      - button "Catalogos" [ref=e70] [cursor=pointer]
+      - button "Personal" [ref=e74] [cursor=pointer]
+      - button "Egresos" [ref=e82] [cursor=pointer]
+    - button "Cerrar sesión" [ref=e88] [cursor=pointer]
+    - generic [ref=e92]:
+      - button "Compactar menú" [ref=e189] [cursor=pointer]
+      - button "Modo oscuro" [ref=e96] [cursor=pointer]
+  - main [ref=e99]:
+    - generic [ref=e219]:
+      - generic [ref=e220]: Nueva Cotizacion
+      - generic [ref=e349]:
+        - button "✓ Cotizar — $100.00" [ref=e350] [cursor=pointer]
+        - button "📦 Pedido" [ref=e351] [cursor=pointer]
+    - generic [ref=e223]:
+      - generic [ref=e224]:
+        - generic [ref=e225]:
+          - generic [ref=e226]:
+            - button "🪟 Vidrio" [ref=e227] [cursor=pointer]
+            - button "🔧 Maquila" [ref=e228] [cursor=pointer]
+            - button "🧰 Herraje" [ref=e229] [cursor=pointer]
+          - generic [ref=e230] [cursor=pointer]:
+            - generic [ref=e231]:
+              - generic [ref=e232]: Publico
+              - generic [ref=e233]: · Mostrador
+            - generic [ref=e234]: ▾
+        - generic [ref=e252]:
+          - generic [ref=e253]:
+            - generic [ref=e254]:
+              - generic [ref=e255]: Medida *
+              - textbox "98x45 o 3-98x45" [ref=e256]:
+                - /placeholder: 98x45  o  3-98x45
+              - generic [ref=e257]: largo×ancho o pzas-largo×ancho
+            - generic [ref=e258]:
+              - generic [ref=e259]: Tipo de vidrio *
+              - combobox [ref=e260]:
+                - option "-- Tipo --" [selected]
+                - option "CLARO-4MM"
+                - option "CLARO-4MM — Vidrio claro 4mm"
+                - option "CLARO-6MM"
+                - option "GRIS-6MM"
+                - option "LUNA-3MM"
+                - option "LUNA-6MM"
+                - option "REFLECTA-6MM"
+          - generic [ref=e261]:
+            - generic [ref=e262]: Procesos
+            - generic [ref=e263]:
+              - generic [ref=e264]:
+                - generic [ref=e265]: m²
+                - generic [ref=e267] [cursor=pointer]:
+                  - checkbox
+                  - generic [ref=e268]: C/P/B
+                - generic [ref=e270] [cursor=pointer]:
+                  - checkbox
+                  - generic [ref=e271]: maquila de esmerila
+                - generic [ref=e273] [cursor=pointer]:
+                  - checkbox
+                  - generic [ref=e274]: Pulido
+                - generic [ref=e275]: ml
+                - generic [ref=e277] [cursor=pointer]:
+                  - checkbox
+                  - generic [ref=e278]: bisel
+                - generic [ref=e280] [cursor=pointer]:
+                  - checkbox
+                  - generic [ref=e281]: El lavabo
+                - generic [ref=e283] [cursor=pointer]:
+                  - checkbox
+                  - generic [ref=e284]: Filo muerto
+              - generic [ref=e285]:
+                - generic [ref=e286]: Barrenos
+                - generic [ref=e287] [cursor=pointer]:
+                  - checkbox [ref=e288]
+                  - generic [ref=e289]: Barreno 10mm
+                - generic [ref=e290] [cursor=pointer]:
+                  - checkbox [ref=e291]
+                  - generic [ref=e292]: Barreno 40mm
+                - generic [ref=e293]: Saques
+                - generic [ref=e294] [cursor=pointer]:
+                  - checkbox [ref=e295]
+                  - generic [ref=e296]: gabillan
+                - generic [ref=e297] [cursor=pointer]:
+                  - checkbox [ref=e298]
+                  - generic [ref=e299]: miki
+                - generic [ref=e300] [cursor=pointer]:
+                  - checkbox [ref=e301]
+                  - generic [ref=e302]: saque simple
+                - generic [ref=e303]: Extras
+                - generic [ref=e304] [cursor=pointer]:
+                  - checkbox [ref=e305]
+                  - generic [ref=e306]: canaleta
+                - generic [ref=e307] [cursor=pointer]:
+                  - checkbox [ref=e308]
+                  - generic [ref=e309]: Cargada
+                - generic [ref=e310] [cursor=pointer]:
+                  - checkbox [ref=e311]
+                  - generic [ref=e312]: Colocación
+                - generic [ref=e313] [cursor=pointer]:
+                  - checkbox [ref=e314]
+                  - generic [ref=e315]: Descargada
+                - generic [ref=e316] [cursor=pointer]:
+                  - checkbox [ref=e317]
+                  - generic [ref=e318]: flete largo
+                - generic [ref=e319] [cursor=pointer]:
+                  - checkbox [checked] [ref=e320]
+                  - generic [ref=e321]: Kit
+                  - spinbutton [ref=e347]: "1"
+                  - button "➕" [active] [ref=e348]
+          - button "➕ Agregar vidrio" [disabled] [ref=e322]
+        - generic [ref=e323]:
+          - generic [ref=e324]: Partidas (1)
+          - generic [ref=e352]:
+            - generic [ref=e353]:
+              - generic [ref=e354]:
+                - generic [ref=e355]: Proceso Extra
+                - generic [ref=e356]: Kit
+              - generic [ref=e357]: 1 pza × $100.00
+            - generic [ref=e358]: $100.00
+            - button "💬" [ref=e359] [cursor=pointer]
+            - button "✕" [ref=e360] [cursor=pointer]
+          - generic [ref=e361]:
+            - generic [ref=e362]: Total de la cotizacion
+            - strong [ref=e363]: $100.00
+      - generic [ref=e328]:
+        - generic [ref=e329]: Resumen
+        - generic [ref=e330]: Nivel de precio
+        - generic [ref=e331]: Publico
+        - generic [ref=e334]:
+          - generic [ref=e335]: Partidas
+          - generic [ref=e336]: "1"
+        - generic [ref=e337]:
+          - generic [ref=e338]: Total m²
+          - generic [ref=e339]: "0.0000"
+        - generic [ref=e341]:
+          - generic [ref=e342]: Total
+          - generic [ref=e343]: $100.00
+        - button "📦 Convertir a pedido" [ref=e344] [cursor=pointer]
+        - button "✓ Solo cotizar" [ref=e345] [cursor=pointer]
+        - button "Limpiar" [ref=e346] [cursor=pointer]

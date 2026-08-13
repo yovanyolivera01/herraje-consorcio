@@ -1,0 +1,161 @@
+- generic [ref=f4e3]:
+  - complementary [ref=f4e4]:
+    - img "Vidreria Rosales" [ref=f4e6]
+    - textbox "Buscar módulo..." [ref=f4e8]
+    - navigation [ref=f4e9]:
+      - button "Herraje" [ref=f4e11] [cursor=pointer]
+      - generic [ref=f4e19]:
+        - button "Ventas" [ref=f4e20] [cursor=pointer]
+        - generic [ref=f4e30]:
+          - generic [ref=f4e31]: Ventas
+          - link "Nueva cotizacion" [ref=f4e32] [cursor=pointer]:
+            - /url: /cot/nueva
+      - button "Reportes" [ref=f4e39] [cursor=pointer]
+      - button "Almacén" [ref=f4e48] [cursor=pointer]
+      - button "Catalogos" [ref=f4e57] [cursor=pointer]
+      - button "Personal" [ref=f4e64] [cursor=pointer]
+      - button "Egresos" [ref=f4e75] [cursor=pointer]
+    - button "Cerrar sesión" [ref=f4e84] [cursor=pointer]
+    - generic [ref=f4e88]:
+      - button "Compactar menú" [ref=f4e89] [cursor=pointer]
+      - button "Modo oscuro" [ref=f4e92] [cursor=pointer]
+  - main [ref=f4e95]:
+    - generic [ref=f4e96]: Nueva Cotizacion
+    - generic [ref=f4e100]:
+      - generic [ref=f4e101]:
+        - generic [ref=f4e102]:
+          - generic [ref=f4e103]:
+            - button "🪟 Vidrio" [ref=f4e104] [cursor=pointer]
+            - button "🔧 Maquila" [ref=f4e105] [cursor=pointer]
+            - button "🧰 Herraje" [ref=f4e106] [cursor=pointer]
+          - generic [ref=f4e107] [cursor=pointer]:
+            - generic [ref=f4e108]:
+              - generic [ref=f4e109]: Publico
+              - generic [ref=f4e110]: · Mostrador
+            - generic [ref=f4e111]: ▾
+          - generic [ref=f4e112]:
+            - generic [ref=f4e113]:
+              - generic [ref=f4e114]: Nivel de precio *
+              - generic [ref=f4e115]:
+                - button "Publico" [ref=f4e116] [cursor=pointer]
+                - button "Carpintero" [ref=f4e118] [cursor=pointer]
+                - button "Vidriero" [ref=f4e120] [cursor=pointer]
+                - button "POR HOJA" [ref=f4e122] [cursor=pointer]
+                - button "Vidriero 2" [ref=f4e124] [cursor=pointer]
+            - generic [ref=f4e126]:
+              - generic [ref=f4e127]: Cliente (opcional)
+              - combobox [ref=f4e128]:
+                - option "-- Mostrador --" [selected]
+                - option "Abizael"
+                - option "carlos"
+                - option "el mero mero"
+                - option "el mero mero"
+                - option "el mero mero"
+                - option "EL PEPE PEREZ"
+                - option "Juan manuel Perez Pradex"
+                - option "juan manuel vazques"
+                - option "Pablito sola martinez"
+                - option "Pedrito"
+                - option "Vidrios del Norte"
+                - option "Vidrios del Norte"
+                - option "yovany Abizael"
+        - generic [ref=f4e129]:
+          - generic [ref=f4e130]:
+            - generic [ref=f4e131]:
+              - generic [ref=f4e132]: Medida *
+              - textbox "98x45 o 3-98x45" [ref=f4e133]:
+                - /placeholder: 98x45  o  3-98x45
+              - generic [ref=f4e134]: largo×ancho o pzas-largo×ancho
+            - generic [ref=f4e135]:
+              - generic [ref=f4e136]: Tipo de vidrio *
+              - combobox [ref=f4e137]:
+                - option "-- Tipo --" [selected]
+                - option "CLARO-4MM"
+                - option "CLARO-4MM — Vidrio claro 4mm"
+                - option "CLARO-6MM"
+                - option "GRIS-6MM"
+                - option "LUNA-3MM"
+                - option "LUNA-6MM"
+                - option "REFLECTA-6MM"
+          - generic [ref=f4e138]:
+            - generic [ref=f4e139]: Procesos
+            - generic [ref=f4e140]:
+              - generic [ref=f4e141]:
+                - generic [ref=f4e142]: m²
+                - generic [ref=f4e144] [cursor=pointer]:
+                  - checkbox
+                  - generic [ref=f4e145]: C/P/B
+                - generic [ref=f4e147] [cursor=pointer]:
+                  - checkbox
+                  - generic [ref=f4e148]: maquila de esmerila
+                - generic [ref=f4e150] [cursor=pointer]:
+                  - checkbox
+                  - generic [ref=f4e151]: Pulido
+                - generic [ref=f4e152]: ml
+                - generic [ref=f4e154] [cursor=pointer]:
+                  - checkbox
+                  - generic [ref=f4e155]: bisel
+                - generic [ref=f4e157] [cursor=pointer]:
+                  - checkbox
+                  - generic [ref=f4e158]: El lavabo
+                - generic [ref=f4e160] [cursor=pointer]:
+                  - checkbox
+                  - generic [ref=f4e161]: Filo muerto
+              - generic [ref=f4e162]:
+                - generic [ref=f4e163]: Barrenos
+                - generic [ref=f4e164] [cursor=pointer]:
+                  - checkbox [ref=f4e165]
+                  - generic [ref=f4e166]: Barreno 10mm
+                - generic [ref=f4e167] [cursor=pointer]:
+                  - checkbox [ref=f4e168]
+                  - generic [ref=f4e169]: Barreno 40mm
+                - generic [ref=f4e170]: Saques
+                - generic [ref=f4e171] [cursor=pointer]:
+                  - checkbox [ref=f4e172]
+                  - generic [ref=f4e173]: gabillan
+                - generic [ref=f4e174] [cursor=pointer]:
+                  - checkbox [ref=f4e175]
+                  - generic [ref=f4e176]: miki
+                - generic [ref=f4e177] [cursor=pointer]:
+                  - checkbox [ref=f4e178]
+                  - generic [ref=f4e179]: saque simple
+                - generic [ref=f4e180]: Extras
+                - generic [ref=f4e181] [cursor=pointer]:
+                  - checkbox [ref=f4e182]
+                  - generic [ref=f4e183]: canaleta
+                - generic [ref=f4e184] [cursor=pointer]:
+                  - checkbox [ref=f4e185]
+                  - generic [ref=f4e186]: Cargada
+                - generic [ref=f4e187] [cursor=pointer]:
+                  - checkbox [ref=f4e188]
+                  - generic [ref=f4e189]: Colocación
+                - generic [ref=f4e190] [cursor=pointer]:
+                  - checkbox [ref=f4e191]
+                  - generic [ref=f4e192]: Descargada
+                - generic [ref=f4e193] [cursor=pointer]:
+                  - checkbox [ref=f4e194]
+                  - generic [ref=f4e195]: flete largo
+                - generic [ref=f4e196] [cursor=pointer]:
+                  - checkbox [ref=f4e197]
+                  - generic [ref=f4e198]: Kit
+          - button "➕ Agregar vidrio" [disabled] [ref=f4e199]
+        - generic [ref=f4e200]:
+          - generic [ref=f4e201]: 📋
+          - heading "Sin partidas" [level=3] [ref=f4e202]
+          - paragraph [ref=f4e203]: Ingresa una medida y agrega piezas de vidrio
+      - generic [ref=f4e205]:
+        - generic [ref=f4e206]: Resumen
+        - generic [ref=f4e207]: Nivel de precio
+        - generic [ref=f4e208]: Publico
+        - generic [ref=f4e211]:
+          - generic [ref=f4e212]: Partidas
+          - generic [ref=f4e213]: "0"
+        - generic [ref=f4e214]:
+          - generic [ref=f4e215]: Total m²
+          - generic [ref=f4e216]: "0.0000"
+        - generic [ref=f4e218]:
+          - generic [ref=f4e219]: Total
+          - generic [ref=f4e220]: $0.00
+        - button "📦 Convertir a pedido" [disabled] [ref=f4e221]
+        - button "✓ Solo cotizar" [disabled] [ref=f4e222]
+        - button "Limpiar" [disabled] [ref=f4e223]

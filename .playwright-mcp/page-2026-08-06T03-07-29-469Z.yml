@@ -1,0 +1,86 @@
+- generic [ref=f5e6]:
+  - complementary [ref=f5e7]:
+    - img "Vidreria Rosales" [ref=f5e9]
+    - textbox "Buscar módulo..." [ref=f5e11]
+    - navigation [ref=f5e12]:
+      - button "Herraje" [ref=f5e14] [cursor=pointer]
+      - button "Ventas" [ref=f5e41] [cursor=pointer]
+      - generic [ref=f5e50]:
+        - button "Reportes" [active] [ref=f5e51] [cursor=pointer]
+        - generic [ref=f5e172]:
+          - generic [ref=f5e173]: Reportes
+          - link "Ventas netas" [ref=f5e174] [cursor=pointer]:
+            - /url: /cot/ventas
+          - link "Historial facturas" [ref=f5e180] [cursor=pointer]:
+            - /url: /cot/facturas
+          - link "Reporte Vidrio" [ref=f5e186] [cursor=pointer]:
+            - /url: /cot/reporte-vidrio
+          - link "Cotizaciones" [ref=f5e190] [cursor=pointer]:
+            - /url: /cot/historial
+          - link "Historial de maquila" [ref=f5e194] [cursor=pointer]:
+            - /url: /cot/historial-maquila
+          - link "Historial de herraje" [ref=f5e201] [cursor=pointer]:
+            - /url: /herraje/historial
+      - button "Almacén" [ref=f5e60] [cursor=pointer]
+      - button "Catalogos" [ref=f5e69] [cursor=pointer]
+      - button "Personal" [ref=f5e76] [cursor=pointer]
+      - button "Egresos" [ref=f5e87] [cursor=pointer]
+    - button "Cerrar sesión" [ref=f5e96] [cursor=pointer]
+    - generic [ref=f5e100]:
+      - button "Compactar menú" [ref=f5e101] [cursor=pointer]
+      - button "Modo oscuro" [ref=f5e104] [cursor=pointer]
+  - main [ref=f5e107]:
+    - generic [ref=f5e108]:
+      - generic [ref=f5e109]:
+        - generic [ref=f5e110]: Proveedores
+        - generic [ref=f5e111]: 4 proveedores registrados
+      - button "+ Nuevo proveedor" [ref=f5e112] [cursor=pointer]
+    - generic [ref=f5e113]:
+      - generic [ref=f5e115]:
+        - generic: 🔍
+        - textbox "Buscar por nombre o código..." [ref=f5e116]
+      - table [ref=f5e118]:
+        - rowgroup [ref=f5e119]:
+          - row [ref=f5e120]:
+            - columnheader "Código" [ref=f5e121]
+            - columnheader "Nombre" [ref=f5e122]
+            - columnheader "Teléfono" [ref=f5e123]
+            - columnheader "Productos" [ref=f5e124]
+            - columnheader "Acciones" [ref=f5e125]
+        - rowgroup [ref=f5e126]:
+          - row [ref=f5e127]:
+            - cell "PROV-0010" [ref=f5e128]
+            - cell "camarada" [ref=f5e130]
+            - cell "6327293847" [ref=f5e131]
+            - cell "1 producto" [ref=f5e132]
+            - cell [ref=f5e134]:
+              - generic [ref=f5e135]:
+                - button "✏️" [ref=f5e136] [cursor=pointer]
+                - button "🗑️" [ref=f5e137]
+          - row [ref=f5e138]:
+            - cell "PROV-0003" [ref=f5e139]
+            - cell "Proveedor Test Playwright" [ref=f5e141]
+            - cell "5512345678" [ref=f5e142]
+            - cell "0 productos" [ref=f5e143]
+            - cell [ref=f5e145]:
+              - generic [ref=f5e146]:
+                - button "✏️" [ref=f5e147] [cursor=pointer]
+                - button "🗑️" [ref=f5e148] [cursor=pointer]
+          - row [ref=f5e149]:
+            - cell "PROV-0004" [ref=f5e150]
+            - cell "Proveedor Test Playwright" [ref=f5e152]
+            - cell "5512345678" [ref=f5e153]
+            - cell "0 productos" [ref=f5e154]
+            - cell [ref=f5e156]:
+              - generic [ref=f5e157]:
+                - button "✏️" [ref=f5e158] [cursor=pointer]
+                - button "🗑️" [ref=f5e159] [cursor=pointer]
+          - row [ref=f5e160]:
+            - cell "PROV-0001" [ref=f5e161]
+            - cell "yovany" [ref=f5e163]
+            - cell "5516980106" [ref=f5e164]
+            - cell "0 productos" [ref=f5e165]
+            - cell [ref=f5e167]:
+              - generic [ref=f5e168]:
+                - button "✏️" [ref=f5e169] [cursor=pointer]
+                - button "🗑️" [ref=f5e170] [cursor=pointer]

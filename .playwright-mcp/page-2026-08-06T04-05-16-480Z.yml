@@ -1,0 +1,145 @@
+- generic [ref=f10e6]:
+  - complementary [ref=f10e7]:
+    - img "Vidreria Rosales" [ref=f10e9]
+    - textbox "Buscar módulo..." [ref=f10e11]
+    - navigation [ref=f10e12]:
+      - button "Herraje" [ref=f10e14] [cursor=pointer]
+      - generic [ref=f10e22]:
+        - button "Ventas" [ref=f10e23] [cursor=pointer]
+        - generic [ref=f10e33]:
+          - generic [ref=f10e34]: Ventas
+          - link "Nueva cotizacion" [ref=f10e35] [cursor=pointer]:
+            - /url: /cot/nueva
+      - button "Reportes" [ref=f10e42] [cursor=pointer]
+      - button "Almacén" [ref=f10e51] [cursor=pointer]
+      - button "Catalogos" [ref=f10e60] [cursor=pointer]
+      - button "Personal" [ref=f10e67] [cursor=pointer]
+      - button "Egresos" [ref=f10e78] [cursor=pointer]
+    - button "Cerrar sesión" [ref=f10e87] [cursor=pointer]
+    - generic [ref=f10e91]:
+      - button "Compactar menú" [ref=f10e92] [cursor=pointer]
+      - button "Modo oscuro" [ref=f10e95] [cursor=pointer]
+  - main [ref=f10e98]:
+    - generic [ref=f10e99]:
+      - generic [ref=f10e100]:
+        - generic [ref=f10e101]: Cotizacion registrada
+        - generic [ref=f10e578]: Folio COT-00062
+      - generic [ref=f10e257]:
+        - button "🖨️ Imprimir" [ref=f10e579] [cursor=pointer]
+        - button "+ Nueva cotizacion" [ref=f10e580] [cursor=pointer]
+    - generic [ref=f10e102]:
+      - generic [ref=f10e581]: ✅ Cotizacion guardada correctamente con folio COT-00062.
+      - generic [ref=f10e582]:
+        - generic [ref=f10e583]:
+          - heading "VIDRIO TEMPLADO Y ALUMINIO ROSALES" [level=2] [ref=f10e584]
+          - paragraph [ref=f10e585]: Calidad que se ve, confianza que perdura
+          - paragraph [ref=f10e586]: Cotizacion
+        - separator [ref=f10e587]
+        - generic [ref=f10e588]:
+          - generic [ref=f10e589]: "Folio:"
+          - strong [ref=f10e590]: COT-00062
+        - generic [ref=f10e591]:
+          - generic [ref=f10e592]: "Fecha:"
+          - generic [ref=f10e593]: 5/8/2026
+        - generic [ref=f10e594]:
+          - generic [ref=f10e595]: "Nivel:"
+          - generic [ref=f10e596]: Vidriero
+        - separator [ref=f10e597]
+        - generic [ref=f10e598]: Vidrio
+        - generic [ref=f10e599]:
+          - generic [ref=f10e600]:
+            - generic [ref=f10e601]: 2 · 87×90 · LUNA-6MM
+            - generic [ref=f10e602]: $1170.00
+          - generic [ref=f10e603]:
+            - generic [ref=f10e604]: + maquila de esmerila
+            - generic [ref=f10e605]: $124.80
+          - generic [ref=f10e606]:
+            - generic [ref=f10e607]: + bisel
+            - generic [ref=f10e608]: $637.20
+          - generic [ref=f10e609]:
+            - generic [ref=f10e610]: + Barreno 10mm
+            - generic [ref=f10e611]: $10.00
+          - generic [ref=f10e612]:
+            - generic [ref=f10e613]: Subtotal partida
+            - generic [ref=f10e614]: $1942.00
+          - separator [ref=f10e688]
+        - generic [ref=f10e615]:
+          - generic [ref=f10e616]:
+            - generic [ref=f10e617]: 1 · 24×89 · LUNA-6MM
+            - generic [ref=f10e618]: $157.50
+          - generic [ref=f10e619]:
+            - generic [ref=f10e620]: + maquila de esmerila
+            - generic [ref=f10e621]: $16.80
+          - generic [ref=f10e622]:
+            - generic [ref=f10e623]: + bisel
+            - generic [ref=f10e624]: $203.40
+          - generic [ref=f10e625]:
+            - generic [ref=f10e626]: + Barreno 10mm
+            - generic [ref=f10e627]: $10.00
+          - generic [ref=f10e628]:
+            - generic [ref=f10e629]: Subtotal partida
+            - generic [ref=f10e630]: $387.70
+          - separator [ref=f10e689]
+        - generic [ref=f10e631]:
+          - generic [ref=f10e632]:
+            - generic [ref=f10e633]: 6 · 87×89 · LUNA-6MM
+            - generic [ref=f10e634]: $3465.00
+          - generic [ref=f10e635]:
+            - generic [ref=f10e636]: + maquila de esmerila
+            - generic [ref=f10e637]: $369.60
+          - generic [ref=f10e638]:
+            - generic [ref=f10e639]: + bisel
+            - generic [ref=f10e640]: $1900.80
+          - generic [ref=f10e641]:
+            - generic [ref=f10e642]: + Barreno 10mm
+            - generic [ref=f10e643]: $10.00
+          - generic [ref=f10e644]:
+            - generic [ref=f10e645]: Subtotal partida
+            - generic [ref=f10e646]: $5745.40
+          - separator [ref=f10e690]
+        - generic [ref=f10e647]: Maquila
+        - generic [ref=f10e648]:
+          - generic [ref=f10e649]:
+            - generic [ref=f10e650]: 2 · 77×77cm · 9MM
+            - generic [ref=f10e651]: $61.18
+          - generic [ref=f10e652]:
+            - generic [ref=f10e653]: + C/P/B
+            - generic [ref=f10e654]: $11.90
+          - generic [ref=f10e655]:
+            - generic [ref=f10e656]: + bisel
+            - generic [ref=f10e657]: $49.28
+          - separator [ref=f10e691]
+        - generic [ref=f10e658]:
+          - generic [ref=f10e659]:
+            - generic [ref=f10e660]: 6 · 100×100cm · 9MM
+            - generic [ref=f10e661]: $252.00
+          - generic [ref=f10e662]:
+            - generic [ref=f10e663]: + C/P/B
+            - generic [ref=f10e664]: $60.00
+          - generic [ref=f10e665]:
+            - generic [ref=f10e666]: + bisel
+            - generic [ref=f10e667]: $192.00
+          - separator [ref=f10e692]
+        - generic [ref=f10e668]:
+          - generic [ref=f10e669]:
+            - generic [ref=f10e670]: 8 · 88×23cm · 4MM
+            - generic [ref=f10e671]: $245.52
+          - generic [ref=f10e672]:
+            - generic [ref=f10e673]: + C/P/B
+            - generic [ref=f10e674]: $32.40
+          - generic [ref=f10e675]:
+            - generic [ref=f10e676]: + bisel
+            - generic [ref=f10e677]: $213.12
+          - separator [ref=f10e693]
+        - generic [ref=f10e678]: Proceso Extra
+        - generic [ref=f10e679]:
+          - generic [ref=f10e694]:
+            - generic [ref=f10e695]: 2 · flete largo
+            - generic [ref=f10e696]: $500.00
+          - separator [ref=f10e697]
+        - separator [ref=f10e682]
+        - generic [ref=f10e683]:
+          - generic [ref=f10e684]: TOTAL
+          - generic [ref=f10e685]: $9133.80
+        - separator [ref=f10e686]
+        - generic [ref=f10e687]: Esta cotizacion tiene una vigencia de 15 dias.

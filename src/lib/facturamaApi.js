@@ -50,8 +50,11 @@ export async function crearCFDI(resumen, receptor) {
         ProductCode:         '44103103',
         UnitCode:            'H87',
         Unit:                'Pieza',
-        IdentificationNumber: resumen.folio,
-        Description:         p.descripcion,
+        IdentificationNumber: resumen.folio || '',
+        // Facturama's validator crashes (ArgumentNullException) on a null
+        // Description instead of rejecting it cleanly — some partida rows
+        // (Maquila/Extra/Producto) can have a null descripcion in the DB.
+        Description:         p.descripcion || 'Vidrio, herraje o servicio de maquila',
         Quantity:            cantidad,
         UnitPrice:           valorUnitario,
         Subtotal:            base,
@@ -70,6 +73,9 @@ export async function crearCFDI(resumen, receptor) {
       }
     })
 
+  const rfcReceptor = rfc.trim().toUpperCase()
+  const RFC_GENERICOS = ['XAXX010101000', 'XEXX010101000']
+
   const body = {
     // Internal metadata stripped by backend before sending to Facturama
     _id_pedido:    resumen.id,
@@ -79,7 +85,7 @@ export async function crearCFDI(resumen, receptor) {
     // CFDI 4.0 payload — Facturama's own JSON schema (English property names),
     // NOT the raw SAT XML tag names (Receptor/Conceptos/Impuestos/etc.)
     Receiver: {
-      Rfc:          rfc.trim().toUpperCase(),
+      Rfc:          rfcReceptor,
       Name:         nombre.trim().toUpperCase(),
       CfdiUse:      usoCfdi,
       FiscalRegime: regimen,
@@ -93,7 +99,26 @@ export async function crearCFDI(resumen, receptor) {
     Items: conceptos,
   }
 
+  // SAT (CFDI 4.0) requires a GlobalInformation node whenever the receiver
+  // is the generic "público en general" RFC — summarizes the billing
+  // period this factura global covers.
+  if (RFC_GENERICOS.includes(rfcReceptor)) {
+    const now = new Date()
+    body.GlobalInformation = {
+      Periodicity: '01', // Diario — se factura una operación puntual, no un acumulado
+      Months:      String(now.getMonth() + 1).padStart(2, '0'),
+      Year:        String(now.getFullYear()),
+    }
+  }
+
   return apiFetch('/facturama/cfdi', { method: 'POST', body })
+}
+
+export async function cancelarCFDI(id_factura, motivo, uuid_sustitucion) {
+  return apiFetch(`/facturama/cfdi/${id_factura}/cancelar`, {
+    method: 'DELETE',
+    body: { motivo, uuid_sustitucion: uuid_sustitucion || '' },
+  })
 }
 
 export async function getFacturas(fechaDesde, fechaHasta) {

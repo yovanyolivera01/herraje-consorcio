@@ -1,0 +1,179 @@
+- generic [ref=f10e6]:
+  - complementary [ref=f10e7]:
+    - img "Vidreria Rosales" [ref=f10e9]
+    - textbox "Buscar módulo..." [ref=f10e11]
+    - navigation [ref=f10e12]:
+      - button "Herraje" [ref=f10e14] [cursor=pointer]
+      - generic [ref=f10e22]:
+        - button "Ventas" [ref=f10e23] [cursor=pointer]
+        - generic [ref=f10e33]:
+          - generic [ref=f10e34]: Ventas
+          - link "Nueva cotizacion" [ref=f10e35] [cursor=pointer]:
+            - /url: /cot/nueva
+      - button "Reportes" [ref=f10e42] [cursor=pointer]
+      - button "Almacén" [ref=f10e51] [cursor=pointer]
+      - button "Catalogos" [ref=f10e60] [cursor=pointer]
+      - button "Personal" [ref=f10e67] [cursor=pointer]
+      - button "Egresos" [ref=f10e78] [cursor=pointer]
+    - button "Cerrar sesión" [ref=f10e87] [cursor=pointer]
+    - generic [ref=f10e91]:
+      - button "Compactar menú" [ref=f10e92] [cursor=pointer]
+      - button "Modo oscuro" [ref=f10e95] [cursor=pointer]
+  - main [ref=f10e98]:
+    - generic [ref=f10e99]:
+      - generic [ref=f10e100]: Nueva Cotizacion
+      - generic [ref=f10e257]:
+        - button "✓ Cotizar — $8075.10" [ref=f10e357] [cursor=pointer]
+        - button "📦 Pedido" [ref=f10e259] [cursor=pointer]
+    - generic [ref=f10e103]:
+      - generic [ref=f10e104]:
+        - generic [ref=f10e105]:
+          - generic [ref=f10e106]:
+            - button "🪟 Vidrio" [ref=f10e107] [cursor=pointer]
+            - button "🔧 Maquila" [ref=f10e108] [cursor=pointer]
+            - button "🧰 Herraje" [ref=f10e109] [cursor=pointer]
+          - generic [ref=f10e110] [cursor=pointer]:
+            - generic [ref=f10e111]:
+              - generic [ref=f10e112]: Vidriero
+              - generic [ref=f10e113]: · Mostrador
+            - generic [ref=f10e114]: ▾
+        - generic [ref=f10e132]:
+          - generic [ref=f10e133]:
+            - generic [ref=f10e134]:
+              - generic [ref=f10e135]: Medida *
+              - textbox "98x45 o 3-98x45" [ref=f10e136]:
+                - /placeholder: 98x45  o  3-98x45
+              - generic [ref=f10e137]: largo×ancho o pzas-largo×ancho
+            - generic [ref=f10e138]:
+              - generic [ref=f10e139]: Tipo de vidrio *
+              - combobox [ref=f10e140]:
+                - option "-- Tipo --"
+                - option "CLARO-4MM"
+                - option "CLARO-4MM — Vidrio claro 4mm"
+                - option "CLARO-6MM"
+                - option "GRIS-6MM"
+                - option "LUNA-3MM"
+                - option "LUNA-6MM" [selected]
+                - option "REFLECTA-6MM"
+          - generic [ref=f10e141]:
+            - generic [ref=f10e142]: Procesos
+            - generic [ref=f10e143]:
+              - generic [ref=f10e144]:
+                - generic [ref=f10e145]: m²
+                - generic [ref=f10e147] [cursor=pointer]:
+                  - checkbox
+                  - generic [ref=f10e148]: C/P/B
+                - generic [ref=f10e150] [cursor=pointer]:
+                  - checkbox
+                  - generic [ref=f10e151]: maquila de esmerila
+                - generic [ref=f10e153] [cursor=pointer]:
+                  - checkbox
+                  - generic [ref=f10e154]: Pulido
+                - generic [ref=f10e155]: ml
+                - generic [ref=f10e157] [cursor=pointer]:
+                  - checkbox
+                  - generic [ref=f10e158]: bisel
+                - generic [ref=f10e160] [cursor=pointer]:
+                  - checkbox
+                  - generic [ref=f10e161]: El lavabo
+                - generic [ref=f10e163] [cursor=pointer]:
+                  - checkbox
+                  - generic [ref=f10e164]: Filo muerto
+              - generic [ref=f10e165]:
+                - generic [ref=f10e166]: Barrenos
+                - generic [ref=f10e167] [cursor=pointer]:
+                  - checkbox [ref=f10e168]
+                  - generic [ref=f10e169]: Barreno 10mm
+                - generic [ref=f10e170] [cursor=pointer]:
+                  - checkbox [ref=f10e171]
+                  - generic [ref=f10e172]: Barreno 40mm
+                - generic [ref=f10e173]: Saques
+                - generic [ref=f10e174] [cursor=pointer]:
+                  - checkbox [ref=f10e175]
+                  - generic [ref=f10e176]: gabillan
+                - generic [ref=f10e177] [cursor=pointer]:
+                  - checkbox [ref=f10e178]
+                  - generic [ref=f10e179]: miki
+                - generic [ref=f10e180] [cursor=pointer]:
+                  - checkbox [ref=f10e181]
+                  - generic [ref=f10e182]: saque simple
+                - generic [ref=f10e183]: Extras
+                - generic [ref=f10e184] [cursor=pointer]:
+                  - checkbox [ref=f10e185]
+                  - generic [ref=f10e186]: canaleta
+                - generic [ref=f10e187] [cursor=pointer]:
+                  - checkbox [ref=f10e188]
+                  - generic [ref=f10e189]: Cargada
+                - generic [ref=f10e190] [cursor=pointer]:
+                  - checkbox [ref=f10e191]
+                  - generic [ref=f10e192]: Colocación
+                - generic [ref=f10e193] [cursor=pointer]:
+                  - checkbox [ref=f10e194]
+                  - generic [ref=f10e195]: Descargada
+                - generic [ref=f10e196] [cursor=pointer]:
+                  - checkbox [ref=f10e197]
+                  - generic [ref=f10e198]: flete largo
+                - generic [ref=f10e199] [cursor=pointer]:
+                  - checkbox [ref=f10e200]
+                  - generic [ref=f10e201]: Kit
+          - button "➕ Agregar vidrio" [disabled] [ref=f10e202]
+        - generic [ref=f10e203]:
+          - generic [ref=f10e204]: Partidas (3)
+          - generic [ref=f10e260]:
+            - generic [ref=f10e261]:
+              - generic [ref=f10e262]: 2 · 87×90 cm · 1.5600 m²
+              - generic [ref=f10e263]:
+                - generic [ref=f10e264]: LUNA-6MM
+                - text: $750.00/m²
+              - generic [ref=f10e265]:
+                - generic [ref=f10e266]: "+ maquila de esmerila (1.56 M2 × $80.00): $124.80"
+                - generic [ref=f10e267]: "+ bisel (7.08 ML × $90.00): $637.20"
+                - generic [ref=f10e268]: "+ Barreno 10mm (1.00 PZA × $10.00): $10.00"
+            - generic [ref=f10e269]: $1942.00
+            - button "💬" [ref=f10e270] [cursor=pointer]
+            - button "✕" [ref=f10e271] [cursor=pointer]
+          - generic [ref=f10e315]:
+            - generic [ref=f10e316]:
+              - generic [ref=f10e317]: 1 · 24×89 cm · 0.2100 m²
+              - generic [ref=f10e318]:
+                - generic [ref=f10e319]: LUNA-6MM
+                - text: $750.00/m²
+              - generic [ref=f10e320]:
+                - generic [ref=f10e321]: "+ maquila de esmerila (0.21 M2 × $80.00): $16.80"
+                - generic [ref=f10e322]: "+ bisel (2.26 ML × $90.00): $203.40"
+                - generic [ref=f10e323]: "+ Barreno 10mm (1.00 PZA × $10.00): $10.00"
+            - generic [ref=f10e324]: $387.70
+            - button "💬" [ref=f10e325] [cursor=pointer]
+            - button "✕" [ref=f10e326] [cursor=pointer]
+          - generic [ref=f10e358]:
+            - generic [ref=f10e359]:
+              - generic [ref=f10e360]: 6 · 87×89 cm · 4.6200 m²
+              - generic [ref=f10e361]:
+                - generic [ref=f10e362]: LUNA-6MM
+                - text: $750.00/m²
+              - generic [ref=f10e363]:
+                - generic [ref=f10e364]: "+ maquila de esmerila (4.62 M2 × $80.00): $369.60"
+                - generic [ref=f10e365]: "+ bisel (21.12 ML × $90.00): $1900.80"
+                - generic [ref=f10e366]: "+ Barreno 10mm (1.00 PZA × $10.00): $10.00"
+            - generic [ref=f10e367]: $5745.40
+            - button "💬" [ref=f10e368] [cursor=pointer]
+            - button "✕" [ref=f10e369] [cursor=pointer]
+          - generic [ref=f10e272]:
+            - generic [ref=f10e273]: Total de la cotizacion
+            - strong [ref=f10e274]: $8075.10
+      - generic [ref=f10e208]:
+        - generic [ref=f10e209]: Resumen
+        - generic [ref=f10e210]: Nivel de precio
+        - generic [ref=f10e211]: Vidriero
+        - generic [ref=f10e214]:
+          - generic [ref=f10e215]: Partidas
+          - generic [ref=f10e216]: "3"
+        - generic [ref=f10e217]:
+          - generic [ref=f10e218]: Total m²
+          - generic [ref=f10e219]: "6.3900"
+        - generic [ref=f10e221]:
+          - generic [ref=f10e222]: Total
+          - generic [ref=f10e223]: $8075.10
+        - button "📦 Convertir a pedido" [ref=f10e224] [cursor=pointer]
+        - button "✓ Solo cotizar" [ref=f10e225] [cursor=pointer]
+        - button "Limpiar" [ref=f10e226] [cursor=pointer]
