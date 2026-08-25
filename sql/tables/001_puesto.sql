@@ -32,13 +32,20 @@ CREATE OR REPLACE VIEW v_puestos AS
   FROM puestos
   ORDER BY id_puesto DESC;
 
-CREATE OR REPLACE FUNCTION  public.sp_create_puesto 
-(
-
-    p_nombre CHARACTER varying,
-    p_descripcion CHARACTER varying,
-    p_plazas  CHARACTER(2) varying default 0,
-    p_estado CHARACTER (2) varying default 1,
-
-
+CREATE OR REPLACE FUNCTION public.sp_create_puesto(
+  p_nombre      VARCHAR,
+  p_descripcion VARCHAR,
+  p_plazas      INTEGER DEFAULT 0,
+  p_estado      INTEGER DEFAULT 1
 )
+RETURNS puestos AS $$
+DECLARE
+  v_puesto puestos;
+BEGIN
+  INSERT INTO puestos (nombre, descripcion, plazas, id_estado)
+  VALUES (p_nombre, p_descripcion, p_plazas, p_estado)
+  RETURNING * INTO v_puesto;
+
+  RETURN v_puesto;
+END;
+$$ LANGUAGE plpgsql;
