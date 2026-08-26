@@ -8,6 +8,7 @@ import { crearPedidoDirecto, crearPedidoDirectoConExtras, getDetallePedido, conv
 import { getPartidasExtra } from '../../lib/cotizacionApi'
 import { venderProductoGeneral } from '../../lib/productosGeneralesApi'
 import { printTicketVidrio, printPedidoA4 } from '../../utils/ticket'
+import CompartirBotones from '../../components/CompartirBotones'
 
 const TIPO_META = {
   VIDRIO:   { label: 'Vidrio',        bg: '#dbeafe', color: '#1d4ed8' },
@@ -867,6 +868,8 @@ export default function NuevaCotizacion() {
   // ── Estado global de la cotizacion ──────────────────────────────────────
   const [nivelId,      setNivelId]      = useState(cotEdit ? String(cotEdit.nivel?.id_nivel_precio ?? '') : '')
   const [clienteId,    setClienteId]    = useState(cotEdit ? String(cotEdit.cliente?.id_cliente ?? '') : '')
+  const [clienteQuery, setClienteQuery] = useState('')
+  const [clienteOpen,  setClienteOpen]  = useState(false)
   const [observaciones, setObservaciones] = useState('')
   const [preciosCli,   setPreciosCli]   = useState([])
   const [cargandoCli,  setCargandoCli]  = useState(false)
@@ -1192,8 +1195,7 @@ export default function NuevaCotizacion() {
       getPrecioVidrio, getPrecioProceso, getPrecioProcesoEspecial]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Manejo de cambio de cliente ───────────────────────────────────────────
-  const handleClienteChange = (e) => {
-    const cid = e.target.value
+  const handleClienteSelect = (cid) => {
     setClienteId(cid)
     setPreciosCli([])
     if (cid) { setDatosCotOpen(false)
@@ -1998,6 +2000,15 @@ export default function NuevaCotizacion() {
           <div style={{ display: 'flex', gap: 10 }}>
             <button className="btn btn-outline" onClick={() => printTicketVidrio(detalleImpresionCot)}>🖨️ Imprimir</button>
             <button className="btn btn-outline" onClick={() => printPedidoA4(detalleImpresionCot)}>🖨️ Hoja</button>
+            <CompartirBotones
+              tipo="cotizacion"
+              folio={cotCreada.folio}
+              total={detalleImpresionCot.total}
+              partidas={detalleImpresionCot.partidas}
+              clienteNombre={cotCreada.clienteNombre}
+              telefono={clienteSeleccionado?.telefono}
+              correo={clienteSeleccionado?.correo}
+            />
             <button className="btn btn-primary" onClick={nuevaCotizacion}>+ Nueva cotizacion</button>
           </div>
         </div>
@@ -2141,19 +2152,53 @@ export default function NuevaCotizacion() {
                     </div>
                   )}
                 </div>
-                <div className="form-group" style={{ marginBottom: 0 }}>
+                <div className="form-group" style={{ marginBottom: 0, position: 'relative' }}>
                   <label className="form-label">Cliente (opcional)</label>
-                  <select
-                    className="form-select"
-                    value={clienteId}
-                    onChange={handleClienteChange}
+                  <input
+                    className="form-input"
+                    type="text"
+                    placeholder="-- Mostrador --"
+                    autoComplete="off"
+                    value={clienteOpen ? clienteQuery : (clienteSeleccionado?.nombre ?? '')}
+                    onChange={e => { setClienteQuery(e.target.value); setClienteOpen(true) }}
+                    onFocus={() => { setClienteQuery(''); setClienteOpen(true) }}
+                    onBlur={() => setTimeout(() => setClienteOpen(false), 150)}
                     disabled={cargandoCli}
-                  >
-                    <option value="">-- Mostrador --</option>
-                    {clientes.filter(c => c.activo).map(c => (
-                      <option key={c.id_cliente} value={c.id_cliente}>{c.nombre}</option>
-                    ))}
-                  </select>
+                  />
+                  {clienteOpen && (() => {
+                    const q = clienteQuery.trim().toLowerCase()
+                    const opciones = clientes.filter(c => c.activo && c.nombre.toLowerCase().includes(q))
+                    return (
+                      <div className="card" style={{
+                        position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4,
+                        zIndex: 20, maxHeight: 240, overflowY: 'auto', padding: 4,
+                        boxShadow: '0 6px 20px rgba(0,0,0,0.18)',
+                      }}>
+                        <div
+                          onMouseDown={() => { handleClienteSelect(''); setClienteQuery(''); setClienteOpen(false) }}
+                          style={{ padding: '7px 10px', borderRadius: 6, cursor: 'pointer', fontSize: 13, color: 'var(--text-muted)' }}
+                        >
+                          -- Mostrador --
+                        </div>
+                        {opciones.length === 0 && (
+                          <div style={{ padding: '7px 10px', fontSize: 13, color: 'var(--text-muted)' }}>Sin resultados</div>
+                        )}
+                        {opciones.map(c => (
+                          <div
+                            key={c.id_cliente}
+                            onMouseDown={() => { handleClienteSelect(String(c.id_cliente)); setClienteQuery(''); setClienteOpen(false) }}
+                            style={{
+                              padding: '7px 10px', borderRadius: 6, cursor: 'pointer', fontSize: 13,
+                              fontWeight: clienteId === String(c.id_cliente) ? 700 : 400,
+                              background: clienteId === String(c.id_cliente) ? 'var(--accent-soft, rgba(37,99,235,0.08))' : 'transparent',
+                            }}
+                          >
+                            {c.nombre}
+                          </div>
+                        ))}
+                      </div>
+                    )
+                  })()}
                   {cargandoCli && <div className="form-hint">Cargando precios...</div>}
                 </div>
               </div>}

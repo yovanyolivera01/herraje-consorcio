@@ -1,0 +1,75 @@
+- generic [ref=f1e19]:
+  - complementary [ref=f1e20]:
+    - img "Vidreria Rosales" [ref=f1e22]
+    - textbox "Buscar módulo..." [ref=f1e24]
+    - navigation [ref=f1e25]:
+      - button "Herraje" [ref=f1e27] [cursor=pointer]
+      - generic [ref=f1e35]:
+        - button "Ventas" [ref=f1e36] [cursor=pointer]
+        - generic [ref=f1e46]:
+          - generic [ref=f1e47]: Ventas
+          - link "Nueva cotizacion" [ref=f1e48] [cursor=pointer]:
+            - /url: /cot/nueva
+      - button "Reportes" [ref=f1e55] [cursor=pointer]
+      - button "Almacén" [ref=f1e64] [cursor=pointer]
+      - button "Catalogos" [ref=f1e73] [cursor=pointer]
+      - button "Personal" [ref=f1e80] [cursor=pointer]
+      - button "Egresos" [ref=f1e91] [cursor=pointer]
+    - button "Cerrar sesión" [ref=f1e100] [cursor=pointer]
+    - generic [ref=f1e104]:
+      - button "Compactar menú" [ref=f1e105] [cursor=pointer]
+      - button "Modo oscuro" [ref=f1e108] [cursor=pointer]
+  - main [ref=f1e111]:
+    - generic [ref=f1e112]:
+      - generic [ref=f1e113]:
+        - generic [ref=f1e114]: Cotizacion registrada
+        - generic [ref=f1e337]: Folio COT-00101
+      - generic [ref=f1e309]:
+        - button "🖨️ Imprimir" [ref=f1e338] [cursor=pointer]
+        - button "🖨️ Hoja" [ref=f1e339] [cursor=pointer]
+        - button "📱 WhatsApp" [active] [ref=f1e340] [cursor=pointer]
+        - button "✉️ Correo" [ref=f1e341] [cursor=pointer]
+        - button "+ Nueva cotizacion" [ref=f1e342] [cursor=pointer]
+    - generic [ref=f1e115]:
+      - generic [ref=f1e343]: ✅ Cotizacion guardada correctamente con folio COT-00101.
+      - generic [ref=f1e344]:
+        - generic [ref=f1e345]:
+          - heading "VIDRIO TEMPLADO Y ALUMINIO ROSALES" [level=2] [ref=f1e346]
+          - paragraph [ref=f1e347]: Calidad que se ve, confianza que perdura
+          - paragraph [ref=f1e348]: Cotizacion
+        - separator [ref=f1e349]
+        - generic [ref=f1e350]:
+          - generic [ref=f1e351]: "Folio:"
+          - strong [ref=f1e352]: COT-00101
+        - generic [ref=f1e353]:
+          - generic [ref=f1e354]: "Fecha:"
+          - generic [ref=f1e355]: 25/8/2026
+        - generic [ref=f1e356]:
+          - generic [ref=f1e357]: "Nivel:"
+          - generic [ref=f1e358]: Publico
+        - separator [ref=f1e359]
+        - generic [ref=f1e360]: Vidrio
+        - generic [ref=f1e361]:
+          - generic [ref=f1e362]:
+            - generic [ref=f1e363]: 2 · 60×60 · CLARO-6MM
+            - generic [ref=f1e364]: $360.00
+          - generic [ref=f1e365]:
+            - generic [ref=f1e366]: + Templado
+            - generic [ref=f1e367]: $108.00
+          - generic [ref=f1e368]:
+            - generic [ref=f1e369]: Subtotal
+            - generic [ref=f1e370]: $468.00
+          - separator [ref=f1e371]
+        - generic [ref=f1e372]: Proceso Extra
+        - generic [ref=f1e373]:
+          - generic [ref=f1e374]: 1 · Kit de luz
+          - generic [ref=f1e376]:
+            - generic [ref=f1e377]: Subtotal
+            - generic [ref=f1e378]: $300.00
+          - separator [ref=f1e379]
+        - separator [ref=f1e380]
+        - generic [ref=f1e381]:
+          - generic [ref=f1e382]: TOTAL
+          - generic [ref=f1e383]: $768.00
+        - separator [ref=f1e384]
+        - generic [ref=f1e385]: Esta cotizacion tiene una vigencia de 15 dias.
