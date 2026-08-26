@@ -13,5 +13,14 @@ ON CONFLICT (id_estado) DO NOTHING;
 
 -- puestos.id_estado defaults to 1 (ACTIVO, seeded above) before this FK exists,
 -- so the constraint is added here rather than inline in 001_puesto.sql.
-ALTER TABLE puestos
-  ADD CONSTRAINT fk_puestos_estado FOREIGN KEY (id_estado) REFERENCES estatus(id_estado);
+DO $$ BEGIN
+  ALTER TABLE puestos
+    ADD CONSTRAINT fk_puestos_estado FOREIGN KEY (id_estado) REFERENCES estatus(id_estado);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  ALTER TABLE empleados
+    ADD CONSTRAINT fk_empleados_estado FOREIGN KEY (id_estado) REFERENCES estatus(id_estado);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
