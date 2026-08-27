@@ -12,19 +12,7 @@ CREATE TABLE IF NOT EXISTS puestos (
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Table: empleado_salario (salary history, one open-ended row per employee at a time)
-
-ALTER TABLE empleados ADD COLUMN IF NOT EXISTS apellido_materno VARCHAR(60);
-ALTER TABLE empleados ADD COLUMN IF NOT EXISTS apellido_paterno VARCHAR(60);
-ALTER TABLE empleados ADD COLUMN IF NOT EXISTS calle             VARCHAR(100);
-ALTER TABLE empleados ADD COLUMN IF NOT EXISTS ciudad            VARCHAR(60);
-ALTER TABLE empleados ADD COLUMN IF NOT EXISTS colonia           VARCHAR(100);
-ALTER TABLE empleados ADD COLUMN IF NOT EXISTS cp                VARCHAR(10);
-ALTER TABLE empleados ADD COLUMN IF NOT EXISTS huella            TEXT;
-ALTER TABLE empleados ADD COLUMN IF NOT EXISTS id_estado         INTEGER NOT NULL DEFAULT 1;
-
-
----
+-- Table: turno
 
 CREATE TABLE IF NOT EXISTS turno (
   id_turno     SERIAL PRIMARY KEY,
@@ -35,16 +23,42 @@ CREATE TABLE IF NOT EXISTS turno (
   updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Table: empleado_salario (salary history, one open-ended row per employee at a time)
+
+ALTER TABLE empleados ADD COLUMN IF NOT EXISTS apellido_materno VARCHAR(60);
+ALTER TABLE empleados ADD COLUMN IF NOT EXISTS apellido_paterno VARCHAR(60);
+ALTER TABLE empleados ADD COLUMN IF NOT EXISTS id_puesto INTEGER REFERENCES puestos(id_puesto);
+ALTER TABLE empleados ADD COLUMN IF NOT EXISTS id_turno  INTEGER REFERENCES turno(id_turno);
+ALTER TABLE empleados ADD COLUMN IF NOT EXISTS calle             VARCHAR(100);
+ALTER TABLE empleados ADD COLUMN IF NOT EXISTS ciudad            VARCHAR(60);
+ALTER TABLE empleados ADD COLUMN IF NOT EXISTS colonia           VARCHAR(100);
+ALTER TABLE empleados ADD COLUMN IF NOT EXISTS cp                VARCHAR(10);
+ALTER TABLE empleados ADD COLUMN IF NOT EXISTS huella            TEXT;
+ALTER TABLE empleados ADD COLUMN IF NOT EXISTS id_estado         INTEGER NOT NULL DEFAULT 1;
+
 
 ---
 CREATE TABLE IF NOT EXISTS registro (
   id_registro   SERIAL PRIMARY KEY,
   id_empleado   INTEGER NOT NULL REFERENCES empleados(empleado_id),
+  id_turno      integer references turno (id_turno)
   fecha         DATE NOT NULL DEFAULT CURRENT_DATE,
   hora_llegada  TIME NOT NULL DEFAULT CURRENT_TIME,
   hora_salida   TIME,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
+);-- Table: empleado_salario (salary history, one open-ended row per employee at a time)
+
+ALTER TABLE empleados ADD COLUMN IF NOT EXISTS apellido_materno VARCHAR(60);
+ALTER TABLE empleados ADD COLUMN IF NOT EXISTS apellido_paterno VARCHAR(60);
+ALTER TABLE empleados ADD COLUMN IF NOT EXISTS id_puesto int foreingh key references puestos (id_puesto);
+ALTER TABLE empleados ADD COLUMN IF NOT EXISTS calle             VARCHAR(100);
+ALTER TABLE empleados ADD COLUMN IF NOT EXISTS ciudad            VARCHAR(60);
+ALTER TABLE empleados ADD COLUMN IF NOT EXISTS colonia           VARCHAR(100);
+ALTER TABLE empleados ADD COLUMN IF NOT EXISTS cp                VARCHAR(10);
+ALTER TABLE empleados ADD COLUMN IF NOT EXISTS huella            TEXT;
+ALTER TABLE empleados ADD COLUMN IF NOT EXISTS id_estado         INTEGER NOT NULL DEFAULT 1;
+
+
 
 
 ---
@@ -57,17 +71,6 @@ CREATE TABLE IF NOT EXISTS hora_extra (
 );
 
 
----
-CREATE TABLE IF NOT EXISTS salario (
-  id_empleado_salario SERIAL PRIMARY KEY,
-  empleado_id   INTEGER NOT NULL REFERENCES empleados(empleado_id),
-  sueldo        NUMERIC(10,2) NOT NULL,
-  fecha_inicio  DATE NOT NULL DEFAULT CURRENT_DATE,
-  fecha_fin     DATE,
-  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
----
 
 -- Table: nomina (monto a pagar a un empleado por periodo, reuniendo sueldo base,
 -- horas extra y deducciones en un solo registro)

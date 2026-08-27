@@ -1,0 +1,47 @@
+# Historias de Usuario — Sprint 4 (Final)
+
+Este documento contiene los requerimientos específicos del **módulo de RRHH**, que incluye los datos personales del personal, los turnos del personal, los puestos de trabajo y los horarios de trabajo. Además, considera las horas extra, las ausencias, los descuentos por llegadas tarde y los reportes que muestran la relación entre las horas trabajadas y el pago.
+
+A continuación, las historias de usuario.
+
+## 1. Datos personales del empleado
+
+**Como administrador, quiero guardar los datos personales de mis empleados para tener un registro de datos personales de cada uno.**
+
+- El formulario capturará: nombre(s), apellido paterno, apellido materno, calle/domicilio, código postal (CP), colonia, ciudad, foto y huella digital.
+- El sistema detectará automáticamente la ciudad y la colonia a partir del código postal.
+- El administrador podrá editar los datos del empleado (dirección, nombre) y cambiar la huella digital.
+- El administrador podrá eliminar un empleado o pausarlo (dejarlo inactivo).
+- El administrador podrá asignar un puesto al empleado.
+
+## 2. Horario de trabajo
+
+**Como administrador, quiero guardar el horario de trabajo para definir la hora específica en la que mis colaboradores deben llegar y terminar, junto con las reglas para tener el control de cada trabajador.**
+
+- Se configurará un reloj con la hora de inicio y la hora de fin de la jornada laboral.
+- Se configurarán los días en que aplica este horario.
+- Se configurarán las horas extra.
+- Se configurará la tolerancia (margen) de llegada al trabajo.
+- Si el empleado se ausenta por problemas personales, se tendrá una lista de motivos para justificar la ausencia.
+- Se podrá configurar el precio de la hora extra por puesto/rol.
+
+## 3. Puestos de trabajo
+
+**Como administrador, quiero crear los puestos de los empleados para asignar el rol dentro de la organización.**
+
+- Un puesto incluye: puesto, descripción, salario y plazas.
+- El administrador podrá actualizar y eliminar los registros de los puestos.
+- El administrador podra asignar el descuento a los trabajadores.
+
+
+## 4. Reporte de horas y nómina
+
+**Como administrador, quiero descargar un reporte de la cantidad de horas que trabajaron mis empleados durante la semana, con los cálculos del monto de salario que se debe pagar.**
+
+- El administrador podrá descargar un archivo con el reporte del total de horas del empleado.
+- El reporte mostrará el total de pago por empleado por día, incluyendo las horas extra.
+- El reporte mostrará las incidencias y ausencias de cada empleado.
+- El reporte mostrará los descuentos aplicados por llegadas tarde.
+- El reporte mostrara los descuentos por falta.
+- El reporte tendra un espacio para que el trabajor filte.
+- El reporte sera un archivo pdf
