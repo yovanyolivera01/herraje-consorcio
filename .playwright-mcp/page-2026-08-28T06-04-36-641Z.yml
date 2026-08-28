@@ -1,0 +1,192 @@
+- generic [ref=e22]:
+  - complementary [ref=e23]:
+    - img "Vidreria Rosales" [ref=e25]
+    - textbox "Buscar módulo..." [ref=e27]
+    - navigation [ref=e28]:
+      - button "Herraje" [ref=e30] [cursor=pointer]
+      - generic [ref=e38]:
+        - button "Ventas" [ref=e39] [cursor=pointer]
+        - generic [ref=e49]:
+          - generic [ref=e50]: Ventas
+          - link "Nueva cotizacion" [ref=e51] [cursor=pointer]:
+            - /url: /cot/nueva
+      - button "Reportes" [ref=e58] [cursor=pointer]
+      - button "Almacén" [ref=e67] [cursor=pointer]
+      - button "Catalogos" [ref=e76] [cursor=pointer]
+      - button "Personal" [ref=e83] [cursor=pointer]
+      - button "Egresos" [ref=e94] [cursor=pointer]
+    - button "Cerrar sesión" [ref=e103] [cursor=pointer]
+    - generic [ref=e107]:
+      - button "Compactar menú" [ref=e108] [cursor=pointer]
+      - button "Modo oscuro" [ref=e111] [cursor=pointer]
+  - main [ref=e114]:
+    - generic [ref=e115]: Nueva Cotizacion
+    - generic [ref=e119]:
+      - generic [ref=e120]:
+        - generic [ref=e121]:
+          - generic [ref=e122]:
+            - button "🪟 Vidrio" [ref=e123] [cursor=pointer]
+            - button "🔧 Maquila" [ref=e124] [cursor=pointer]
+            - button "🧰 Herraje" [ref=e125] [cursor=pointer]
+          - generic [ref=e126] [cursor=pointer]:
+            - generic [ref=e127]:
+              - generic [ref=e128]: Vidriero
+              - generic [ref=e129]: · DANIEL AYALA
+            - generic [ref=e130]: ▾
+        - generic [ref=e148]:
+          - generic [ref=e149]:
+            - generic [ref=e150]:
+              - generic [ref=e151]: Medida *
+              - textbox "98x45 o 3-98x45" [ref=e152]:
+                - /placeholder: 98x45  o  3-98x45
+              - generic [ref=e153]: largo×ancho o pzas-largo×ancho
+            - generic [ref=e154]:
+              - generic [ref=e155]: Tipo de vidrio *
+              - combobox [ref=e156]:
+                - option "-- Tipo --" [selected]
+                - option "CHINO CLARO-4MM"
+                - option "CLARO-3MM"
+                - option "CLARO-4MM"
+                - option "CLARO-6MM"
+                - option "CLARO-9MM"
+                - option "CLARO CON CANTO BRILLOSO-6MM"
+                - option "CLARO PARA FERNANDO-10MM — PRE PAR"
+                - option "CLARO PARA FERNANDO-6MM — VIDRIO Y TEMPLADO"
+                - option "CLARO TEMPLADO-4MM"
+                - option "CLARO TEMPLADO-6MM"
+                - option "CLARO TEMPLADO-9.1MM — TEMPLADO"
+                - option "ESMERILADO CLARO-3MM"
+                - option "ESMERILADO CLARO-6MM"
+                - option "ESMERILADO FILTRASOL-6MM"
+                - option "ESPEJO CON LUZ TONO FRIO-3MM"
+                - option "FILTRASOL-3MM"
+                - option "FILTRASOL-6MM"
+                - option "FILTRASOL-9MM"
+                - option "FILTRASOL PLUS-9MM"
+                - option "FILTRASOL TEMPLADO-6.1MM — templado"
+                - option "LAMINADO CLARO-1MM"
+                - option "LUNA CENEFA Y LUZ7CANALETA-3MM"
+                - option "LUNA CENEFA Y LUZ7CANALETA-4MM"
+                - option "LUNA CENEFA Y LUZ7CANALETA-6MM"
+                - option "LUNA CLARA-3MM"
+                - option "LUNA CLARA-6MM"
+                - option "LUNA CON CENEFA-3MM"
+                - option "LUNA CON CENEFA-6MM"
+                - option "LUNA CON LUZ TONO FRIO-3.1MM — ESPEJO RECTANGULAR CON LUZ"
+                - option "LUZ COLOR ROSA-3.1MM — KITTY"
+                - option "SOL LITE-6MM"
+                - option "TINTEX-6MM"
+          - generic [ref=e157]:
+            - generic [ref=e158]: Procesos
+            - generic [ref=e159]:
+              - generic [ref=e160]:
+                - generic [ref=e161]: m²
+                - generic [ref=e163] [cursor=pointer]:
+                  - checkbox
+                  - generic [ref=e164]: Esmerilado con vinil nivel 1
+                - generic [ref=e166] [cursor=pointer]:
+                  - checkbox
+                  - generic [ref=e167]: LAMINADO
+                - generic [ref=e169] [cursor=pointer]:
+                  - checkbox
+                  - generic [ref=e170]: LUNA CON LUZ Y CANALETA
+                - generic [ref=e172] [cursor=pointer]:
+                  - checkbox
+                  - generic [ref=e173]: Maquila de esmerilado
+                - generic [ref=e175] [cursor=pointer]:
+                  - checkbox
+                  - generic [ref=e176]: Paquete templado filtrasol
+                - generic [ref=e178] [cursor=pointer]:
+                  - checkbox
+                  - generic [ref=e179]: pelicula de seguridad
+                - generic [ref=e181] [cursor=pointer]:
+                  - checkbox
+                  - generic [ref=e182]: Templado
+                - generic [ref=e184] [cursor=pointer]:
+                  - checkbox
+                  - generic [ref=e185]: TEMPLADO FER
+                - generic [ref=e187] [cursor=pointer]:
+                  - checkbox
+                  - generic [ref=e188]: VINIL BLANCO PELICULA
+                - generic [ref=e189]: ml
+                - generic [ref=e191] [cursor=pointer]:
+                  - checkbox
+                  - generic [ref=e192]: Aluminio semilujo color blanco
+                - generic [ref=e194] [cursor=pointer]:
+                  - checkbox
+                  - generic [ref=e195]: BISEL 1" LINEAL
+                - generic [ref=e197] [cursor=pointer]:
+                  - checkbox
+                  - generic [ref=e198]: Canaleta para espejo
+                - generic [ref=e200] [cursor=pointer]:
+                  - checkbox
+                  - generic [ref=e201]: Canto Brilloso
+                - generic [ref=e203] [cursor=pointer]:
+                  - checkbox
+                  - generic [ref=e204]: CANTO EN VUELTAS
+                - generic [ref=e206] [cursor=pointer]:
+                  - checkbox
+                  - generic [ref=e207]: CHAFLAN MEDIA PULGADA
+              - generic [ref=e208]:
+                - generic [ref=e209]: Barrenos
+                - generic [ref=e210] [cursor=pointer]:
+                  - checkbox [ref=e211]
+                  - generic [ref=e212]: Barreno 12mm
+                - generic [ref=e213] [cursor=pointer]:
+                  - checkbox [ref=e214]
+                  - generic [ref=e215]: Barreno 20mm
+                - generic [ref=e216] [cursor=pointer]:
+                  - checkbox [ref=e217]
+                  - generic [ref=e218]: Barreno 45mm
+                - generic [ref=e219]: Saques
+                - generic [ref=e220] [cursor=pointer]:
+                  - checkbox [ref=e221]
+                  - generic [ref=e222]: Saque para bisagra miki
+                - generic [ref=e223]: Extras
+                - generic [ref=e224] [cursor=pointer]:
+                  - checkbox [ref=e225]
+                  - generic [ref=e226]: Che
+                - generic [ref=e227] [cursor=pointer]:
+                  - checkbox [ref=e228]
+                  - generic [ref=e229]: ENVIO MENOS DE 3KM
+                - generic [ref=e230] [cursor=pointer]:
+                  - checkbox [ref=e231]
+                  - generic [ref=e232]: Flete
+                - generic [ref=e233] [cursor=pointer]:
+                  - checkbox [ref=e234]
+                  - generic [ref=e235]: Kit de luz
+                - generic [ref=e236] [cursor=pointer]:
+                  - checkbox [ref=e237]
+                  - generic [ref=e238]: Kit luz vidriero
+                - generic [ref=e239] [cursor=pointer]:
+                  - checkbox [ref=e240]
+                  - generic [ref=e241]: LAMINADO
+                - generic [ref=e242] [cursor=pointer]:
+                  - checkbox [ref=e243]
+                  - generic [ref=e244]: LUNA 3MM REC 160X50 CON LUZ Y CANALETA
+                - generic [ref=e245] [cursor=pointer]:
+                  - checkbox [ref=e246]
+                  - generic [ref=e247]: LUNA 60X65 3MM KITY CON LUZ
+          - button "➕ Agregar vidrio" [disabled] [ref=e248]
+        - generic [ref=e249]:
+          - generic [ref=e250]: 📋
+          - heading "Sin partidas" [level=3] [ref=e251]
+          - paragraph [ref=e252]: Ingresa una medida y agrega piezas de vidrio
+      - generic [ref=e254]:
+        - generic [ref=e255]: Resumen
+        - generic [ref=e256]: Nivel de precio
+        - generic [ref=e257]: Vidriero
+        - generic [ref=e323]: Cliente
+        - generic [ref=e324]: DANIEL AYALA
+        - generic [ref=e260]:
+          - generic [ref=e261]: Partidas
+          - generic [ref=e262]: "0"
+        - generic [ref=e263]:
+          - generic [ref=e264]: Total m²
+          - generic [ref=e265]: "0.0000"
+        - generic [ref=e267]:
+          - generic [ref=e268]: Total
+          - generic [ref=e269]: $0.00
+        - button "📦 Convertir a pedido" [disabled] [ref=e270]
+        - button "✓ Solo cotizar" [disabled] [ref=e271]
+        - button "Limpiar" [disabled] [ref=e272]

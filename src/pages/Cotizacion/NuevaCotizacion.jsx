@@ -9,6 +9,7 @@ import { getPartidasExtra } from '../../lib/cotizacionApi'
 import { venderProductoGeneral } from '../../lib/productosGeneralesApi'
 import { printTicketVidrio, printPedidoA4 } from '../../utils/ticket'
 import CompartirBotones from '../../components/CompartirBotones'
+import BuscadorSelect from '../../components/BuscadorSelect'
 
 const TIPO_META = {
   VIDRIO:   { label: 'Vidrio',        bg: '#dbeafe', color: '#1d4ed8' },
@@ -2230,16 +2231,15 @@ export default function NuevaCotizacion() {
                 </div>
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label required">Tipo de vidrio</label>
-                  <select
-                    className="form-select"
+                  <BuscadorSelect
                     value={tipoVidrioId}
-                    onChange={e => { setTipoVidrioId(e.target.value); setPrecioManual('') }}
-                  >
-                    <option value="">-- Tipo --</option>
-                    {tiposActivos.map(t => (
-                      <option key={t.id_tipo_vidrio} value={t.id_tipo_vidrio}>{t.clave}{t.descripcion ? ` — ${t.descripcion}` : ''}</option>
-                    ))}
-                  </select>
+                    onChange={id => { setTipoVidrioId(id); setPrecioManual('') }}
+                    options={tiposActivos.map(t => ({
+                      value: String(t.id_tipo_vidrio),
+                      label: `${t.clave}${t.descripcion ? ` — ${t.descripcion}` : ''}`,
+                    }))}
+                    placeholder="-- Tipo --"
+                  />
                 </div>
               </div>
 
@@ -2494,24 +2494,15 @@ export default function NuevaCotizacion() {
                     </div>
                     <div className="form-group" style={{ marginBottom: 0 }}>
                       <label className="form-label required">Espesor</label>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 4 }}>
-                        {espesores.map(e => {
-                          const activo = maqEspesorId === String(e.id_espesor)
-                          return (
-                            <button key={e.id_espesor} type="button"
-                              onClick={() => setMaqEspesorId(String(e.id_espesor))}
-                              style={{
-                                padding: '4px 10px', borderRadius: 6, fontSize: 12,
-                                cursor: 'pointer', fontWeight: activo ? 700 : 400,
-                                border: `2px solid ${activo ? '#b45309' : 'var(--border)'}`,
-                                background: activo ? '#fef3c7' : 'var(--card)',
-                                color: activo ? '#b45309' : 'var(--text)',
-                                transition: 'all 0.15s',
-                              }}
-                            >{e.etiqueta ?? `${e.valor_mm}mm`}</button>
-                          )
-                        })}
-                      </div>
+                      <BuscadorSelect
+                        value={maqEspesorId}
+                        onChange={id => setMaqEspesorId(id)}
+                        options={espesores.map(e => ({
+                          value: String(e.id_espesor),
+                          label: e.etiqueta ?? `${e.valor_mm}mm`,
+                        }))}
+                        placeholder="-- Espesor --"
+                      />
                     </div>
                   </div>
 
