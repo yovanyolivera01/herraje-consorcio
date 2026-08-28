@@ -2167,7 +2167,7 @@ export default function NuevaCotizacion() {
                   />
                   {clienteOpen && (() => {
                     const q = clienteQuery.trim().toLowerCase()
-                    const opciones = clientes.filter(c => c.activo && c.nombre.toLowerCase().includes(q))
+                    const opciones = clientes.filter(c => c.activo && (c.nombre ?? '').toLowerCase().includes(q))
                     return (
                       <div className="card" style={{
                         position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4,
