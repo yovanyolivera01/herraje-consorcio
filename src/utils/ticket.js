@@ -967,18 +967,18 @@ export async function printPedidoA4(detalle) {
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 13px; color: #111; padding: 14px 18px; }
-    .brand-header { display: flex; align-items: center; gap: 16px; padding-bottom: 14px; border-bottom: 2px solid #1a3a6b; margin-bottom: 18px; }
+    .brand-header { display: flex; align-items: center; gap: 16px; padding-bottom: 4px; border-bottom: 2px solid #1a3a6b; margin-bottom: 3px; }
     .brand-logo { width: 80px; height: auto; flex-shrink: 0; }
     .brand-name { font-size: 17px; font-weight: 900; letter-spacing: 1px; color: #1a3a6b; }
     .brand-detail { font-size: 11px; color: #555; margin-top: 3px; }
-    .doc-info { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; }
-    .doc-titulo { font-size: 18px; font-weight: 700; color: #1a3a6b; }
-    .doc-meta { font-size: 12px; color: #555; line-height: 1.8; text-align: right; }
+    .doc-info { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px; }
+    .doc-titulo { font-size: 14px; font-weight: 700; color: #1a3a6b; }
+    .doc-meta { font-size: 10px; color: #555; line-height: 1.25; text-align: right; }
     .doc-meta strong { color: #111; }
-    .cliente-box { background: #f4f7fb; border-left: 4px solid #1a3a6b; padding: 10px 14px; border-radius: 0 6px 6px 0; margin-bottom: 16px; }
-    .cliente-box .c-nombre { font-size: 15px; font-weight: 700; color: #1a3a6b; }
-    .cliente-box .c-detail { color: #555; font-size: 12px; margin-top: 3px; }
-    .section-title { font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #1a3a6b; border-bottom: 2px solid #1a3a6b; padding-bottom: 4px; margin-bottom: 8px; }
+    .cliente-box { background: #f4f7fb; border-left: 3px solid #1a3a6b; padding: 3px 8px; border-radius: 0 4px 4px 0; margin-bottom: 5px; }
+    .cliente-box .c-nombre { font-size: 12px; font-weight: 700; color: #1a3a6b; }
+    .cliente-box .c-detail { color: #555; font-size: 10px; margin-top: 0; }
+    .section-title { font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #1a3a6b; border-bottom: 2px solid #1a3a6b; padding-bottom: 2px; margin-bottom: 4px; }
     table { width: 100%; border-collapse: collapse; margin-bottom: 6px; }
     thead { display: table-header-group; }
     th { background: #1a3a6b; color: #fff; padding: 7px 9px; font-size: 11px; text-align: left; }
@@ -989,6 +989,14 @@ export async function printPedidoA4(detalle) {
     .pago-row { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 13px; }
     .bold { font-weight: 700; }
     .footer-doc { border-top: 1px solid #ddd; padding-top: 10px; font-size: 11px; color: #777; text-align: center; line-height: 1.6; }
+    .clausulas-title { text-align: center; font-size: 11.5px; font-weight: 700; letter-spacing: 1px; margin: 10px 0 5px; color: #111; }
+    .clausulas-list { list-style: none; padding: 0; margin: 0 0 4px; }
+    .clausulas-list li { font-size: 10px; line-height: 1.5; padding-left: 12px; position: relative; }
+    .clausulas-list li::before { content: '-'; position: absolute; left: 0; }
+    .clausulas-list li.bold { font-weight: 700; }
+    .clausulas-closing { font-size: 10px; margin-top: 8px; text-align: center; }
+    .deposito-box { background: #f4f7fb; border-left: 3px solid #1a3a6b; padding: 6px 10px; border-radius: 0 5px 5px 0; margin: 8px 0; font-size: 10px; line-height: 1.6; color: #111; }
+    .deposito-box .deposito-title { font-weight: 700; color: #1a3a6b; font-size: 10.5px; margin-bottom: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
   </style>
 </head>
 <body>
@@ -1033,7 +1041,38 @@ export async function printPedidoA4(detalle) {
 
     ${esCot ? '' : `<div class="pago-box pblock">${pagoInfo}</div>`}
 
-    <div class="footer-doc pblock">${pie}<br>Vidrio Templado y Aluminio Rosales · Tel: 5523134256, 5522161432, 5547912671</div>
+    ${!esCot ? '' : `
+    <div class="pblock deposito-box">
+      <div class="deposito-title">Ficha de depósito</div>
+      <div>Razón social: Fernando Perez Garcia</div>
+      <div>Cuenta: 07496757779</div>
+      <div>Sucursal: BBVA</div>
+      <div>Clave: 012180004796757791</div>
+    </div>
+    <div class="pblock">
+      <div class="clausulas-title">CLAUSULAS</div>
+      <ul class="clausulas-list">
+        <li class="bold">PARA AGENDAR LA ENTREGA EL PEDIDO DEBE ESTAR LIQUIDADO AL 100% Y QUEDA SUJETA A DISPONIBILIDAD</li>
+        <li>ANTICIPACION</li>
+        <li>ESTA COTIZACION "INCLUYE/NO INCLUYE" FLETE "GRATUITO"/CON UN COSTO DE $MONTO$"</li>
+        <li class="bold">SE LE INFORMARA CON 30 MIN DE ANTICIPACION DE ARRIBO DE LA UNIDAD AL DESTINO FINAL</li>
+        <li>SOLO CUENTA CON 10 - 15 MIN LIBRES PARA RECIBIR AL OPERADOR</li>
+        <li>SI LA UNIDAD SE POSICIONA Y NO LLEGA A PRESENTARSE PARA RECIBIR SU MATERIAL NO SE LE COBRARA COSTO</li>
+        <li>SI REQUIERE ENTREGA CON URGENCIA Y/O HORARIO ESPECIFICO TIENE UN COSTO ADICIONAL</li>
+        <li class="bold">NO HAY REEMBOLSOS DE MATERIAL</li>
+      </ul>
+    </div>
+    <div class="pblock">
+      <div class="clausulas-title">OBSERVACIONES:</div>
+      <ul class="clausulas-list">
+        <li>CUALQUIER CAMBIO EN EL N° DE PZAS Y MEDIDAS DEJA INVALIDO ESTE PEDIDO</li>
+        <li>EL PEDIDO NO CONSIDERA COLOCACION NI HERRAJES</li>
+        <li class="bold">ES RESPONSABILIDAD DEL CLIENTE VERIFICAR Y CONFIRMAR INFORMACION SEA CORRECTA</li>
+      </ul>
+      <div class="clausulas-closing">ESPERANDO QUE SU PEDIDO SEA DE SU ENTERA SATISFACION, ESTAMOS A SUS ORDENES PARA CUALQUIER DUDA O ACLARACION.</div>
+    </div>`}
+
+    <div class="footer-doc pblock">${pie}<br>Vidrio Templado y Aluminio Rosales</div>
     ${detalle.esCancelado
       ? `<div class="pblock" style="margin-top:14px;text-align:center;font-size:13px;font-weight:700;letter-spacing:2px;border:2px solid #991b1b;padding:8px;color:#991b1b">⚠ PEDIDO CANCELADO — REIMPRESIÓN ⚠</div>`
       : detalle.esReimpresion

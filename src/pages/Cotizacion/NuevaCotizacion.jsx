@@ -1999,7 +1999,7 @@ export default function NuevaCotizacion() {
             <div className="page-subtitle">Folio {cotCreada.folio}</div>
           </div>
           <div style={{ display: 'flex', gap: 10 }}>
-            <button className="btn btn-outline" onClick={() => printTicketVidrio(detalleImpresionCot)}>🖨️ Imprimir</button>
+            <button className="btn btn-outline" onClick={() => printTicketVidrio(detalleImpresionCot)}>🎫 Ticket</button>
             <button className="btn btn-outline" onClick={() => printPedidoA4(detalleImpresionCot)}>🖨️ Hoja</button>
             <CompartirBotones
               tipo="cotizacion"
