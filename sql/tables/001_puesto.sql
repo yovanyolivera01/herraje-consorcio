@@ -2,11 +2,11 @@
 
 CREATE TABLE IF NOT EXISTS puestos (
   id_puesto   SERIAL PRIMARY KEY,
-  nombre      VARCHAR(20) NOT NULL,
-  descripcion VARCHAR(20),
+  nombre      VARCHAR(60) NOT NULL,
+  descripcion VARCHAR(200),
   plazas      INTEGER NOT NULL DEFAULT 0,
-  salario     INTEGER NOT NULL,
-  hora_extra  Integer not null,
+  salario     NUMERIC(10,2) NOT NULL,
+  hora_extra  NUMERIC(10,2) NOT NULL,
   id_estado   INTEGER NOT NULL DEFAULT 1,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -92,6 +92,8 @@ CREATE TABLE IF NOT EXISTS nomina (
   deducciones   NUMERIC(10,2) NOT NULL DEFAULT 0,
   total_pagar   NUMERIC(10,2) NOT NULL,
   fecha_pago    DATE,
+  metodo_pago   VARCHAR(20),
+  referencia_pago VARCHAR(60),
   created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -120,14 +122,50 @@ CREATE TABLE IF NOT EXISTS incidencia (
 
 ---
 
+-- Reporte: horas de ausencia por empleado/dia, ultimos 60 dias.
+-- Compara lo programado (turno) contra lo real (registro) y marca los dias
+-- cubiertos por una incidencia (permiso, incapacidad, vacaciones, etc.).
+-- No es una tabla — es un reporte calculado, se recalcula solo en cada consulta.
+CREATE OR REPLACE VIEW v_horas_ausencia AS
+SELECT
+  e.empleado_id                                                         AS id_empleado,
+  d.fecha,
+  t.id_turno,
+  ROUND(EXTRACT(EPOCH FROM (t.hora_fin - t.hora_inicio)) / 3600.0, 2)   AS horas_programadas,
+  ROUND(COALESCE(EXTRACT(EPOCH FROM (r.hora_salida - r.hora_llegada)) / 3600.0, 0), 2) AS horas_trabajadas,
+  ROUND(GREATEST(
+    EXTRACT(EPOCH FROM (t.hora_fin - t.hora_inicio)) / 3600.0
+      - COALESCE(EXTRACT(EPOCH FROM (r.hora_salida - r.hora_llegada)) / 3600.0, 0),
+    0
+  ), 2)                                                                  AS horas_ausencia,
+  (r.id_registro IS NULL)                                               AS sin_registro,
+  ci.descripcion                                                        AS tipo_incidencia
+FROM (SELECT generate_series(CURRENT_DATE - INTERVAL '60 days', CURRENT_DATE, INTERVAL '1 day')::date AS fecha) d
+CROSS JOIN empleados e
+JOIN turno t
+  ON t.id_turno = e.id_turno
+LEFT JOIN registro r
+  ON r.id_empleado = e.empleado_id AND r.fecha = d.fecha
+LEFT JOIN incidencia i
+  ON i.id_empleado = e.empleado_id
+  AND d.fecha BETWEEN i.fecha_inicio AND COALESCE(i.fecha_fin, i.fecha_inicio)
+LEFT JOIN catalogo_incidencia ci
+  ON ci.id_catalogo_incidencia = i.id_catalogo_incidencia
+WHERE e.id_turno IS NOT NULL
+  AND e.id_estado = 1;
+
+---
+
 CREATE OR REPLACE VIEW v_puestos AS
-  SELECT id_puesto, nombre, descripcion, plazas, id_estado
+  SELECT id_puesto, nombre, descripcion, plazas,salario,hora_extra, id_estado
   FROM puestos
   ORDER BY id_puesto DESC;
 
 CREATE OR REPLACE FUNCTION public.sp_create_puesto(
   p_nombre      VARCHAR,
   p_descripcion VARCHAR,
+  p_salario     NUMERIC,
+  p_hora_extra  NUMERIC,
   p_plazas      INTEGER DEFAULT 0,
   p_estado      INTEGER DEFAULT 1
 )
@@ -135,8 +173,59 @@ RETURNS puestos AS $$
 DECLARE
   v_puesto puestos;
 BEGIN
-  INSERT INTO puestos (nombre, descripcion, plazas, id_estado)
-  VALUES (p_nombre, p_descripcion, p_plazas, p_estado)
+  INSERT INTO puestos (nombre, descripcion, salario, hora_extra, plazas, id_estado)
+  VALUES (p_nombre, p_descripcion, p_salario, p_hora_extra, p_plazas, p_estado)
+  RETURNING * INTO v_puesto;
+
+  RETURN v_puesto;
+END;
+$$ LANGUAGE plpgsql;
+
+--- update puesto record, returning the updated record. If no record is found, returns null.
+
+CREATE OR REPLACE FUNCTION public.sp_update_puesto(
+  p_id_puesto    INTEGER,
+  p_nombre       VARCHAR,
+  p_descripcion  VARCHAR,
+  p_salario      NUMERIC,
+  p_hora_extra   NUMERIC,
+  p_plazas       INTEGER DEFAULT 0,
+  p_estado       INTEGER DEFAULT 1
+)
+RETURNS puestos AS
+$$
+DECLARE
+ v_puesto puestos;
+BEGIN
+  UPDATE puestos
+  SET
+      nombre = p_nombre,
+      descripcion = p_descripcion,
+      salario = p_salario,
+      hora_extra = p_hora_extra,
+      plazas = p_plazas,
+      id_estado = p_estado,
+      updated_at = NOW()
+  WHERE id_puesto = p_id_puesto
+  RETURNING * INTO v_puesto;
+
+  RETURN v_puesto;
+END;
+$$ LANGUAGE plpgsql;
+
+
+-- drop puesto record, returning the deleted record. If no record is found, returns null.
+
+CREATE OR REPLACE FUNCTION public.sp_delete_puesto(
+  p_id_puesto INTEGER
+)
+RETURNS puestos AS
+$$
+DECLARE
+  v_puesto puestos;
+BEGIN
+  DELETE FROM puestos
+  WHERE id_puesto = p_id_puesto
   RETURNING * INTO v_puesto;
 
   RETURN v_puesto;

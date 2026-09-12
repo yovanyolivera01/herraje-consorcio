@@ -30,7 +30,7 @@ import HistorialHerraje         from './pages/Herraje/HistorialHerraje'
 import ReporteVidrio            from './pages/Cotizacion/ReporteVidrio'
 import RegistrarEgreso          from './pages/Egresos/RegistrarEgreso'
 import HistorialFacturas        from './pages/Cotizacion/HistorialFacturas'
-
+import Puestos                  from './pages/Personal/puestos'
 
 export default function App() {
   return (
@@ -74,6 +74,7 @@ export default function App() {
                   <Route path="personal/empleados" element={<Empleados />} />
                   <Route path="personal/registro"  element={<RegistroSemanal />} />
                   <Route path="personal/resumen"   element={<ResumenSemanal />} />
+                  <Route path="personal/puestos"   element={<Puestos/>}/>
                   <Route path="admin/usuarios"     element={<RegistrarEgreso/>}/>
 
                     <Route path="*" element={<Navigate to="/proveedores" replace />} />

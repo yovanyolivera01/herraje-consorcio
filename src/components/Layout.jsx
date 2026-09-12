@@ -10,7 +10,7 @@ import {
   LogOut, Menu, ChevronDown, ChevronLeft, ChevronRight, Crown, User,
   Frame, DoorOpen, Hammer, Warehouse, Box,
   ShoppingCart, TrendingUp, Archive,
-  CardSim, Moon, Sun, FileText,
+  CardSim, Moon, Sun, FileText, Briefcase,
 } from 'lucide-react'
 
 // ── Navegacion del sistema Herraje ────────────────────────────────────────
@@ -122,6 +122,7 @@ const inventariosNavAlmacen = [
 const personalNavItems = [
   { section: 'Empleados', links: [
     { to: '/personal/empleados', icon: <HardHat size={16} />, label: 'Empleados' },
+    { to: '/personal/puestos',   icon: <Briefcase size={16} />, label: 'Puestos' },
   ]},
   { section: 'Asistencia', links: [
     { to: '/personal/registro', icon: <CalendarClock size={16} />, label: 'Registro Semanal' },
