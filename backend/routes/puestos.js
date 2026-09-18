@@ -50,8 +50,18 @@ router.post('/puestos', async (req, res) => {
 router.delete('/puestos/:id_puesto', async (req, res) => {
   try {
     const { rows } = await query('SELECT * FROM public.sp_delete_puesto($1)', [req.params.id_puesto])
+    // sp_delete_puesto RETURNS puestos (not SETOF) — when nothing matches,
+    // Postgres still returns one row, just with every column NULL. rows[0]
+    // is truthy either way, so check a real column instead of the row itself.
+    if (rows[0]?.id_puesto == null) return err(res, new Error('Puesto no encontrado'), 404)
     ok(res, rows[0])
-  } catch (e) { err(res, e) }
+  } catch (e) {
+    // 23503 = foreign_key_violation — empleados.id_puesto still points here
+    if (e.code === '23503') {
+      return err(res, new Error('No se puede eliminar: hay empleados asignados a este puesto. Reasígnalos antes de eliminarlo.'), 409)
+    }
+    err(res, e)
+  }
 })
 
 

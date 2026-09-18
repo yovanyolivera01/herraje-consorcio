@@ -1,0 +1,100 @@
+- generic [ref=e22]:
+  - complementary [ref=e23]:
+    - img "Vidreria Rosales" [ref=e25]
+    - textbox "Buscar módulo..." [ref=e27]
+    - navigation [ref=e28]:
+      - button "Herraje" [ref=e30] [cursor=pointer]
+      - button "Ventas" [ref=e39] [cursor=pointer]
+      - button "Reportes" [ref=e49] [cursor=pointer]
+      - button "Almacén" [ref=e58] [cursor=pointer]
+      - button "Catalogos" [ref=e67] [cursor=pointer]
+      - generic [ref=e73]:
+        - button "Personal" [ref=e74] [cursor=pointer]
+        - generic [ref=e84]:
+          - generic [ref=e85]:
+            - generic [ref=e86]: Empleados
+            - link "Empleados" [ref=e87] [cursor=pointer]:
+              - /url: /personal/empleados
+            - link "Puestos" [ref=e95] [cursor=pointer]:
+              - /url: /personal/puestos
+          - generic [ref=e101]:
+            - generic [ref=e102]: Asistencia
+            - link "Registro Semanal" [ref=e103] [cursor=pointer]:
+              - /url: /personal/registro
+            - link "Resumen Semanal" [ref=e110] [cursor=pointer]:
+              - /url: /personal/resumen
+      - button "Egresos" [ref=e115] [cursor=pointer]
+    - button "Cerrar sesión" [ref=e124] [cursor=pointer]
+    - generic [ref=e128]:
+      - button "Compactar menú" [ref=e129] [cursor=pointer]
+      - button "Modo oscuro" [ref=e132] [cursor=pointer]
+  - main [ref=e135]:
+    - generic [ref=e136]:
+      - generic [ref=e137]:
+        - generic [ref=e138]: Puestos
+        - button "+ Agregar" [ref=e140] [cursor=pointer]
+      - table [ref=e142]:
+        - rowgroup [ref=e143]:
+          - row [ref=e144]:
+            - columnheader "Nombre" [ref=e145]
+            - columnheader "Descripción" [ref=e146]
+            - columnheader "Plazas" [ref=e147]
+            - columnheader "Salario" [ref=e148]
+            - columnheader "Hora extra" [ref=e149]
+            - columnheader "Acciones" [ref=e150]
+        - rowgroup [ref=e151]:
+          - row [ref=e152]:
+            - cell "Chalan" [ref=e153]
+            - cell "ayudar al mai" [ref=e154]
+            - cell "2" [ref=e155]
+            - cell "$2200.00" [ref=e156]
+            - cell "$20.00" [ref=e157]
+            - cell [ref=e158]:
+              - generic [ref=e159]:
+                - button "✏️" [ref=e160] [cursor=pointer]
+                - button "🗑️" [ref=e161] [cursor=pointer]
+          - row [ref=e162]:
+            - cell "Yovas" [ref=e163]
+            - cell "pruebas uuu" [ref=e164]
+            - cell "10" [ref=e165]
+            - cell "$1500.00" [ref=e166]
+            - cell "$80.00" [ref=e167]
+            - cell [ref=e168]:
+              - generic [ref=e169]:
+                - button "✏️" [ref=e170] [cursor=pointer]
+                - button "🗑️" [ref=e171] [cursor=pointer]
+          - row [ref=e172]:
+            - cell "Vendedor" [ref=e173]
+            - cell "Atencion a clientes en mostrador" [ref=e174]
+            - cell "3" [ref=e175]
+            - cell "$1500.00" [ref=e176]
+            - cell "$200.00" [ref=e177]
+            - cell [ref=e178]:
+              - generic [ref=e179]:
+                - button "✏️" [active] [ref=e180] [cursor=pointer]
+                - button "🗑️" [ref=e181] [cursor=pointer]
+      - generic [ref=e183]:
+        - generic [ref=e184]:
+          - heading "Editar puesto" [level=2] [ref=e185]
+          - button "✕" [ref=e186] [cursor=pointer]
+        - generic [ref=e187]:
+          - generic [ref=e188]:
+            - generic [ref=e189]:
+              - generic [ref=e190]: Nombre *
+              - textbox "Nombre del puesto" [disabled] [ref=e191]: Vendedor
+            - generic [ref=e192]:
+              - generic [ref=e193]: Descripción *
+              - textbox "Descripción del puesto" [disabled] [ref=e194]: Atencion a clientes en mostrador
+            - generic [ref=e195]:
+              - generic [ref=e196]:
+                - generic [ref=e197]: Plazas *
+                - spinbutton "0" [ref=e198]: "3"
+              - generic [ref=e199]:
+                - generic [ref=e200]: Salario *
+                - spinbutton "$0.00" [ref=e201]: "1500.00"
+            - generic [ref=e202]:
+              - generic [ref=e203]: Hora extra *
+              - spinbutton "$0.00" [ref=e204]: "200.00"
+          - generic [ref=e205]:
+            - button "Cancelar" [ref=e206] [cursor=pointer]
+            - button "Guardar" [ref=e207] [cursor=pointer]

@@ -43,6 +43,9 @@ export default function Puestos() {
     setDeleteTarget(null)
     await cargarPuestos()
   }
+  // handleDelete's own errors (e.g. FK violation when the puesto still has
+  // empleados assigned) are caught by ConfirmDeleteModal, which awaits this
+  // call directly — letting them throw here is what makes them visible.
 
 
   return (

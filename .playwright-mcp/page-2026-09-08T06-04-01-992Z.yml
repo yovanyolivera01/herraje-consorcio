@@ -1,0 +1,36 @@
+- generic [ref=f2e6]:
+  - complementary [ref=f2e7]:
+    - img "Vidreria Rosales" [ref=f2e9]
+    - textbox "Buscar módulo..." [ref=f2e11]
+    - navigation [ref=f2e12]:
+      - button "Herraje" [ref=f2e14] [cursor=pointer]
+      - button "Ventas" [ref=f2e23] [cursor=pointer]
+      - button "Reportes" [ref=f2e33] [cursor=pointer]
+      - button "Almacén" [ref=f2e42] [cursor=pointer]
+      - button "Catalogos" [ref=f2e51] [cursor=pointer]
+      - generic [ref=f2e57]:
+        - button "Personal" [ref=f2e58] [cursor=pointer]
+        - generic [ref=f2e68]:
+          - generic [ref=f2e69]:
+            - generic [ref=f2e70]: Empleados
+            - link "Empleados" [ref=f2e71] [cursor=pointer]:
+              - /url: /personal/empleados
+            - link "Puestos" [ref=f2e79] [cursor=pointer]:
+              - /url: /personal/puestos
+          - generic [ref=f2e85]:
+            - generic [ref=f2e86]: Asistencia
+            - link "Registro Semanal" [ref=f2e87] [cursor=pointer]:
+              - /url: /personal/registro
+            - link "Resumen Semanal" [ref=f2e94] [cursor=pointer]:
+              - /url: /personal/resumen
+      - button "Egresos" [ref=f2e99] [cursor=pointer]
+    - button "Cerrar sesión" [ref=f2e108] [cursor=pointer]
+    - generic [ref=f2e112]:
+      - button "Compactar menú" [ref=f2e113] [cursor=pointer]
+      - button "Modo oscuro" [ref=f2e116] [cursor=pointer]
+  - main [ref=f2e119]:
+    - generic [ref=f2e120]:
+      - generic [ref=f2e121]:
+        - generic [ref=f2e122]: Puestos
+        - button "+ Agregar" [ref=f2e124] [cursor=pointer]
+      - paragraph [ref=f2e125]: Próximamente.

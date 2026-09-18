@@ -231,3 +231,28 @@ BEGIN
   RETURN v_puesto;
 END;
 $$ LANGUAGE plpgsql;
+
+
+--- funtion of TURNO 
+
+CREATE OR REPLACE FUNCTION public.sp_create_turno(
+  
+p_id_turno   
+p_hora_inicio
+p_hora_fin   
+p_tolerancia 
+p_created_at 
+p_updated_at 
+
+RETURNS turno AS $$
+DECLARE
+  v_turno turno;
+BEGIN
+  INSERT INTO turno (hora_inicio, hora_fin, tolerancia)
+  VALUES (p_hora_inicio, p_hora_fin, p_tolerancia)
+  RETURNING * INTO v_turno;
+
+  RETURN v_turno;
+END;
+
+)

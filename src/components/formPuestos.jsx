@@ -194,11 +194,18 @@ export function PuestosTable({puestos, onEdit, onDelete}) {
 // confirmation modal shown before deleting a puesto, names the puesto being removed
 export function ConfirmDeleteModal({ puesto, onClose, onConfirm }) {
     const [loading, setLoading] = useState(false)
+    const [error, setError] = useState(null)
 
     const handleConfirm = async () => {
         setLoading(true)
-        await onConfirm(puesto)
-        setLoading(false)
+        setError(null)
+        try {
+            await onConfirm(puesto)
+        } catch (e) {
+            setError(e.message || 'No se pudo eliminar el puesto')
+        } finally {
+            setLoading(false)
+        }
     }
 
     return (
@@ -210,6 +217,7 @@ export function ConfirmDeleteModal({ puesto, onClose, onConfirm }) {
                 </div>
                 <div className="modal-body">
                     <p>¿Está seguro de eliminar el puesto <strong>{puesto?.nombre}</strong>? Esta acción no se puede deshacer.</p>
+                    {error && <div className="form-error" style={{ marginTop: 10 }}>❌ {error}</div>}
                 </div>
                 <div className="modal-footer">
                     <button type="button" className="btn btn-outline" onClick={onClose} disabled={loading}>Cancelar</button>

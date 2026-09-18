@@ -1,0 +1,61 @@
+- generic [ref=f1e6]:
+  - complementary [ref=f1e7]:
+    - img "Vidreria Rosales" [ref=f1e9]
+    - textbox "Buscar módulo..." [ref=f1e11]
+    - navigation [ref=f1e12]:
+      - button "Herraje" [ref=f1e14] [cursor=pointer]
+      - button "Ventas" [ref=f1e23] [cursor=pointer]
+      - button "Reportes" [ref=f1e33] [cursor=pointer]
+      - button "Almacén" [ref=f1e42] [cursor=pointer]
+      - button "Catalogos" [ref=f1e51] [cursor=pointer]
+      - generic [ref=f1e57]:
+        - button "Personal" [ref=f1e58] [cursor=pointer]
+        - generic [ref=f1e68]:
+          - generic [ref=f1e69]:
+            - generic [ref=f1e70]: Empleados
+            - link "Empleados" [ref=f1e71] [cursor=pointer]:
+              - /url: /personal/empleados
+            - link "Puestos" [ref=f1e79] [cursor=pointer]:
+              - /url: /personal/puestos
+          - generic [ref=f1e85]:
+            - generic [ref=f1e86]: Asistencia
+            - link "Registro Semanal" [ref=f1e87] [cursor=pointer]:
+              - /url: /personal/registro
+            - link "Resumen Semanal" [ref=f1e94] [cursor=pointer]:
+              - /url: /personal/resumen
+      - button "Egresos" [ref=f1e99] [cursor=pointer]
+    - button "Cerrar sesión" [ref=f1e108] [cursor=pointer]
+    - generic [ref=f1e112]:
+      - button "Compactar menú" [ref=f1e113] [cursor=pointer]
+      - button "Modo oscuro" [ref=f1e116] [cursor=pointer]
+  - main [ref=f1e119]:
+    - generic [ref=f1e120]:
+      - generic [ref=f1e121]:
+        - generic [ref=f1e122]: Puestos
+        - button "+ Agregar" [ref=f1e124] [cursor=pointer]
+      - paragraph [ref=f1e125]: Próximamente.
+      - generic [ref=f1e127]:
+        - generic [ref=f1e128]:
+          - heading "Nuevo puesto" [level=2] [ref=f1e129]
+          - button "✕" [ref=f1e130] [cursor=pointer]
+        - generic [ref=f1e131]:
+          - generic [ref=f1e132]:
+            - generic [ref=f1e133]:
+              - generic [ref=f1e134]: Nombre *
+              - textbox "Nombre del puesto" [ref=f1e135]: Vendedor
+            - generic [ref=f1e136]:
+              - generic [ref=f1e137]: Descripción *
+              - textbox "Descripción del puesto" [ref=f1e138]: Atencion a clientes en mostrador
+            - generic [ref=f1e139]:
+              - generic [ref=f1e140]:
+                - generic [ref=f1e141]: Plazas *
+                - spinbutton "0" [ref=f1e142]: "3"
+              - generic [ref=f1e143]:
+                - generic [ref=f1e144]: Salario *
+                - spinbutton "$0.00" [ref=f1e145]: "1500"
+            - generic [ref=f1e146]:
+              - generic [ref=f1e147]: Hora extra *
+              - spinbutton "$0.00" [ref=f1e148]: "200"
+          - generic [ref=f1e149]:
+            - button "Cancelar" [disabled] [ref=f1e150]
+            - button "Guardando..." [disabled] [ref=f1e152]

@@ -1,0 +1,61 @@
+- generic [ref=e22]:
+  - complementary [ref=e23]:
+    - img "Vidreria Rosales" [ref=e25]
+    - textbox "Buscar módulo..." [ref=e27]
+    - navigation [ref=e28]:
+      - button "Herraje" [ref=e30] [cursor=pointer]
+      - button "Ventas" [ref=e39] [cursor=pointer]
+      - button "Reportes" [ref=e49] [cursor=pointer]
+      - button "Almacén" [ref=e58] [cursor=pointer]
+      - button "Catalogos" [ref=e67] [cursor=pointer]
+      - generic [ref=e73]:
+        - button "Personal" [ref=e74] [cursor=pointer]
+        - generic [ref=e84]:
+          - generic [ref=e85]:
+            - generic [ref=e86]: Empleados
+            - link "Empleados" [ref=e87] [cursor=pointer]:
+              - /url: /personal/empleados
+            - link "Puestos" [ref=e95] [cursor=pointer]:
+              - /url: /personal/puestos
+          - generic [ref=e101]:
+            - generic [ref=e102]: Asistencia
+            - link "Registro Semanal" [ref=e103] [cursor=pointer]:
+              - /url: /personal/registro
+            - link "Resumen Semanal" [ref=e110] [cursor=pointer]:
+              - /url: /personal/resumen
+      - button "Egresos" [ref=e115] [cursor=pointer]
+    - button "Cerrar sesión" [ref=e124] [cursor=pointer]
+    - generic [ref=e128]:
+      - button "Compactar menú" [ref=e129] [cursor=pointer]
+      - button "Modo oscuro" [ref=e132] [cursor=pointer]
+  - main [ref=e135]:
+    - generic [ref=e136]:
+      - generic [ref=e137]:
+        - generic [ref=e138]: Puestos
+        - button "+ Agregar" [ref=e140] [cursor=pointer]
+      - paragraph [ref=e141]: Próximamente.
+      - generic [ref=e143]:
+        - generic [ref=e144]:
+          - heading "Nuevo puesto" [level=2] [ref=e145]
+          - button "✕" [ref=e146] [cursor=pointer]
+        - generic [ref=e147]:
+          - generic [ref=e148]:
+            - generic [ref=e149]:
+              - generic [ref=e150]: Nombre *
+              - textbox "Nombre del puesto" [active] [ref=e151]
+            - generic [ref=e152]:
+              - generic [ref=e153]: Descripción *
+              - textbox "Descripción del puesto" [ref=e154]
+            - generic [ref=e155]:
+              - generic [ref=e156]:
+                - generic [ref=e157]: Plazas *
+                - spinbutton "0" [ref=e158]
+              - generic [ref=e159]:
+                - generic [ref=e160]: Salario *
+                - spinbutton "$0.00" [ref=e161]
+            - generic [ref=e162]:
+              - generic [ref=e163]: Hora extra *
+              - spinbutton "$0.00" [ref=e164]
+          - generic [ref=e165]:
+            - button "Cancelar" [ref=e166] [cursor=pointer]
+            - button "Guardar" [ref=e167] [cursor=pointer]

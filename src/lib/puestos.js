@@ -26,3 +26,4 @@ export const deletePuesto = async (id_puesto) => apiFetch(`/puestos/${id_puesto}
 
 export const updatePuesto = async (id_puesto, { plazas, salario, hora_extra }) =>
   apiFetch(`/puestos/${id_puesto}`, { method: 'PUT', body: { plazas, salario, hora_extra } })
+
