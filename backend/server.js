@@ -21,6 +21,7 @@ const partidaCotizacionRoutes = require('./routes/partidaCotizacion')
 const procesosRoutes  = require('./routes/procesos')
 const procesoExtraRoutes = require('./routes/procesoExtra')
 const puestosRoutes   = require('./routes/puestos')
+const registroRoutes  = require('./routes/registro')
 const app  = express()
 const PORT = process.env.PORT || 3001
 
@@ -46,6 +47,7 @@ app.use('/api', partidaCotizacionRoutes)
 app.use('/api', procesosRoutes)
 app.use('/api', procesoExtraRoutes)
 app.use('/api', puestosRoutes)
+app.use('/api', registroRoutes)
 
 // Serve React build in production
 const distPath = path.join(__dirname, '..', 'dist')

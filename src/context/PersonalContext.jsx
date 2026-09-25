@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import {
   getEmpleados, createEmpleado, updateEmpleado, deleteEmpleado,
-} from '../lib/personalApi'
+} from '../lib/empleado'
 
 const PersonalContext = createContext(null)
 export const usePersonal = () => useContext(PersonalContext)
@@ -25,9 +25,9 @@ export function PersonalProvider({ children }) {
     }
   }
 
-  async function addEmpleado(nombre, telefono) {
+  async function addEmpleado(form) {
     try {
-      const nuevo = await createEmpleado(nombre, telefono)
+      const nuevo = await createEmpleado(form)
       setEmpleados(prev =>
         [...prev, nuevo].sort((a, b) => a.nombre.localeCompare(b.nombre))
       )
@@ -41,9 +41,9 @@ export function PersonalProvider({ children }) {
     }
   }
 
-  async function editEmpleado(id, nombre, telefono) {
+  async function editEmpleado(id, form) {
     try {
-      const updated = await updateEmpleado(id, nombre, telefono)
+      const updated = await updateEmpleado(id, form)
       setEmpleados(prev =>
         prev.map(e => e.empleado_id === id ? updated : e)
             .sort((a, b) => a.nombre.localeCompare(b.nombre))

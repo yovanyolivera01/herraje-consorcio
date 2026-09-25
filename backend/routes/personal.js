@@ -5,6 +5,82 @@ const router = express.Router()
 function ok(res, data) { res.json(data) }
 function err(res, e, status = 500) { res.status(status).json({ message: e.message }) }
 
+
+
+
+// ── Empleados ─────────────────────────────────────────────────────────────
+
+router.get('/personal/empleados', async (req, res) => {
+  try {
+    const { rows } = await query('Select * from v_empleados')
+    ok(res, rows)
+  } catch (e) { err(res, e) }
+})
+
+router.post('/personal/empleados', async (req, res) => {
+  try {
+    const {
+      nombre, telefono, fecha_registro, apellido_materno, apellido_paterno,
+      id_puesto, id_turno, calle, ciudad, colonia, cp, huella, cara, id_estado,
+    } = req.body
+    const { rows } = await query(
+      'SELECT * FROM public.sp_agregar_empleado($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)',
+      [
+        nombre?.trim(), telefono?.trim(), fecha_registro || new Date(),
+        apellido_materno ?? null, apellido_paterno ?? null, id_puesto ?? null, id_turno ?? null,
+        calle ?? null, ciudad ?? null, colonia ?? null, cp ?? null, huella ?? null, cara ?? null,
+        id_estado ?? 1,
+      ]
+    )
+    ok(res, rows[0])
+  } catch (e) { err(res, e) }
+})
+
+router.put('/personal/empleados/:id', async (req, res) => {
+  try {
+    const {
+      nombre, telefono, fecha_registro, apellido_materno, apellido_paterno,
+      id_puesto, id_turno, calle, ciudad, colonia, cp, huella, cara, id_estado,
+    } = req.body
+    const { rows } = await query(
+      'SELECT * FROM public.sp_update_empleado($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)',
+      [
+        req.params.id, nombre?.trim(), telefono?.trim(), fecha_registro ?? null,
+        apellido_materno ?? null, apellido_paterno ?? null, id_puesto ?? null, id_turno ?? null,
+        calle ?? null, ciudad ?? null, colonia ?? null, cp ?? null, huella ?? null, cara ?? null,
+        id_estado ?? 1,
+      ]
+    )
+    ok(res, rows[0])
+  } catch (e) { err(res, e) }
+})
+
+router.delete('/personal/empleados/:id', async (req, res) => {
+  try {
+    await query('UPDATE empleados SET id_estado=0 WHERE empleado_id=$1', [req.params.id])
+    ok(res, { ok: true })
+  } catch (e) { err(res, e) }
+})
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 // ── Semanas ───────────────────────────────────────────────────────────────
 
 router.get('/personal/semanas', async (req, res) => {
@@ -26,43 +102,6 @@ router.post('/personal/semanas', async (req, res) => {
   } catch (e) { err(res, e) }
 })
 
-// ── Empleados ─────────────────────────────────────────────────────────────
-
-router.get('/personal/empleados', async (req, res) => {
-  try {
-    const { rows } = await query('SELECT * FROM empleados WHERE activo=true ORDER BY nombre')
-    ok(res, rows)
-  } catch (e) { err(res, e) }
-})
-
-router.post('/personal/empleados', async (req, res) => {
-  try {
-    const { nombre, telefono } = req.body
-    const { rows } = await query(
-      'INSERT INTO empleados (nombre, telefono) VALUES ($1,$2) RETURNING *',
-      [nombre.trim(), telefono.trim()]
-    )
-    ok(res, rows[0])
-  } catch (e) { err(res, e) }
-})
-
-router.put('/personal/empleados/:id', async (req, res) => {
-  try {
-    const { nombre, telefono } = req.body
-    const { rows } = await query(
-      'UPDATE empleados SET nombre=$1, telefono=$2 WHERE empleado_id=$3 RETURNING *',
-      [nombre.trim(), telefono.trim(), req.params.id]
-    )
-    ok(res, rows[0])
-  } catch (e) { err(res, e) }
-})
-
-router.delete('/personal/empleados/:id', async (req, res) => {
-  try {
-    await query('UPDATE empleados SET activo=false WHERE empleado_id=$1', [req.params.id])
-    ok(res, { ok: true })
-  } catch (e) { err(res, e) }
-})
 
 // ── Registros diarios ─────────────────────────────────────────────────────
 

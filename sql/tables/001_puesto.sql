@@ -38,6 +38,7 @@ ALTER TABLE empleados ADD COLUMN IF NOT EXISTS id_estado         INTEGER NOT NUL
 
 
 ---
+
 CREATE TABLE IF NOT EXISTS registro (
   id_registro   SERIAL PRIMARY KEY,
   id_empleado   INTEGER NOT NULL REFERENCES empleados(empleado_id),

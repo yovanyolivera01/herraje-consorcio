@@ -177,22 +177,7 @@ export async function getSemanas() {
   return apiFetch('/personal/semanas')
 }
 
-// ── Empleados ─────────────────────────────────────────────────────────────────
-export async function getEmpleados() {
-  return apiFetch('/personal/empleados')
-}
 
-export async function createEmpleado(nombre, telefono) {
-  return apiFetch('/personal/empleados', { method: 'POST', body: { nombre, telefono } })
-}
-
-export async function updateEmpleado(id, nombre, telefono) {
-  return apiFetch(`/personal/empleados/${id}`, { method: 'PUT', body: { nombre, telefono } })
-}
-
-export async function deleteEmpleado(id) {
-  return apiFetch(`/personal/empleados/${id}`, { method: 'DELETE' })
-}
 
 // ── Registros diarios ─────────────────────────────────────────────────────────
 export async function getRegistrosSemana(semanaId) {

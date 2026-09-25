@@ -1,85 +1,6 @@
 import { useState } from 'react'
 import { usePersonal } from '../../context/PersonalContext'
-
-// ── Modal de formulario ───────────────────────────────────────
-function EmpleadoModal({ empleado, onClose, onSave }) {
-  const [form, setForm] = useState({
-    nombre:   empleado?.nombre   ?? '',
-    telefono: empleado?.telefono ?? '',
-    
-  })
-  const [errors, setErrors]   = useState({})
-  const [loading, setLoading] = useState(false)
-
-  const validate = () => {
-    const e = {}
-    if (!form.nombre.trim())   e.nombre   = 'El nombre es obligatorio'
-    if (!form.telefono.trim()) e.telefono = 'El teléfono es obligatorio'
-    return e
-  }
-
-  const handleSubmit = async (ev) => {
-    ev.preventDefault()
-    const errs = validate()
-    if (Object.keys(errs).length) { setErrors(errs); return }
-    setLoading(true)
-    await onSave(form.nombre, form.telefono)
-    setLoading(false)
-  }
-
-  const set = (field) => (e) => setForm(f => ({ ...f, [field]: e.target.value }))
-
-  return (
-    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="modal" onClick={e => e.stopPropagation()}>
-        <div className="modal-header">
-          <h2 className="modal-title">
-            {empleado ? 'Editar empleado' : 'Nuevo empleado'}
-          </h2>
-          <button className="btn-icon" onClick={onClose}>✕</button>
-        </div>
-        <form onSubmit={handleSubmit}>
-          <div className="modal-body">
-            <div className="form-group">
-              <label className="form-label required">Nombre</label>
-              <input
-                className={`form-input${errors.nombre ? ' error' : ''}`}
-                value={form.nombre}
-                onChange={set('nombre')}
-                placeholder="Nombre completo"
-                autoFocus
-              />
-              {errors.nombre && <div className="form-error">{errors.nombre}</div>}
-            </div>
-            <div className="form-group">
-              <label className="form-label required">Teléfono</label>
-              <input
-                className={`form-input${errors.telefono ? ' error' : ''}`}
-                value={form.telefono}
-                onChange={e => {
-                  const val = e.target.value.replace(/[a-zA-ZáéíóúÁÉÍÓÚñÑ]/g, '')
-                  setForm(f => ({ ...f, telefono: val }))
-                }}
-                placeholder="Ej. 55 1234-5678"
-                inputMode="tel"
-                maxLength={20}
-              />
-              {errors.telefono && <div className="form-error">{errors.telefono}</div>}
-            </div>
-          </div>
-          <div className="modal-footer">
-            <button type="button" className="btn btn-outline" onClick={onClose}>
-              Cancelar
-            </button>
-            <button type="submit" className="btn btn-primary" disabled={loading}>
-              {loading ? 'Guardando…' : empleado ? 'Guardar cambios' : 'Registrar empleado'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  )
-}
+import EmpleadoModal from '../../components/formEmpleado'
 
 // ── Modal de confirmación ─────────────────────────────────────
 function DeleteModal({ nombre, onCancel, onConfirm }) {
@@ -123,10 +44,10 @@ export default function Empleados() {
     e.telefono.includes(search)
   )
 
-  const handleSave = async (nombre, telefono) => {
+  const handleSave = async (form) => {
     const fn = modal.type === 'create'
-      ? () => addEmpleado(nombre, telefono)
-      : () => editEmpleado(modal.data.empleado_id, nombre, telefono)
+      ? () => addEmpleado(form)
+      : () => editEmpleado(modal.data.empleado_id, form)
 
     const { error } = await fn()
     if (error) { showToast(error, 'error'); return }
