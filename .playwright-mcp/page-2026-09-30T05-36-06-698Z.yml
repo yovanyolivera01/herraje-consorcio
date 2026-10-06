@@ -1,0 +1,48 @@
+- generic [ref=f2e6]:
+  - complementary [ref=f2e7]:
+    - img "Vidreria Rosales" [ref=f2e9]
+    - textbox "Buscar módulo..." [ref=f2e11]
+    - navigation [ref=f2e12]:
+      - generic [ref=f2e13]:
+        - button "Herraje" [ref=f2e14] [cursor=pointer]
+        - generic [ref=f2e22]:
+          - generic [ref=f2e23]:
+            - generic [ref=f2e24]: Proveedores
+            - link "Proveedores" [ref=f2e25] [cursor=pointer]:
+              - /url: /proveedores
+          - generic [ref=f2e33]:
+            - generic [ref=f2e34]: Ventas
+            - link "Venta Herraje" [ref=f2e35] [cursor=pointer]:
+              - /url: /ventas/nueva
+      - button "Ventas" [ref=f2e41] [cursor=pointer]
+      - button "Reportes" [ref=f2e51] [cursor=pointer]
+      - button "Almacén" [ref=f2e60] [cursor=pointer]
+      - button "Catalogos" [ref=f2e69] [cursor=pointer]
+      - button "Personal" [ref=f2e76] [cursor=pointer]
+      - button "Egresos" [ref=f2e87] [cursor=pointer]
+    - generic [ref=f2e95]:
+      - combobox [ref=f2e96]:
+        - option "Registrar asistencia..."
+        - option "jajaj"
+        - option "jajaja"
+        - option "Angel" [selected]
+      - button "Reconocer rostro" [ref=f2e97] [cursor=pointer]
+      - generic [ref=f2e104]: ✅ Entrada 23:31:38 · Salida 23:31:48
+    - button "Cerrar sesión" [ref=f2e107] [cursor=pointer]
+    - generic [ref=f2e111]:
+      - button "Compactar menú" [ref=f2e112] [cursor=pointer]
+      - button "Modo oscuro" [ref=f2e115] [cursor=pointer]
+  - main [ref=f2e118]:
+    - generic [ref=f2e119]:
+      - generic [ref=f2e120]:
+        - generic [ref=f2e121]: Proveedores
+        - generic [ref=f2e122]: 0 proveedores registrados
+      - button "+ Nuevo proveedor" [ref=f2e123] [cursor=pointer]
+    - generic [ref=f2e124]:
+      - generic [ref=f2e126]:
+        - generic: 🔍
+        - textbox "Buscar por nombre o código..." [ref=f2e127]
+      - generic [ref=f2e128]:
+        - generic [ref=f2e129]: 🏭
+        - heading "Sin proveedores registrados" [level=3] [ref=f2e130]
+        - paragraph [ref=f2e131]: Haz clic en "+ Nuevo proveedor" para comenzar

@@ -1,0 +1,55 @@
+- generic [ref=f1e6]:
+  - complementary [ref=f1e7]:
+    - img "Vidreria Rosales" [ref=f1e9]
+    - textbox "Buscar módulo..." [ref=f1e11]
+    - navigation [ref=f1e12]:
+      - button "Herraje" [ref=f1e14] [cursor=pointer]
+      - button "Ventas" [ref=f1e23] [cursor=pointer]
+      - button "Reportes" [ref=f1e33] [cursor=pointer]
+      - button "Almacén" [ref=f1e42] [cursor=pointer]
+      - button "Catalogos" [ref=f1e51] [cursor=pointer]
+      - generic [ref=f1e57]:
+        - button "Personal" [ref=f1e58] [cursor=pointer]
+        - generic [ref=f1e68]:
+          - generic [ref=f1e69]:
+            - generic [ref=f1e70]: Empleados
+            - link "Empleados" [ref=f1e71] [cursor=pointer]:
+              - /url: /personal/empleados
+            - link "Puestos" [ref=f1e79] [cursor=pointer]:
+              - /url: /personal/puestos
+            - link "Turnos" [ref=f1e85] [cursor=pointer]:
+              - /url: /personal/turnos
+          - generic [ref=f1e91]:
+            - generic [ref=f1e92]: Asistencia
+            - link "Registro Semanal" [ref=f1e93] [cursor=pointer]:
+              - /url: /personal/registro
+            - link "Resumen Semanal" [ref=f1e100] [cursor=pointer]:
+              - /url: /personal/resumen
+      - button "Egresos" [ref=f1e105] [cursor=pointer]
+    - button "Cerrar sesión" [ref=f1e114] [cursor=pointer]
+    - generic [ref=f1e118]:
+      - button "Compactar menú" [ref=f1e119] [cursor=pointer]
+      - button "Modo oscuro" [ref=f1e122] [cursor=pointer]
+  - main [ref=f1e125]:
+    - generic [ref=f1e126]:
+      - generic [ref=f1e127]:
+        - generic [ref=f1e128]: Turnos
+        - button "+ Agregar" [ref=f1e130] [cursor=pointer]
+      - table [ref=f1e207]:
+        - rowgroup [ref=f1e208]:
+          - row [ref=f1e209]:
+            - columnheader "Hora inicio" [ref=f1e210]
+            - columnheader "Hora fin" [ref=f1e211]
+            - columnheader "Tolerancia" [ref=f1e212]
+            - columnheader "Días laborales" [ref=f1e213]
+        - rowgroup [ref=f1e214]:
+          - row [ref=f1e215]:
+            - cell "16:00:00" [ref=f1e216]
+            - cell "23:00:00" [ref=f1e217]
+            - cell "5 min" [ref=f1e218]
+            - cell "Lun, Mar, Mié, Jue, Vie" [ref=f1e219]
+          - row [ref=f1e220]:
+            - cell "08:00:00" [ref=f1e221]
+            - cell "17:00:00" [ref=f1e222]
+            - cell "10 min" [ref=f1e223]
+            - cell "Lun, Mar, Mié, Jue, Vie, Sáb" [ref=f1e224]

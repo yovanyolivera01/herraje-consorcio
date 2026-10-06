@@ -3,6 +3,10 @@
 .env.local
 .env.*.local
 
+# Certificado HTTPS de desarrollo (generado localmente, por-máquina — ver
+# certs/README.md. NUNCA subir la llave privada al repo).
+/certs/*.pem
+
 # Logs
 logs
 *.log

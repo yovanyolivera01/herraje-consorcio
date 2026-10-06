@@ -9,6 +9,16 @@ const pool = new Pool({
   password: process.env.DB_PASSWORD || '',
 })
 
+// El servidor de Postgres corre con timezone UTC por default. Sin esto,
+// NOW()/CURRENT_DATE/CURRENT_TIME (usados en created_at, updated_at y en los
+// defaults de registro.fecha/hora_llegada) quedan 6 horas adelantados de
+// Ciudad de México — cerca de medianoche hasta caen en el día equivocado.
+pool.on('connect', (client) => {
+  client.query("SET timezone = 'America/Mexico_City'").catch((err) => {
+    console.error('No se pudo fijar el timezone de la sesión de Postgres:', err.message)
+  })
+})
+
 pool.on('error', (err) => {
   console.error('PostgreSQL pool error:', err.message)
 })

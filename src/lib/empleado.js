@@ -27,3 +27,10 @@ export async function updateEmpleado(id, form) {
 export async function deleteEmpleado(id) {
   return apiFetch(`/personal/empleados/${id}`, { method: 'DELETE' })
 }
+
+// Actualiza solo el descriptor facial (cara), sin tocar el resto del
+// registro — para un flujo de captura de rostro independiente del form
+// completo (p.ej. un botón "Capturar rostro").
+export async function updateEmpleadoCara(id, cara) {
+  return apiFetch(`/personal/empleados/${id}/cara`, { method: 'PATCH', body: { cara } })
+}

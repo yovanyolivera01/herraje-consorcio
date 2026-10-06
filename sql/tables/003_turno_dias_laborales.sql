@@ -3,9 +3,6 @@
 -- Lunes a Sábado, igual al supuesto ya usado en el cálculo de bono de
 -- puntualidad (DIAS_LABORALES = 6 en src/lib/personalApi.js).
 
-ALTER TABLE turno
-  ADD COLUMN IF NOT EXISTS dias_laborales INTEGER[] NOT NULL DEFAULT '{1,2,3,4,5,6}';
-
 -- v_horas_ausencia ya no debe reportar ausencia en un día que el turno del
 -- empleado no considera laboral (antes asumía los 7 días de la semana).
 CREATE OR REPLACE VIEW v_horas_ausencia AS

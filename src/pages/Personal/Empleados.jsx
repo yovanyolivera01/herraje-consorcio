@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { usePersonal } from '../../context/PersonalContext'
 import EmpleadoModal from '../../components/formEmpleado'
+import ModalCara from '../../components/modalCara'
 
 // ── Modal de confirmación ─────────────────────────────────────
 function DeleteModal({ nombre, onCancel, onConfirm }) {
@@ -28,7 +29,7 @@ function DeleteModal({ nombre, onCancel, onConfirm }) {
 
 // ── Página principal ──────────────────────────────────────────
 export default function Empleados() {
-  const { empleados, addEmpleado, editEmpleado, bajaEmpleado } = usePersonal()
+  const { empleados, addEmpleado, editEmpleado, bajaEmpleado, guardarCara } = usePersonal()
 
   const [search, setSearch] = useState('')
   const [modal, setModal]   = useState(null)
@@ -63,6 +64,13 @@ export default function Empleados() {
     const { error } = await bajaEmpleado(modal.data.empleado_id)
     if (error) { showToast(error, 'error') }
     else { showToast('Empleado dado de baja') }
+    setModal(null)
+  }
+
+  const handleGuardarCara = async (cara) => {
+    const { error } = await guardarCara(modal.data.empleado_id, cara)
+    if (error) { showToast(error, 'error'); return }
+    showToast('Rostro capturado correctamente ✅')
     setModal(null)
   }
 
@@ -139,6 +147,13 @@ export default function Empleados() {
                           ✏️
                         </button>
                         <button
+                          className="btn-icon"
+                          title={emp.cara ? 'Rostro capturado — volver a capturar' : 'Capturar rostro'}
+                          onClick={() => setModal({ type: 'cara', data: emp })}
+                        >
+                          {emp.cara ? '📷✅' : '📷'}
+                        </button>
+                        <button
                           className="btn-icon danger"
                           title="Dar de baja"
                           onClick={() => setModal({ type: 'delete', data: emp })}
@@ -168,6 +183,14 @@ export default function Empleados() {
           nombre={modal.data.nombre}
           onCancel={() => setModal(null)}
           onConfirm={handleDelete}
+        />
+      )}
+
+      {modal?.type === 'cara' && (
+        <ModalCara
+          empleado={modal.data}
+          onClose={() => setModal(null)}
+          onSave={handleGuardarCara}
         />
       )}
     </>

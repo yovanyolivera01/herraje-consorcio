@@ -1,0 +1,47 @@
+- generic [ref=f1e6]:
+  - complementary [ref=f1e7]:
+    - img "Vidreria Rosales" [ref=f1e9]
+    - textbox "Buscar módulo..." [ref=f1e11]
+    - navigation [ref=f1e12]:
+      - generic [ref=f1e13]:
+        - button "Herraje" [ref=f1e14] [cursor=pointer]
+        - generic [ref=f1e22]:
+          - generic [ref=f1e23]:
+            - generic [ref=f1e24]: Proveedores
+            - link "Proveedores" [ref=f1e25] [cursor=pointer]:
+              - /url: /proveedores
+          - generic [ref=f1e33]:
+            - generic [ref=f1e34]: Ventas
+            - link "Venta Herraje" [ref=f1e35] [cursor=pointer]:
+              - /url: /ventas/nueva
+      - button "Ventas" [ref=f1e41] [cursor=pointer]
+      - button "Reportes" [ref=f1e51] [cursor=pointer]
+      - button "Almacén" [ref=f1e60] [cursor=pointer]
+      - button "Catalogos" [ref=f1e69] [cursor=pointer]
+      - button "Personal" [ref=f1e76] [cursor=pointer]
+      - button "Egresos" [ref=f1e87] [cursor=pointer]
+    - generic [ref=f1e95]:
+      - combobox [ref=f1e96]:
+        - option "Registrar asistencia..."
+        - option "jajaj"
+        - option "jajaja"
+        - option "Angel" [selected]
+      - button "Registrar salida" [ref=f1e128] [cursor=pointer]
+    - button "Cerrar sesión" [ref=f1e103] [cursor=pointer]
+    - generic [ref=f1e107]:
+      - button "Compactar menú" [ref=f1e108] [cursor=pointer]
+      - button "Modo oscuro" [ref=f1e111] [cursor=pointer]
+  - main [ref=f1e114]:
+    - generic [ref=f1e115]:
+      - generic [ref=f1e116]:
+        - generic [ref=f1e117]: Proveedores
+        - generic [ref=f1e118]: 0 proveedores registrados
+      - button "+ Nuevo proveedor" [ref=f1e119] [cursor=pointer]
+    - generic [ref=f1e120]:
+      - generic [ref=f1e122]:
+        - generic: 🔍
+        - textbox "Buscar por nombre o código..." [ref=f1e123]
+      - generic [ref=f1e124]:
+        - generic [ref=f1e125]: 🏭
+        - heading "Sin proveedores registrados" [level=3] [ref=f1e126]
+        - paragraph [ref=f1e127]: Haz clic en "+ Nuevo proveedor" para comenzar

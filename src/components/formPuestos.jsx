@@ -36,6 +36,8 @@ export default function PersonalModal({puestos,onClose,onSave}){
         await onSave(form)
         setLoading(false)
     }
+
+    
     const set = field => (e) => setForm (f => ({...f,[field]:e.target.value}))
 
     // quita cualquier digito mientras se escribe — nombre/descripcion no deben llevar numeros

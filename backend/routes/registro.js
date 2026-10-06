@@ -16,6 +16,15 @@ router.get('/registro/hoy/:id_empleado', async (req, res) => {
     } catch (e) { err(res, e) }
 })
 
+// Lista de entradas marcadas (nombre, fecha, hora de llegada) — p.ej. para
+// mostrar en pantalla cuando un empleado llega.
+router.get('/registro/entradas', async (req, res) => {
+    try {
+        const { rows } = await query('SELECT * FROM v_mostrar_registro_entrada')
+        ok(res, rows)
+    } catch (e) { err(res, e) }
+})
+
 // Check-in: registra la llegada del empleado (hora_salida queda NULL hasta el check-out)
 router.post('/registro', async (req, res) => {
     try {

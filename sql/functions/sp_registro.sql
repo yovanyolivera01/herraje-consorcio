@@ -52,3 +52,36 @@ BEGIN
     RETURN v_registro;
 END;
 $$ LANGUAGE plpgsql;
+
+
+-- Entrada de HOY de un empleado específico, con su nombre ya unido — para
+-- mostrarla en pantalla justo cuando esa persona llega. Es una FUNCTION, no
+-- una vista (a pesar del prefijo "v_"): una vista no puede tomar un
+-- parámetro como p_id_empleado/$1 — eso solo funciona dentro de una
+-- función, igual que sp_obtener_registro_hoy (que regresa lo mismo pero
+-- sin el nombre). RETURNS TABLE en vez de RETURNS registro: así, si el
+-- empleado no tiene entrada hoy, regresa cero filas en vez de una fila con
+-- todo NULL — más simple de checar desde la ruta (if (!rows[0])).
+CREATE OR REPLACE FUNCTION v_mostrar_registro_entrada(p_id_empleado integer)
+RETURNS TABLE (
+    fecha             date,
+    hora_llegada      time,
+    nombre            character varying,
+    apellido_paterno  character varying,
+    apellido_materno  character varying
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT
+        r.fecha,
+        r.hora_llegada,
+        e.nombre,
+        e.apellido_paterno,
+        e.apellido_materno
+    FROM registro r
+    INNER JOIN empleados e ON r.id_empleado = e.empleado_id
+    WHERE r.id_empleado = p_id_empleado AND r.fecha = CURRENT_DATE
+    ORDER BY r.hora_llegada DESC
+    LIMIT 1;
+END;
+$$ LANGUAGE plpgsql;

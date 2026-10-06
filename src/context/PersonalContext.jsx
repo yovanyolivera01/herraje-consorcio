@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import {
-  getEmpleados, createEmpleado, updateEmpleado, deleteEmpleado,
+  getEmpleados, createEmpleado, updateEmpleado, deleteEmpleado, updateEmpleadoCara,
 } from '../lib/empleado'
 
 const PersonalContext = createContext(null)
@@ -68,6 +68,16 @@ export function PersonalProvider({ children }) {
     }
   }
 
+  async function guardarCara(id, cara) {
+    try {
+      const updated = await updateEmpleadoCara(id, cara)
+      setEmpleados(prev => prev.map(e => e.empleado_id === id ? updated : e))
+      return { error: null }
+    } catch (e) {
+      return { error: e.message }
+    }
+  }
+
   return (
     <PersonalContext.Provider value={{
       empleados,
@@ -76,6 +86,7 @@ export function PersonalProvider({ children }) {
       addEmpleado,
       editEmpleado,
       bajaEmpleado,
+      guardarCara,
       recargarEmpleados: cargarEmpleados,
     }}>
       {children}

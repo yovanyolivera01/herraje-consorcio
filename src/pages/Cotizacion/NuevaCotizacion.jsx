@@ -1075,8 +1075,11 @@ export default function NuevaCotizacion() {
     const largo = parsed.largo
     const ancho  = parsed.ancho
 
-    const metros2_pieza   = Math.round((largo * ancho) / 10000 * 100) / 100
-    const metros2_total   = Math.round(parsed.piezas * metros2_pieza * 100) / 100
+    // 3 decimales (no 2): a 2 decimales una pieza chica (p.ej. 14×6cm = 0.0084
+    // m² reales) redondea a 0.01 — mucho error relativo para piezas pequeñas.
+    // subtotal_vidrio sigue a 2 decimales — es dinero, no área.
+    const metros2_pieza   = Math.round((largo * ancho) / 10000 * 1000) / 1000
+    const metros2_total   = Math.round(parsed.piezas * metros2_pieza * 1000) / 1000
     const subtotal_vidrio = Math.round(metros2_total * precio_m2 * 100) / 100
 
     // Calcular procesos seleccionados
@@ -1269,7 +1272,9 @@ export default function NuevaCotizacion() {
 
   // ── Preview en vivo de Maquila ────────────────────────────────────────────
   const maqParsed   = useMemo(() => parseNotacion(maqNotacion), [maqNotacion])
-  const maqMetros2  = maqParsed.error ? null : Math.round((maqParsed.piezas * maqParsed.largo * maqParsed.ancho) / 10000 * 100) / 100
+  // 3 decimales (no 2): a 2 decimales una pieza chica (p.ej. 14×6cm = 0.0084
+  // m² reales) redondea a 0.01 — mucho error relativo para piezas pequeñas.
+  const maqMetros2  = maqParsed.error ? null : Math.round((maqParsed.piezas * maqParsed.largo * maqParsed.ancho) / 10000 * 1000) / 1000
 
   const maqPreviewProcesos = useMemo(() => {
     if (!efectivoNivelId || maqMetros2 === null) return []
@@ -2370,7 +2375,7 @@ export default function NuevaCotizacion() {
                     </div>
                     <div style={{ textAlign: 'center' }}>
                       <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 2 }}>Total m²</div>
-                      <div style={{ fontWeight: 700, fontSize: 18 }}>{preview.metros2_total.toFixed(4)}</div>
+                      <div style={{ fontWeight: 700, fontSize: 18 }}>{preview.metros2_total.toFixed(3)}</div>
                     </div>
                     <div style={{ textAlign: 'center' }}>
                       <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 2 }}>Precio/m²</div>
@@ -2638,7 +2643,7 @@ export default function NuevaCotizacion() {
                           ['Piezas',   maqParsed.piezas,                 ''],
                           ['Largo',    `${maqParsed.largo} cm`,          ''],
                           ['Ancho',    `${maqParsed.ancho} cm`,          ''],
-                          ['Total m²', maqMetros2.toFixed(4),            ''],
+                          ['Total m²', maqMetros2.toFixed(3),            ''],
                           ['Subtotal', `$${fmt5(maqSubtotal)}`,     'var(--accent)'],
                         ].map(([lbl, val, color]) => (
                           <div key={lbl} style={{ textAlign: 'center' }}>
@@ -2766,7 +2771,7 @@ export default function NuevaCotizacion() {
                       {(p.tipo === 'VIDRIO' || !p.tipo) ? (
                         <>
                           <div style={{ fontWeight: 600, fontSize: 15 }}>
-                            {p.piezas} · {p.largo_cm}×{p.ancho_cm} cm · {p.metros2.toFixed(4)} m²
+                            {p.piezas} · {p.largo_cm}×{p.ancho_cm} cm · {p.metros2.toFixed(3)} m²
                           </div>
                           <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
                             <span className="badge badge-blue" style={{ fontSize: 12, marginRight: 6 }}>{p.tipoClaveLabel}</span>
@@ -2906,7 +2911,7 @@ export default function NuevaCotizacion() {
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: 14 }}>
                 <span style={{ color: 'var(--text-muted)' }}>Total m²</span>
-                <span style={{ fontWeight: 600 }}>{totalM2.toFixed(4)}</span>
+                <span style={{ fontWeight: 600 }}>{totalM2.toFixed(3)}</span>
               </div>
 
               <div className="divider" />

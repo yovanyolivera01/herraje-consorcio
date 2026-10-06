@@ -1,0 +1,45 @@
+- generic [ref=e22]:
+  - complementary [ref=e23]:
+    - img "Vidreria Rosales" [ref=e25]
+    - textbox "Buscar módulo..." [ref=e27]
+    - navigation [ref=e28]:
+      - generic [ref=e29]:
+        - button "Herraje" [ref=e30] [cursor=pointer]
+        - generic [ref=e38]:
+          - generic [ref=e39]:
+            - generic [ref=e40]: Proveedores
+            - link "Proveedores" [ref=e41] [cursor=pointer]:
+              - /url: /proveedores
+          - generic [ref=e49]:
+            - generic [ref=e50]: Ventas
+            - link "Venta Herraje" [ref=e51] [cursor=pointer]:
+              - /url: /ventas/nueva
+      - button "Ventas" [ref=e57] [cursor=pointer]
+      - button "Reportes" [ref=e67] [cursor=pointer]
+      - button "Almacén" [ref=e76] [cursor=pointer]
+      - button "Catalogos" [ref=e85] [cursor=pointer]
+      - button "Personal" [ref=e92] [cursor=pointer]
+      - button "Egresos" [ref=e103] [cursor=pointer]
+    - combobox [ref=e112]:
+      - option "Registrar asistencia..." [selected]
+      - option "jajaj"
+      - option "jajaja"
+      - option "Angel"
+    - button "Cerrar sesión" [ref=e114] [cursor=pointer]
+    - generic [ref=e118]:
+      - button "Compactar menú" [ref=e119] [cursor=pointer]
+      - button "Modo oscuro" [ref=e122] [cursor=pointer]
+  - main [ref=e125]:
+    - generic [ref=e126]:
+      - generic [ref=e127]:
+        - generic [ref=e128]: Proveedores
+        - generic [ref=e129]: 0 proveedores registrados
+      - button "+ Nuevo proveedor" [ref=e130] [cursor=pointer]
+    - generic [ref=e131]:
+      - generic [ref=e133]:
+        - generic: 🔍
+        - textbox "Buscar por nombre o código..." [ref=e134]
+      - generic [ref=e135]:
+        - generic [ref=e136]: 🏭
+        - heading "Sin proveedores registrados" [level=3] [ref=e137]
+        - paragraph [ref=e138]: Haz clic en "+ Nuevo proveedor" para comenzar

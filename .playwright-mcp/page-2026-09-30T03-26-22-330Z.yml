@@ -1,0 +1,118 @@
+- generic [ref=f1e6]:
+  - complementary [ref=f1e7]:
+    - img "Vidreria Rosales" [ref=f1e9]
+    - textbox "Buscar módulo..." [ref=f1e11]
+    - navigation [ref=f1e12]:
+      - button "Herraje" [ref=f1e14] [cursor=pointer]
+      - button "Ventas" [ref=f1e23] [cursor=pointer]
+      - button "Reportes" [ref=f1e33] [cursor=pointer]
+      - button "Almacén" [ref=f1e42] [cursor=pointer]
+      - button "Catalogos" [ref=f1e51] [cursor=pointer]
+      - generic [ref=f1e57]:
+        - button "Personal" [ref=f1e58] [cursor=pointer]
+        - generic [ref=f1e68]:
+          - generic [ref=f1e69]:
+            - generic [ref=f1e70]: Empleados
+            - link "Empleados" [ref=f1e71] [cursor=pointer]:
+              - /url: /personal/empleados
+            - link "Puestos" [ref=f1e79] [cursor=pointer]:
+              - /url: /personal/puestos
+            - link "Turnos" [ref=f1e85] [cursor=pointer]:
+              - /url: /personal/turnos
+          - generic [ref=f1e91]:
+            - generic [ref=f1e92]: Asistencia
+            - link "Registro Semanal" [ref=f1e93] [cursor=pointer]:
+              - /url: /personal/registro
+            - link "Resumen Semanal" [ref=f1e100] [cursor=pointer]:
+              - /url: /personal/resumen
+      - button "Egresos" [ref=f1e105] [cursor=pointer]
+    - button "Cerrar sesión" [ref=f1e114] [cursor=pointer]
+    - generic [ref=f1e118]:
+      - button "Compactar menú" [ref=f1e119] [cursor=pointer]
+      - button "Modo oscuro" [ref=f1e122] [cursor=pointer]
+  - main [ref=f1e125]:
+    - generic [ref=f1e126]:
+      - generic [ref=f1e127]:
+        - generic [ref=f1e128]: Empleados
+        - generic [ref=f1e129]: 2 empleados activos
+      - button "+ Nuevo empleado" [ref=f1e130] [cursor=pointer]
+    - generic [ref=f1e131]:
+      - generic [ref=f1e133]:
+        - generic: 🔍
+        - textbox "Buscar por nombre o teléfono…" [ref=f1e134]
+      - table [ref=f1e136]:
+        - rowgroup [ref=f1e137]:
+          - row [ref=f1e138]:
+            - columnheader "#" [ref=f1e139]
+            - columnheader "Nombre" [ref=f1e140]
+            - columnheader "Teléfono" [ref=f1e141]
+            - columnheader "Acciones" [ref=f1e142]
+        - rowgroup [ref=f1e143]:
+          - row [ref=f1e144]:
+            - cell "2" [ref=f1e145]
+            - cell "jajaja" [ref=f1e147]
+            - cell "5555555555" [ref=f1e148]
+            - cell [ref=f1e149]:
+              - generic [ref=f1e150]:
+                - button "✏️" [ref=f1e151] [cursor=pointer]
+                - button "📷✅" [ref=f1e152] [cursor=pointer]
+                - button "🗑️" [ref=f1e153] [cursor=pointer]
+          - row [ref=f1e154]:
+            - cell "1" [ref=f1e155]
+            - cell "Angel" [ref=f1e157]
+            - cell "558888888" [ref=f1e158]
+            - cell [ref=f1e159]:
+              - generic [ref=f1e160]:
+                - button "✏️" [ref=f1e161] [cursor=pointer]
+                - button "📷✅" [ref=f1e162] [cursor=pointer]
+                - button "🗑️" [ref=f1e163] [cursor=pointer]
+    - generic [ref=f1e165]:
+      - generic [ref=f1e166]:
+        - heading "Nuevo empleado" [level=2] [ref=f1e167]
+        - button "✕" [ref=f1e168] [cursor=pointer]
+      - generic [ref=f1e169]:
+        - generic [ref=f1e170]:
+          - generic [ref=f1e171]:
+            - generic [ref=f1e172]:
+              - generic [ref=f1e173]: Nombre *
+              - textbox "Nombre" [ref=f1e174]: Maria
+            - generic [ref=f1e175]:
+              - generic [ref=f1e176]: Apellido paterno *
+              - textbox "Apellido paterno" [ref=f1e177]: Lopez
+          - generic [ref=f1e178]:
+            - generic [ref=f1e179]: Apellido materno
+            - textbox "Apellido materno" [ref=f1e180]
+          - generic [ref=f1e181]:
+            - generic [ref=f1e182]:
+              - generic [ref=f1e183]: Teléfono *
+              - textbox "Teléfono" [ref=f1e184]: "5512340099"
+            - generic [ref=f1e185]:
+              - generic [ref=f1e186]: Fecha de registro
+              - textbox [ref=f1e187]: 2026-09-30
+          - generic [ref=f1e188]:
+            - generic [ref=f1e189]:
+              - generic [ref=f1e190]: Puesto *
+              - combobox [active] [ref=f1e191]:
+                - option "Selecciona un puesto"
+                - option "jajaj"
+                - option "Chalan" [selected]
+                - option "Yovas"
+            - generic [ref=f1e192]:
+              - generic [ref=f1e193]: Turno
+              - spinbutton "ID de turno" [ref=f1e194]
+          - generic [ref=f1e195]:
+            - generic [ref=f1e196]: Calle
+            - textbox "Calle y número" [ref=f1e197]
+          - generic [ref=f1e198]:
+            - generic [ref=f1e199]:
+              - generic [ref=f1e200]: Colonia
+              - textbox "Colonia" [ref=f1e201]
+            - generic [ref=f1e202]:
+              - generic [ref=f1e203]: Ciudad
+              - textbox "Ciudad" [ref=f1e204]
+            - generic [ref=f1e205]:
+              - generic [ref=f1e206]: CP
+              - textbox "Código postal" [ref=f1e207]
+        - generic [ref=f1e208]:
+          - button "Cancelar" [ref=f1e209] [cursor=pointer]
+          - button "Guardar" [ref=f1e210] [cursor=pointer]

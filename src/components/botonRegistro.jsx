@@ -1,18 +1,12 @@
 import { useState, useEffect, useCallback } from 'react'
-import { hoyMX } from '../lib/utils'
+import { LogIn, LogOut } from 'lucide-react'
+import { hoyMX, horaActualMX } from '../lib/utils'
 import { getRegistroHoy, registroCheckIn, registroCheckOut } from '../lib/registro'
 
-const TZ_MX = 'America/Mexico_City'
-
-// Hora actual en zona horaria de México, formato HH:mm:ss (compatible con
-// la columna TIME de la tabla registro).
-function horaActualMX() {
-  return new Intl.DateTimeFormat('en-GB', {
-    timeZone: TZ_MX, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
-  }).format(new Date())
-}
-
-export default function BotonRegistro({ id_empleado, id_turno }) {
+// compact: reduce el botón a un tamaño de sidebar/menú — el estilo .btn
+// global (font-size 17px, padding 10px 20px) está pensado para el cuerpo
+// de una página, no para un espacio angosto como el menú lateral.
+export default function BotonRegistro({ id_empleado, id_turno, compact = false }) {
   const [registro, setRegistro] = useState(null) // null = sin marcar entrada hoy
   const [loading,  setLoading]  = useState(true)
   const [working,  setWorking]  = useState(false)
@@ -71,22 +65,41 @@ export default function BotonRegistro({ id_empleado, id_turno }) {
     return <button className="btn btn-outline" disabled>Cargando...</button>
   }
 
+  const tamano = compact
+    ? { width: '100%', boxSizing: 'border-box', padding: '6px 10px', fontSize: 13 }
+    : {}
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-start' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: compact ? 'stretch' : 'flex-start' }}>
       {!registro ? (
-        <button className="btn btn-primary" onClick={handleEntrada} disabled={working}>
-          {working ? 'Registrando...' : '🟢 Registrar entrada'}
+        <button
+          className="btn btn-primary"
+          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, ...tamano }}
+          onClick={handleEntrada}
+          disabled={working}
+        >
+          <LogIn size={compact ? 14 : 16} />
+          {working ? 'Registrando...' : 'Registrar entrada'}
         </button>
       ) : !registro.hora_salida ? (
-        <button className="btn btn-outline" style={{ color: '#dc2626', borderColor: '#dc2626' }} onClick={handleSalida} disabled={working}>
-          {working ? 'Registrando...' : '🔴 Registrar salida'}
+        <button
+          className="btn btn-outline"
+          style={{
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            color: '#dc2626', borderColor: '#dc2626', ...tamano,
+          }}
+          onClick={handleSalida}
+          disabled={working}
+        >
+          <LogOut size={compact ? 14 : 16} />
+          {working ? 'Registrando...' : 'Registrar salida'}
         </button>
       ) : (
-        <span className="badge badge-blue">
+        <span className="badge badge-blue" style={compact ? { fontSize: 12, textAlign: 'center' } : undefined}>
           ✅ Entrada {registro.hora_llegada} · Salida {registro.hora_salida}
         </span>
       )}
-      {error && <div className="form-error">❌ {error}</div>}
+      {error && <div className="form-error" style={compact ? { fontSize: 12 } : undefined}>❌ {error}</div>}
     </div>
   )
 }

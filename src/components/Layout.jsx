@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { getEmpleados } from '../lib/empleado'
+import BotonRegistro from './botonRegistro'
+import ModalReconocimiento from './modalReconocimiento'
 import logoVR from '../assets/images/logoVR.jpeg'
 import {
   Truck, Package, ReceiptText, BarChart2,
@@ -10,7 +13,7 @@ import {
   LogOut, Menu, ChevronDown, ChevronLeft, ChevronRight, Crown, User,
   Frame, DoorOpen, Hammer, Warehouse, Box,
   ShoppingCart, TrendingUp, Archive,
-  CardSim, Moon, Sun, FileText, Briefcase,
+  CardSim, Moon, Sun, FileText, Briefcase, ScanFace,
 } from 'lucide-react'
 
 // ── Navegacion del sistema Herraje ────────────────────────────────────────
@@ -123,6 +126,7 @@ const personalNavItems = [
   { section: 'Empleados', links: [
     { to: '/personal/empleados', icon: <HardHat size={16} />, label: 'Empleados' },
     { to: '/personal/puestos',   icon: <Briefcase size={16} />, label: 'Puestos' },
+    { to: '/personal/turnos',    icon: <Clock size={16} />,     label: 'Turnos' },
   ]},
   { section: 'Asistencia', links: [
     { to: '/personal/registro', icon: <CalendarClock size={16} />, label: 'Registro Semanal' },
@@ -156,6 +160,42 @@ export default function Layout() {
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('theme') === 'dark')
   const location = useLocation()
   const { role, user, logout } = useAuth()
+
+  // Registro de entrada/salida en el menú — el login es una sola cuenta
+  // compartida (sin sesión por empleado), así que cada quien se identifica
+  // con reconocimiento facial. Ya no hay una lista para elegirse a mano
+  // (se quitó): en cuanto la cámara reconoce a alguien, se marca su
+  // entrada/salida de una — sin un click aparte para confirmar.
+  const [empleadosRegistro,  setEmpleadosRegistro]  = useState([])
+  const [empleadoRegistroId, setEmpleadoRegistroId] = useState(() => localStorage.getItem('hc_empleado_registro') ?? '')
+  const [modalReconocer,     setModalReconocer]     = useState(false)
+  const [mensajeAsistencia,  setMensajeAsistencia]  = useState(null)
+
+  useEffect(() => {
+    getEmpleados().then(setEmpleadosRegistro).catch(() => setEmpleadosRegistro([]))
+  }, [])
+
+  // ModalReconocimiento ya registró la asistencia (sp_registro la primera
+  // vez del día, sp_update_registro la segunda) antes de llamar esto — acá
+  // solo se refleja el resultado; no se vuelve a llamar la API (eso
+  // duplicaría el registro) y no se cierra el modal, para que la persona
+  // alcance a ver su propio mensaje de éxito antes de cerrarlo a mano.
+  const handleReconocido = (empleado, accion) => {
+    setEmpleadoRegistroId(String(empleado.empleado_id))
+    setMensajeAsistencia({
+      tipo: 'ok',
+      texto: accion === 'entrada' ? `✅ Entrada registrada: ${empleado.nombre}`
+           : accion === 'salida'  ? `✅ Salida registrada: ${empleado.nombre}`
+           : `${empleado.nombre} ya registró su entrada y salida hoy`,
+    })
+    setTimeout(() => setMensajeAsistencia(null), 5000)
+  }
+
+  useEffect(() => {
+    if (empleadoRegistroId) localStorage.setItem('hc_empleado_registro', empleadoRegistroId)
+  }, [empleadoRegistroId])
+
+  const empleadoRegistro = empleadosRegistro.find(e => String(e.empleado_id) === empleadoRegistroId)
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light')
@@ -344,6 +384,44 @@ export default function Layout() {
             )
           })}
         </nav>
+
+        {!sidebarCollapsed && (
+          <div style={{ padding: '0 10px 8px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <button
+              type="button"
+              onClick={() => setModalReconocer(true)}
+              title="Reconocer rostro y marcar entrada/salida automáticamente"
+              style={{
+                width: '100%', boxSizing: 'border-box', display: 'flex', alignItems: 'center',
+                justifyContent: 'center', gap: 6, padding: '6px 10px', borderRadius: 7, fontSize: 13,
+                border: '1px solid var(--border)', background: 'none', color: 'var(--text-muted)',
+                cursor: 'pointer',
+              }}
+            >
+              <ScanFace size={14} />
+              Registrar asistencia
+            </button>
+            {mensajeAsistencia && (
+              <span
+                className={`badge ${mensajeAsistencia.tipo === 'ok' ? 'badge-green' : 'badge-red'}`}
+                style={{ fontSize: 12, textAlign: 'center' }}
+              >
+                {mensajeAsistencia.texto}
+              </span>
+            )}
+            {empleadoRegistro && (
+              <BotonRegistro compact id_empleado={empleadoRegistro.empleado_id} id_turno={empleadoRegistro.id_turno} />
+            )}
+          </div>
+        )}
+
+        {modalReconocer && (
+          <ModalReconocimiento
+            empleados={empleadosRegistro}
+            onClose={() => setModalReconocer(false)}
+            onReconocido={handleReconocido}
+          />
+        )}
 
         <div style={{ padding: '0 10px 4px' }}>
           <button

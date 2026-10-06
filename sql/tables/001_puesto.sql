@@ -12,17 +12,6 @@ CREATE TABLE IF NOT EXISTS puestos (
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Table: turno
-
-CREATE TABLE IF NOT EXISTS turno (
-  id_turno     SERIAL PRIMARY KEY,
-  hora_inicio  TIME NOT NULL,
-  hora_fin     TIME NOT NULL,
-  tolerancia   INTEGER NOT NULL DEFAULT 0,
-  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
 -- Table: empleado_salario (salary history, one open-ended row per employee at a time)
 
 ALTER TABLE empleados ADD COLUMN IF NOT EXISTS apellido_materno VARCHAR(60);
@@ -234,26 +223,4 @@ END;
 $$ LANGUAGE plpgsql;
 
 
---- funtion of TURNO 
-
-CREATE OR REPLACE FUNCTION public.sp_create_turno(
-  
-p_id_turno   
-p_hora_inicio
-p_hora_fin   
-p_tolerancia 
-p_created_at 
-p_updated_at 
-
-RETURNS turno AS $$
-DECLARE
-  v_turno turno;
-BEGIN
-  INSERT INTO turno (hora_inicio, hora_fin, tolerancia)
-  VALUES (p_hora_inicio, p_hora_fin, p_tolerancia)
-  RETURNING * INTO v_turno;
-
-  RETURN v_turno;
-END;
-
-)
+-- sp_create_turno vive en sql/functions/sps_turnos.sql
