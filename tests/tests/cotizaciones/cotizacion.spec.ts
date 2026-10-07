@@ -19,34 +19,30 @@ test('cotizacion with a lot of pieces of glass', async ({ page }) => {
     await expect(page.url()).toBe(`${base}cot/nueva`)
     await page.getByRole('button', { name: 'Publico' }).click()
     await page.getByRole('textbox', { name: '98x45 o 3-98x45' }).fill('99x99')
-    await page.getByRole('combobox').selectOption({ label: "GRIS-6MM" })
+    await page.getByRole('textbox', { name: '-- Tipo --' }). click()
+    await page.getByText('CLARO-3MM', { exact: true }).click()
     await page.getByRole('button', { name: '➕ Agregar vidrio' }).click()
     // another piece
     await page.getByRole('textbox', { name: '98x45 o 3-98x45' }).fill('24x87')
-    await page.getByRole('combobox').selectOption({ label: "GRIS-6MM" })
     await page.getByRole('button', { name: '➕ Agregar vidrio' }).click()
     ///another
     await expect(page.url()).toBe(`${base}cot/nueva`)
-    
+
     await page.getByRole('textbox', { name: '98x45 o 3-98x45' }).fill('3-98x89')
-    await page.getByRole('combobox').selectOption({ label: "GRIS-6MM" })
     await page.getByRole('button', { name: '➕ Agregar vidrio' }).click()
     //another
     await expect(page.url()).toBe(`${base}cot/nueva`)
-    
+
     await page.getByRole('textbox', { name: '98x45 o 3-98x45' }).fill('4-12x78')
-    await page.getByRole('combobox').selectOption({ label: "GRIS-6MM" })
     await page.getByRole('button', { name: '➕ Agregar vidrio' }).click()
     //another
     await expect(page.url()).toBe(`${base}cot/nueva`)
-    
+
     await page.getByRole('textbox', { name: '98x45 o 3-98x45' }).fill('3-99x12')
-    await page.getByRole('combobox').selectOption({ label: "GRIS-6MM" })
     await page.getByRole('button', { name: '➕ Agregar vidrio' }).click()
-    //another 
+    //another
 
     await page.getByRole('textbox', { name: '98x45 o 3-98x45' }).fill('22-12x45')
-    await page.getByRole('combobox').selectOption({ label: "GRIS-6MM" })
 
     await page.getByRole('button', { name: '➕ Agregar vidrio' }).click()
     await page.getByRole('button', { name: 'Solo cotizar' }).click()

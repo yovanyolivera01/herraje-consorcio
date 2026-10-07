@@ -18,9 +18,9 @@ function err(res, e, status = 500) { res.status(status).json({ message: e.messag
 
 const INSERT_VIDRIO_JOINED = `
 WITH ins AS (
-  INSERT INTO partida (id_cotizacion, tipo, largo_cm, ancho_cm, metros2, cantidad, subtotal_procesos, precio_unitario, subtotal, observaciones)
-  VALUES ($1,'VIDRIO',$2,$3,$4,$5::NUMERIC,$6,ROUND($7::NUMERIC / NULLIF($5::NUMERIC,0), 2),$7,$8)
-  RETURNING id_partida, id_cotizacion, largo_cm, ancho_cm, metros2, cantidad, subtotal_procesos, precio_unitario, subtotal, observaciones
+  INSERT INTO partida (id_cotizacion, tipo, largo_cm, ancho_cm, metros2, metros2_pieza, cantidad, subtotal_procesos, precio_unitario, subtotal, observaciones)
+  VALUES ($1,'VIDRIO',$2,$3,$4,ROUND($4::NUMERIC / NULLIF($5::NUMERIC,0), 4),$5::NUMERIC,$6,ROUND($7::NUMERIC / NULLIF($5::NUMERIC,0), 2),$7,$8)
+  RETURNING id_partida, id_cotizacion, largo_cm, ancho_cm, metros2, metros2_pieza, cantidad, subtotal_procesos, precio_unitario, subtotal, observaciones
 ),
 insv AS (
   INSERT INTO partida_vidrio (id_partida, id_tipo_vidrio, precio_m2, es_hoja_completa, subtotal_vidrio, precio_vidrio)
@@ -29,7 +29,7 @@ insv AS (
 )
 SELECT
   ins.id_partida, ins.id_cotizacion, insv.id_tipo_vidrio,
-  ins.cantidad AS piezas, ins.largo_cm, ins.ancho_cm, ins.metros2,
+  ins.cantidad AS piezas, ins.largo_cm, ins.ancho_cm, ins.metros2, ins.metros2_pieza,
   insv.precio_m2 AS precio_m2_aplicado,
   insv.subtotal_vidrio, insv.precio_vidrio, ins.subtotal_procesos, ins.precio_unitario,
   ins.subtotal AS subtotal_partida,
@@ -48,9 +48,9 @@ async function insertProceso(client, id_partida, proc, piezas) {
 }
 
 const INSERT_MAQUILA = `
-  INSERT INTO partida (id_cotizacion, tipo, descripcion, largo_cm, ancho_cm, metros2, cantidad, subtotal_procesos, precio_unitario, subtotal, observaciones, id_espesor)
-  VALUES ($1,'MAQUILA',$2,$3,$4,$5,$6::NUMERIC,$7,ROUND($8::NUMERIC / NULLIF($6::NUMERIC,0), 2),$8,$9,$10)
-  RETURNING id_partida, id_cotizacion, descripcion, largo_cm, ancho_cm, metros2, cantidad, subtotal_procesos, precio_unitario, subtotal, observaciones, id_espesor
+  INSERT INTO partida (id_cotizacion, tipo, descripcion, largo_cm, ancho_cm, metros2, metros2_pieza, cantidad, subtotal_procesos, precio_unitario, subtotal, observaciones, id_espesor)
+  VALUES ($1,'MAQUILA',$2,$3,$4,$5,ROUND($5::NUMERIC / NULLIF($6::NUMERIC,0), 4),$6::NUMERIC,$7,ROUND($8::NUMERIC / NULLIF($6::NUMERIC,0), 2),$8,$9,$10)
+  RETURNING id_partida, id_cotizacion, descripcion, largo_cm, ancho_cm, metros2, metros2_pieza, cantidad, subtotal_procesos, precio_unitario, subtotal, observaciones, id_espesor
 `
 
 // Job de maquila dimensionado (largo_cm/ancho_cm reales) — mismo

@@ -17,50 +17,54 @@ test('Cotizacion con vidrio, maquila y proceso extra', async ({ page }) => {
     await expect(page.url()).toBe(`${base}cot/nueva`)
     await page.getByRole('button', { name: 'Vidriero', exact: true }).click()
 
-    // pieza 1: 2-87x90 LUNA-6MM + maquila de esmerila + bisel + Barreno 10mm
-    await page.getByRole('textbox', { name: '98x45 o 3-98x45' }).fill('2-87x90')
-    await page.getByRole('combobox').selectOption('LUNA-6MM')
-    await page.locator('div').filter({ hasText: /^maquila de esmerila$/ }).nth(1).click()
-    await page.locator('div').filter({ hasText: /^bisel$/ }).nth(1).click()
-    await page.locator('div').filter({ hasText: /^Barreno 10mm$/ }).click()
+    // pieza 1: 100x100 CLARO-9MM + LAMINADO + BISEL 1" LINEAL + Canaleta para espejo + LUNA CON LUZ Y CANALETA
+    await page.getByRole('textbox', { name: '98x45 o 3-98x45' }).fill('100x100')
+    await page.getByRole('textbox', { name: '-- Tipo --' }).click()
+    await page.getByText('CLARO-9MM', { exact: true }).click()
+    await page.locator('div').filter({ hasText: /^LAMINADO$/ }).nth(1).click()
+    await page.locator('div').filter({ hasText: /^BISEL 1" LINEAL$/ }).nth(1).click()
+    await page.locator('div').filter({ hasText: /^Canaleta para espejo$/ }).nth(1).click()
+    await page.locator('div').filter({ hasText: /^LUNA CON LUZ Y CANALETA$/ }).nth(1).click()
     await page.getByRole('button', { name: '➕ Agregar vidrio' }).click()
 
     // pieza 2: 24x89 mismos procesos
     await page.getByRole('textbox', { name: '98x45 o 3-98x45' }).fill('24x89')
-    await page.locator('div').filter({ hasText: /^maquila de esmerila$/ }).nth(1).click()
-    await page.locator('div').filter({ hasText: /^bisel$/ }).nth(1).click()
-    await page.locator('div').filter({ hasText: /^Barreno 10mm$/ }).click()
+    await page.locator('div').filter({ hasText: /^LAMINADO$/ }).nth(1).click()
+    await page.locator('div').filter({ hasText: /^BISEL 1" LINEAL$/ }).nth(1).click()
+    await page.locator('div').filter({ hasText: /^Canaleta para espejo$/ }).nth(1).click()
+    await page.locator('div').filter({ hasText: /^LUNA CON LUZ Y CANALETA$/ }).nth(1).click()
     await page.getByRole('button', { name: '➕ Agregar vidrio' }).click()
 
     // pieza 3: 6-87x89 mismos procesos
     await page.getByRole('textbox', { name: '98x45 o 3-98x45' }).fill('6-87x89')
-    await page.locator('div').filter({ hasText: /^maquila de esmerila$/ }).nth(1).click()
-    await page.locator('div').filter({ hasText: /^bisel$/ }).nth(1).click()
-    await page.locator('div').filter({ hasText: /^Barreno 10mm$/ }).click()
+    await page.locator('div').filter({ hasText: /^LAMINADO$/ }).nth(1).click()
+    await page.locator('div').filter({ hasText: /^BISEL 1" LINEAL$/ }).nth(1).click()
+    await page.locator('div').filter({ hasText: /^Canaleta para espejo$/ }).nth(1).click()
+    await page.locator('div').filter({ hasText: /^LUNA CON LUZ Y CANALETA$/ }).nth(1).click()
     await page.getByRole('button', { name: '➕ Agregar vidrio' }).click()
 
     // tab maquila
     await page.getByRole('button', { name: '🔧 Maquila' }).click()
 
-    // maquila 1: 2-77x77 9MM + C/P/B + bisel
+    // maquila 1: 2-77x77 primer espesor disponible + BISEL 1" LINEAL
     await page.getByRole('textbox', { name: '98x45 o 3-98x45' }).fill('2-77x77')
-    await page.getByRole('button', { name: '9MM' }).click()
-    await page.locator('div').filter({ hasText: /^C\/P\/B$/ }).nth(1).click()
-    await page.locator('div').filter({ hasText: /^bisel$/ }).nth(1).click()
+    await page.getByRole('textbox', { name: '-- Espesor --' }).click()
+    await page.getByRole('textbox', { name: '-- Espesor --' }).locator('xpath=following-sibling::div[1]//div').first().click()
+    await page.locator('div').filter({ hasText: /^BISEL 1" LINEAL$/ }).nth(1).click()
     await page.getByRole('button', { name: '🔧 Agregar maquila' }).click()
 
     // maquila 2: 6-100x100 mismo espesor y procesos
     await page.getByRole('textbox', { name: '98x45 o 3-98x45' }).fill('6-100x100')
-    await page.getByRole('button', { name: '9MM' }).click()
-    await page.locator('div').filter({ hasText: /^C\/P\/B$/ }).nth(1).click()
-    await page.locator('div').filter({ hasText: /^bisel$/ }).nth(1).click()
+    await page.getByRole('textbox', { name: '-- Espesor --' }).click()
+    await page.getByRole('textbox', { name: '-- Espesor --' }).locator('xpath=following-sibling::div[1]//div').first().click()
+    await page.locator('div').filter({ hasText: /^BISEL 1" LINEAL$/ }).nth(1).click()
     await page.getByRole('button', { name: '🔧 Agregar maquila' }).click()
 
-    // maquila 3: 8-88x23 espesor 4MM, mismos procesos
+    // maquila 3: 8-88x23 mismo espesor y procesos
     await page.getByRole('textbox', { name: '98x45 o 3-98x45' }).fill('8-88x23')
-    await page.getByRole('button', { name: '4MM' }).click()
-    await page.locator('div').filter({ hasText: /^C\/P\/B$/ }).nth(1).click()
-    await page.locator('div').filter({ hasText: /^bisel$/ }).nth(1).click()
+    await page.getByRole('textbox', { name: '-- Espesor --' }).click()
+    await page.getByRole('textbox', { name: '-- Espesor --' }).locator('xpath=following-sibling::div[1]//div').first().click()
+    await page.locator('div').filter({ hasText: /^BISEL 1" LINEAL$/ }).nth(1).click()
     await page.getByRole('button', { name: '🔧 Agregar maquila' }).click()
 
     // proceso extra: flete largo x2
