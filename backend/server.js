@@ -2,6 +2,9 @@ require('dotenv').config({ path: require('path').join(__dirname, '.env') })
 const express = require('express')
 const cors    = require('cors')
 const path    = require('path')
+const fs      = require('fs')
+const http    = require('http')
+const https   = require('https')
 
 const herrajeRoutes    = require('./routes/herraje')
 const cotizacionRoutes = require('./routes/cotizacion')
@@ -21,7 +24,8 @@ const partidaCotizacionRoutes = require('./routes/partidaCotizacion')
 const procesosRoutes  = require('./routes/procesos')
 const procesoExtraRoutes = require('./routes/procesoExtra')
 const puestosRoutes   = require('./routes/puestos')
-const registroRoutes  = require('./routes/registro')
+const asistenciaRoutes = require('./routes/asistencia')
+const calculosRoutes   = require('./routes/calculos')
 const turnoRoutes     = require('./routes/turno')
 const app  = express()
 const PORT = process.env.PORT || 3001
@@ -48,7 +52,8 @@ app.use('/api', partidaCotizacionRoutes)
 app.use('/api', procesosRoutes)
 app.use('/api', procesoExtraRoutes)
 app.use('/api', puestosRoutes)
-app.use('/api', registroRoutes)
+app.use('/api', asistenciaRoutes)
+app.use('/api', calculosRoutes)
 app.use('/api', turnoRoutes)
 
 // Serve React build in production
@@ -59,6 +64,17 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(distPath, 'index.html'))
 })
 
-app.listen(PORT, () => {
-  console.log(`Herraje Consorcio backend en puerto ${PORT}`)
-})
+// HTTPS es opt-in via HTTPS_CERT/HTTPS_KEY (p.ej. certs de `tailscale cert`)
+// — navigator.mediaDevices.getUserMedia (cámara, usada por el modulo de
+// Personal para captura facial) solo existe en "contextos seguros"
+// (https:// o http://localhost); sin esas env vars el server sigue
+// sirviendo por HTTP plano como siempre.
+const certPath = process.env.HTTPS_CERT
+const keyPath  = process.env.HTTPS_KEY
+if (certPath && keyPath && fs.existsSync(certPath) && fs.existsSync(keyPath)) {
+  https.createServer({ cert: fs.readFileSync(certPath), key: fs.readFileSync(keyPath) }, app)
+    .listen(PORT, () => console.log(`Herraje Consorcio backend (HTTPS) en puerto ${PORT}`))
+} else {
+  http.createServer(app)
+    .listen(PORT, () => console.log(`Herraje Consorcio backend en puerto ${PORT}`))
+}

@@ -14,11 +14,11 @@ router.get('/personal/turno', async (req, res) => {
 
 router.post('/personal/turno', async (req, res) => {
   try {
-    const { hora_inicio, hora_fin, tolerancia, dias_laborales } = req.body
+    const { hora_inicio, hora_fin, tolerancia, dias_laborales, minutos_comida } = req.body
     const { rows } = await query(
-      'SELECT * FROM public.sp_create_turno($1,$2,$3,$4)',
+      'SELECT * FROM public.sp_create_turno($1,$2,$3,$4,$5)',
       [
-        hora_inicio?.trim(), hora_fin?.trim(), tolerancia ?? 0, dias_laborales ?? null,
+        hora_inicio?.trim(), hora_fin?.trim(), tolerancia ?? 0, dias_laborales ?? null, minutos_comida ?? 60,
       ]
     )
     ok(res, rows[0])

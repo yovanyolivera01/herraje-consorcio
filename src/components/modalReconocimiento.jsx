@@ -1,12 +1,29 @@
 import { useState, useEffect, useRef } from "react"
 import * as faceapi from "face-api.js"
-import { reconocerEmpleado } from "../lib/faceRecognition"
-import { registrarAsistenciaAutomatica } from "../lib/registro"
+import { reconocerEmpleado, mejorCoincidencia, UMBRAL_RECONOCIMIENTO } from "../lib/faceRecognition"
+import { registrarAsistenciaAutomatica } from "../lib/asistencia"
 
 // Mismos pesos que modalCara.jsx — ver ese archivo para dónde conseguirlos
 // (public/models, no vienen incluidos en el paquete npm de face-api.js).
 const MODELS_URL = '/models'
 const DETECTOR_OPTIONS = new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.4 })
+
+// Si un empleado se reconoce y el modal se reabre para OTRO justo después,
+// el stream del primero se detuvo hace apenas instantes — el driver/OS de
+// la cámara puede tardar un poco en liberarla y getUserMedia falla con
+// NotReadableError/AbortError aunque el permiso ya esté dado. Sin reintento
+// eso se veía como "no detecta la cámara con otro empleado".
+async function abrirCamaraConReintento(intentos = 3) {
+    for (let i = 0; i < intentos; i++) {
+        try {
+            return await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } })
+        } catch (e) {
+            const transitorio = e.name === 'NotReadableError' || e.name === 'AbortError' || e.name === 'TrackStartError'
+            if (!transitorio || i === intentos - 1) throw e
+            await new Promise(r => setTimeout(r, 400))
+        }
+    }
+}
 
 let modelosPromise = null
 function cargarModelos() {
@@ -31,9 +48,9 @@ const TICKS_PARA_RECONOCER = 3
 // que solo captura y guarda el rostro de un empleado ya elegido a mano, este
 // componente es el que decide "quién es" sin que el usuario se seleccione.
 // En cuanto reconoce a alguien, YA marca su asistencia (registrarAsistenciaAutomatica):
-// la primera vez del día usa sp_registro (POST /registro, entrada), la
-// segunda usa sp_update_registro (PUT /registro/:id, salida) — no hace
-// falta un click aparte para confirmar, ya se identificó frente a la cámara.
+// son 4 marcas al día en orden — entrada, salida a comer, regreso de comer
+// y salida (ver lib/asistencia.js) — y cada reconocimiento registra la
+// siguiente pendiente; no hace falta un click aparte para confirmar.
 // onReconocido(empleado, accion) se dispara ya con la asistencia marcada;
 // el padre solo necesita enterarse de qué pasó (p.ej. para refrescar su UI).
 export default function ModalReconocimiento({ empleados, onClose, onReconocido }) {
@@ -56,7 +73,7 @@ export default function ModalReconocimiento({ empleados, onClose, onReconocido }
     }
 
     const iniciarCamara = async () => {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } })
+        const stream = await abrirCamaraConReintento()
         streamRef.current = stream
         if (videoRef.current) {
             videoRef.current.srcObject = stream
@@ -162,20 +179,32 @@ export default function ModalReconocimiento({ empleados, onClose, onReconocido }
             const match = reconocerEmpleado(deteccion.descriptor, empleados)
             detener()
             if (!match) {
+                // Diagnóstico: ¿qué tan cerca estuvo? Ayuda a distinguir un
+                // umbral demasiado estricto / mala iluminación (distancia
+                // apenas sobre 0.5) de que de verdad no hay ningún match
+                // (distancia muy alta) o de que no hay ningún empleado con
+                // cara capturada (mejor === null).
+                const cercano = mejorCoincidencia(deteccion.descriptor, empleados)
+                console.log('[reconocimiento] no superó el umbral', {
+                    umbral: UMBRAL_RECONOCIMIENTO,
+                    masCercano: cercano ? { nombre: cercano.empleado.nombre, distancia: cercano.distancia } : null,
+                    empleadosConCara: empleados.filter(e => e.cara).length,
+                    totalEmpleados: empleados.length,
+                })
                 setEstado('no_reconocido')
                 return
             }
 
             // Ya se identificó a la persona — se marca su asistencia de una,
-            // sin pedir confirmación aparte: primera vez del día = entrada
-            // (sp_registro), segunda vez = salida (sp_update_registro).
+            // sin pedir confirmación aparte: registra la siguiente de las 4
+            // marcas del día (entrada, salida a comer, regreso, salida).
             try {
-                const { accion } = await registrarAsistenciaAutomatica(
+                const { accion, texto } = await registrarAsistenciaAutomatica(
                     match.empleado.empleado_id, match.empleado.id_turno
                 )
-                setResultado({ ...match, accion })
+                setResultado({ ...match, accion, texto })
                 setEstado('registrado')
-                onReconocido(match.empleado, accion)
+                onReconocido(match.empleado, accion, texto)
             } catch (e) {
                 setError(`Se reconoció a ${match.empleado.nombre} pero no se pudo registrar: ${e.message}`)
                 setEstado('camara')
@@ -204,11 +233,23 @@ export default function ModalReconocimiento({ empleados, onClose, onReconocido }
         onClose()
     }
 
+    // Mientras la cámara está activa el fondo se pone blanco: el monitor
+    // actúa como luz frontal y mejora la iluminación del rostro.
+    const pantallaBlanca = estado === 'cargando' || estado === 'camara' || estado === 'reconociendo'
+
     return (
-        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && handleClose()}>
-            <div className="modal" onClick={e => e.stopPropagation()}>
+        <div
+            className="modal-overlay"
+            style={pantallaBlanca ? { background: '#ffffff' } : undefined}
+            onClick={e => e.target === e.currentTarget && handleClose()}
+        >
+            <div
+                className="modal"
+                style={pantallaBlanca ? { background: '#ffffff', color: '#111827', boxShadow: 'none' } : undefined}
+                onClick={e => e.stopPropagation()}
+            >
                 <div className="modal-header">
-                    <h2 className="modal-title">Reconocer rostro</h2>
+                    <h2 className="modal-title" style={pantallaBlanca ? { color: '#111827' } : undefined}>Reconocer rostro</h2>
                     <button className="btn-icon" onClick={handleClose}>✕</button>
                 </div>
 
@@ -225,7 +266,7 @@ export default function ModalReconocimiento({ empleados, onClose, onReconocido }
                             flexDirection: 'column', gap: 10, alignItems: 'center',
                         }}
                     >
-                        <div style={{ position: 'relative', width: '100%', maxWidth: 360 }}>
+                        <div style={{ position: 'relative', width: '100%', maxWidth: 360, overflow: 'hidden', borderRadius: 8 }}>
                             <video
                                 ref={videoRef}
                                 autoPlay
@@ -240,6 +281,17 @@ export default function ModalReconocimiento({ empleados, onClose, onReconocido }
                                     transform: 'scaleX(-1)', pointerEvents: 'none',
                                 }}
                             />
+                            {/* Guía visual: la webcam de laptop suele tener mucho campo de
+                                visión alrededor de la cara — este óvalo marca dónde centrarla. */}
+                            <div style={{
+                                position: 'absolute', top: '50%', left: '50%',
+                                width: '52%', height: '72%',
+                                transform: 'translate(-50%, -50%)',
+                                borderRadius: '50%',
+                                border: '3px solid rgba(255,255,255,0.75)',
+                                boxShadow: '0 0 0 2000px rgba(255,255,255,0.35)',
+                                pointerEvents: 'none',
+                            }} />
                         </div>
                         <span className="badge badge-gray">
                             {estado === 'reconociendo' ? 'Reconociendo...' : 'Centra tu rostro frente a la cámara'}
@@ -249,9 +301,9 @@ export default function ModalReconocimiento({ empleados, onClose, onReconocido }
                     {estado === 'registrado' && (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'center' }}>
                             <span className="badge badge-green">
-                                {resultado.accion === 'entrada' ? `✅ Entrada registrada: ${resultado.empleado.nombre}`
-                                    : resultado.accion === 'salida' ? `✅ Salida registrada: ${resultado.empleado.nombre}`
-                                    : `${resultado.empleado.nombre} ya registró su entrada y salida hoy`}
+                                {resultado.accion === 'completo'
+                                    ? `${resultado.empleado.nombre} ya completó sus 4 registros de hoy`
+                                    : `✅ ${resultado.texto} registrado: ${resultado.empleado.nombre}`}
                             </span>
                         </div>
                     )}

@@ -15,6 +15,40 @@ const MODELS_URL = '/models'
 // mejor mostrar el recuadro un poco antes que dejar al usuario sin feedback.
 const DETECTOR_OPTIONS = new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.4 })
 
+// Umbral de confianza exigido para PERMITIR GUARDAR (más estricto que el 0.4
+// de arriba, que solo sirve para dibujar el recuadro en vivo). Guardar una
+// cara borrosa/mal iluminada con score bajo arruina el reconocimiento
+// futuro de ese empleado — mejor pedir que reintente aquí que descubrirlo
+// después en el kiosco.
+const MIN_SCORE_GUARDAR = 0.5
+
+// Si se captura la cara de un empleado y luego se abre el modal para OTRO
+// de inmediato, el stream del primero se detuvo hace apenas instantes — el
+// driver/OS de la cámara puede tardar un poco en liberarla y getUserMedia
+// falla con NotReadableError/AbortError aunque el permiso ya esté dado.
+// Sin reintento eso se veía como "no detecta la cámara con otro empleado".
+async function abrirCamaraConReintento(intentos = 3) {
+    // Fuera de HTTPS/localhost el navegador oculta navigator.mediaDevices
+    // por completo (p.ej. al abrir http://100.91.211.64:3001) — sin esta
+    // validación el error era un críptico "Cannot read properties of undefined".
+    if (!navigator.mediaDevices?.getUserMedia) {
+        const e = new Error('El navegador bloquea la cámara en conexiones no seguras. Abre la app desde HTTPS o desde localhost.')
+        e.name = 'InsecureContext'
+        throw e
+    }
+    for (let i = 0; i < intentos; i++) {
+        try {
+            return await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+            })
+        } catch (e) {
+            const transitorio = e.name === 'NotReadableError' || e.name === 'AbortError' || e.name === 'TrackStartError'
+            if (!transitorio || i === intentos - 1) throw e
+            await new Promise(r => setTimeout(r, 400))
+        }
+    }
+}
+
 let modelosPromise = null
 // Carga los modelos una sola vez aunque el modal se abra varias veces.
 function cargarModelos() {
@@ -43,8 +77,18 @@ export default function ModalCara({ empleado, onClose, onSave }) {
     const [descriptor, setDescriptor] = useState(null)
     const [loading, setLoading] = useState(false)
 
+    const canceladoRef = useRef(false) // el modal se desmontó mientras la cámara arrancaba
+
     const iniciarCamara = async () => {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } })
+        const stream = await abrirCamaraConReintento()
+        // En StrictMode (dev) el efecto corre dos veces: si el primer montaje
+        // ya fue limpiado cuando getUserMedia responde, ese stream quedaba
+        // huérfano con la cámara abierta y el segundo intento fallaba con
+        // NotReadableError ("la cámara no funciona").
+        if (canceladoRef.current) {
+            stream.getTracks().forEach(t => t.stop())
+            return
+        }
         streamRef.current = stream
         // El <video> está montado siempre (ver JSX) así que la ref ya existe
         // aquí — antes se asignaba solo si estado==='camara', pero el <video>
@@ -59,6 +103,7 @@ export default function ModalCara({ empleado, onClose, onSave }) {
 
     useEffect(() => {
         let cancelado = false
+        canceladoRef.current = false
 
         async function iniciar() {
             try {
@@ -70,7 +115,11 @@ export default function ModalCara({ empleado, onClose, onSave }) {
                     setError(
                         e.name === 'NotAllowedError'
                             ? 'Se necesita permiso de la cámara para capturar el rostro'
-                            : `No se pudo iniciar la cámara o los modelos: ${e.message}`
+                            : e.name === 'InsecureContext'
+                                ? e.message
+                                : e.name === 'NotFoundError'
+                                    ? 'No se encontró ninguna cámara conectada'
+                                    : `No se pudo iniciar la cámara o los modelos: ${e.message}`
                     )
                     setEstado('error')
                 }
@@ -80,6 +129,7 @@ export default function ModalCara({ empleado, onClose, onSave }) {
 
         return () => {
             cancelado = true
+            canceladoRef.current = true
             streamRef.current?.getTracks().forEach(t => t.stop())
         }
     }, [])
@@ -148,6 +198,13 @@ export default function ModalCara({ empleado, onClose, onSave }) {
                 return
             }
 
+            if (deteccion.detection.score < MIN_SCORE_GUARDAR) {
+                console.log('[captura] rechazada por score bajo', { score: deteccion.detection.score, minimo: MIN_SCORE_GUARDAR })
+                setError(`La imagen no es lo suficientemente clara (confianza ${(deteccion.detection.score * 100).toFixed(0)}%). Mejora la iluminación, acércate a la cámara y vuelve a intentar.`)
+                setEstado('camara')
+                return
+            }
+
             setDescriptor(Array.from(deteccion.descriptor))
             detener()
             setEstado('capturado')
@@ -184,11 +241,23 @@ export default function ModalCara({ empleado, onClose, onSave }) {
         onClose()
     }
 
+    // Mientras la cámara está activa, el fondo se pone blanco: el monitor
+    // actúa como luz frontal y mejora la iluminación del rostro al capturar.
+    const pantallaBlanca = estado === 'cargando' || estado === 'camara' || estado === 'detectando'
+
     return (
-        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && handleClose()}>
-            <div className="modal" onClick={e => e.stopPropagation()}>
+        <div
+            className="modal-overlay"
+            style={pantallaBlanca ? { background: '#ffffff' } : undefined}
+            onClick={e => e.target === e.currentTarget && handleClose()}
+        >
+            <div
+                className="modal"
+                style={pantallaBlanca ? { background: '#ffffff', color: '#111827', boxShadow: 'none' } : undefined}
+                onClick={e => e.stopPropagation()}
+            >
                 <div className="modal-header">
-                    <h2 className="modal-title">
+                    <h2 className="modal-title" style={pantallaBlanca ? { color: '#111827' } : undefined}>
                         Capturar rostro{empleado ? ` · ${empleado.nombre}` : ''}
                     </h2>
                     <button className="btn-icon" onClick={handleClose}>✕</button>
@@ -208,7 +277,7 @@ export default function ModalCara({ empleado, onClose, onSave }) {
                             flexDirection: 'column', gap: 10, alignItems: 'center',
                         }}
                     >
-                        <div style={{ position: 'relative', width: '100%', maxWidth: 360 }}>
+                        <div style={{ position: 'relative', width: '100%', maxWidth: 360, overflow: 'hidden', borderRadius: 8 }}>
                             <video
                                 ref={videoRef}
                                 autoPlay
@@ -223,6 +292,18 @@ export default function ModalCara({ empleado, onClose, onSave }) {
                                     transform: 'scaleX(-1)', pointerEvents: 'none',
                                 }}
                             />
+                            {/* Guía visual: la webcam de laptop suele tener mucho campo de
+                                visión alrededor de la cara — este óvalo marca dónde centrarla. */}
+                            <div style={{
+                                position: 'absolute', top: '50%', left: '50%',
+                                width: '52%', height: '72%',
+                                transform: 'translate(-50%, -50%)',
+                                borderRadius: '50%',
+                                border: `3px solid ${rostroVisible ? '#22c55e' : 'rgba(255,255,255,0.75)'}`,
+                                boxShadow: '0 0 0 2000px rgba(255,255,255,0.35)',
+                                pointerEvents: 'none',
+                                transition: 'border-color 0.2s',
+                            }} />
                         </div>
                         <span className={`badge ${rostroVisible ? 'badge-green' : 'badge-gray'}`}>
                             {rostroVisible ? '✅ Rostro detectado' : 'Centra tu rostro frente a la cámara'}

@@ -1,166 +1,142 @@
 import { useState, useEffect } from 'react'
 import { usePersonal } from '../../context/PersonalContext'
+import ModalRegistrosDia from '../../components/modalRegistrosDia'
+import ModalRegistrosEmpleado from '../../components/modalRegistrosEmpleado'
+import { getResumenHoras, getHorasEmpleado, minToHHMM, horaCorta } from '../../lib/calculosApi'
 import {
-  getOrCreateSemana, getRegistrosSemana, upsertResumen,
-  calcularResumenSemanal, calcularDia,
-  getLunesDeSemana, getLunesAnterior, getLunesSiguiente,
-  getDiasDeSemana, minToHHMM,
-} from '../../lib/personalApi'
+  hoyLocal, getLunesDeSemana, getLunesAnterior, getLunesSiguiente,
+  getDomingoDeSemana, descripcionSemana, getNombreDia,
+} from '../../lib/semana'
 
-function todayStr() {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+const MESES = ['enero','febrero','marzo','abril','mayo','junio',
+  'julio','agosto','septiembre','octubre','noviembre','diciembre']
+
+const ESTADO_TEXTO = {
+  completo: 'Completo', en_curso: 'En curso', en_comida: 'En comida',
+  falta: 'Falta', pendiente: 'Pendiente', descanso: 'Descanso',
+}
+
+const tabular = { fontVariantNumeric: 'tabular-nums' }
+
+// Valor resaltado con color si es > 0; si no, un guion atenuado.
+function Resaltado({ valor, texto, color }) {
+  return valor > 0
+    ? <span style={{ color, fontWeight: 600 }}>{texto}</span>
+    : <span style={{ color: 'var(--text-muted)' }}>—</span>
 }
 
 // ── Genera y descarga el CSV ──────────────────────────────────
-function descargarCSV(semana, empleados, registrosPorEmp, resumenesPorEmp) {
-  const meses = ['enero','febrero','marzo','abril','mayo','junio',
-    'julio','agosto','septiembre','octubre','noviembre','diciembre']
-
+// El detalle por día se pide al backend por empleado; los totales ya vienen
+// en `resumenes`.
+async function descargarCSV(lunes, empleados, resumenes) {
+  const domingo = getDomingoDeSemana(lunes)
   const lineas = []
-  lineas.push(`"REPORTE SEMANAL - ${semana.descripcion}"`)
+  lineas.push(`"REPORTE SEMANAL - ${descripcionSemana(lunes)}"`)
   lineas.push('')
-  lineas.push('"Empleado","Teléfono","Día","Fecha","Entrada","Salida","Estado","Horas trabajadas","Horas extra"')
+  lineas.push('"Empleado","Teléfono","Día","Fecha","Entrada","Salida a comer","Regreso","Salida","Estado","Horas trabajadas","Horas extra","Retardo (min)"')
 
   for (const emp of empleados) {
-    const regs    = registrosPorEmp[emp.empleado_id] ?? []
-    const dias    = getDiasDeSemana(semana.fecha_inicio)
-    const resumen = resumenesPorEmp[emp.empleado_id]
+    const { dias } = await getHorasEmpleado(emp.empleado_id, lunes, domingo)
 
     for (const dia of dias) {
-      const reg = regs.find(r => r.fecha === dia.fecha)
-      const calc = calcularDia(reg?.hora_entrada, reg?.hora_salida, dia.nombreDia)
-
-      const estado = {
-        COMPLETO:         'Completo',
-        SALIDA_PENDIENTE: 'Salida pendiente',
-        AUSENTE:          'Ausente',
-      }[calc.estado]
-
       const d = new Date(dia.fecha + 'T12:00:00')
-      const fechaLegible = `${d.getDate()} de ${meses[d.getMonth()]}`
-
       lineas.push([
         `"${emp.nombre}"`,
-        `"${emp.telefono}"`,
-        `"${dia.nombreDia}"`,
-        `"${fechaLegible}"`,
-        `"${reg?.hora_entrada ?? ''}"`,
-        `"${reg?.hora_salida  ?? ''}"`,
-        `"${estado}"`,
-        `"${calc.minutosTrabajados !== null ? minToHHMM(calc.minutosTrabajados) : ''}"`,
-        `"${calc.totalExtra > 0 ? minToHHMM(calc.totalExtra) : ''}"`,
+        `"${emp.telefono ?? ''}"`,
+        `"${getNombreDia(dia.fecha)}"`,
+        `"${d.getDate()} de ${MESES[d.getMonth()]}"`,
+        `"${dia.marcas ? horaCorta(dia.marcas.entrada) : ''}"`,
+        `"${dia.marcas ? horaCorta(dia.marcas.salida_comida) : ''}"`,
+        `"${dia.marcas ? horaCorta(dia.marcas.regreso_comida) : ''}"`,
+        `"${dia.marcas ? horaCorta(dia.marcas.salida) : ''}"`,
+        `"${ESTADO_TEXTO[dia.estado] ?? dia.estado}"`,
+        `"${dia.estado === 'completo' ? minToHHMM(dia.minutos_trabajados) : ''}"`,
+        `"${dia.minutos_extra > 0 ? minToHHMM(dia.minutos_extra) : ''}"`,
+        `"${dia.es_retardo ? dia.retardo_minutos : ''}"`,
       ].join(','))
     }
 
-    // Fila de totales del empleado
-    if (resumen) {
-      const dif = resumen.minutos_trabajados - resumen.minutos_esperados
+    const res = resumenes[emp.empleado_id]
+    if (res) {
+      const dif = res.minutos_diferencia
+      const vacio = '"—"'
       lineas.push([
-        `"${emp.nombre} — TOTAL"`,
-        `"${emp.telefono}"`,
-        '"—"',
-        '"—"',
-        '"—"',
-        '"—"',
-        `"Días completos: ${resumen.dias_con_registro_completo}"`,
-        `"${minToHHMM(resumen.minutos_trabajados)} / ${minToHHMM(resumen.minutos_esperados)} (${dif >= 0 ? '+' : '-'}${minToHHMM(dif)})"`,
-        `"${minToHHMM(resumen.minutos_extra)}"`,
+        `"${emp.nombre} — TOTAL"`, `"${emp.telefono ?? ''}"`, vacio, vacio, vacio, vacio, vacio, vacio,
+        `"Completos ${res.dias_completos}/${res.dias_laborales} · Faltas ${res.faltas}"`,
+        `"${minToHHMM(res.minutos_trabajados)} / ${minToHHMM(res.minutos_programados)} (${dif >= 0 ? '+' : ''}${minToHHMM(dif)})"`,
+        `"${minToHHMM(res.minutos_extra)}"`,
+        `"${res.retardos} (${res.minutos_retardo} min)"`,
+      ].join(','))
+      lineas.push([
+        `"${emp.nombre} — OTROS"`, vacio, vacio, vacio, vacio, vacio, vacio, vacio,
+        `"Faltantes ${minToHHMM(res.minutos_faltantes)} · Salidas anticipadas ${res.salidas_anticipadas} (${res.minutos_salida_anticipada} min)"`,
+        `"Comida ${minToHHMM(res.minutos_comida)} · Exceso ${minToHHMM(res.minutos_exceso_comida)}"`,
+        vacio, vacio,
       ].join(','))
       lineas.push([
         `"${emp.nombre} — BONO"`,
-        '"—"', '"—"', '"—"', '"—"', '"—"',
-        `"${resumen.bono_puntualidad ? 'APLICA' : 'NO APLICA'}"`,
-        `"${resumen.motivo_bono ?? ''}"`,
-        '"—"',
+        vacio, vacio, vacio, vacio, vacio, vacio, vacio,
+        `"${res.bono_puntualidad ? 'APLICA' : 'NO APLICA'}"`,
+        `"${res.motivo_bono ?? ''}"`, vacio, vacio,
       ].join(','))
     }
     lineas.push('')
   }
 
-  const csv  = lineas.join('\n')
-  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
+  const blob = new Blob(['﻿' + lineas.join('\n')], { type: 'text/csv;charset=utf-8;' })
   const url  = URL.createObjectURL(blob)
   const a    = document.createElement('a')
   a.href     = url
-  a.download = `reporte-${semana.fecha_inicio}.csv`
+  a.download = `reporte-${lunes}.csv`
   a.click()
   URL.revokeObjectURL(url)
 }
 
 // ── Página principal ──────────────────────────────────────────
+// Los totales se calculan en el backend (GET /api/calculos/horas/resumen).
 export default function ResumenSemanal() {
   const { empleados, cargando: cargandoEmpleados } = usePersonal()
 
-  const [lunesFecha, setLunesFecha]         = useState(() => getLunesDeSemana(todayStr()))
-  const [semana, setSemana]                 = useState(null)
-  const [registros, setRegistros]           = useState([])
-  const [resumenes, setResumenes]           = useState({})   // { empId: resumenObj }
-  const [cargando, setCargando]             = useState(false)
-  const [calculando, setCalculando]         = useState(false)
-  const [toast, setToast]                   = useState(null)
+  const [lunesFecha, setLunesFecha] = useState(() => getLunesDeSemana(hoyLocal()))
+  const [resumenes, setResumenes]   = useState({})   // { empleado_id: totales }
+  const [cargando, setCargando]     = useState(false)
+  const [descargando, setDescargando] = useState(false)
+  const [toast, setToast]           = useState(null)
+  const [verDia, setVerDia]         = useState(false)
+  const [empleadoSel, setEmpleadoSel] = useState(null) // empleado cuyo detalle se está viendo
 
   const showToast = (msg, type = 'success') => {
     setToast({ msg, type })
     setTimeout(() => setToast(null), 3500)
   }
 
-  useEffect(() => {
-    async function cargar() {
-      setCargando(true)
-      try {
-        const sem  = await getOrCreateSemana(lunesFecha)
-        const regs = await getRegistrosSemana(sem.semana_id)
-        setSemana(sem)
-        setRegistros(regs)
-
-        // Calcular resúmenes localmente desde los registros
-        const mapa = {}
-        for (const emp of empleados) {
-          const empRegs = regs.filter(r => r.empleado_id === emp.empleado_id)
-          mapa[emp.empleado_id] = calcularResumenSemanal(empRegs)
-        }
-        setResumenes(mapa)
-      } catch (e) {
-        showToast('Error al cargar: ' + e.message, 'error')
-      } finally {
-        setCargando(false)
-      }
-    }
-    if (empleados.length > 0) cargar()
-  }, [lunesFecha, empleados])
-
-  const irAnterior  = () => setLunesFecha(p => getLunesAnterior(p))
-  const irSiguiente = () => setLunesFecha(p => getLunesSiguiente(p))
-  const irActual    = () => setLunesFecha(getLunesDeSemana(todayStr()))
-
-  const handleCalcular = async () => {
-    if (!semana) return
-    setCalculando(true)
+  const cargar = async () => {
+    setCargando(true)
     try {
-      const mapa = {}
-      for (const emp of empleados) {
-        const empRegs = registros.filter(r => r.empleado_id === emp.empleado_id)
-        const res     = calcularResumenSemanal(empRegs)
-        await upsertResumen(emp.empleado_id, semana.semana_id, res)
-        mapa[emp.empleado_id] = res
-      }
-      setResumenes(mapa)
-      showToast('Resumen actualizado correctamente ✅')
+      const filas = await getResumenHoras(lunesFecha, getDomingoDeSemana(lunesFecha))
+      setResumenes(Object.fromEntries(filas.map(f => [f.empleado_id, f])))
     } catch (e) {
-      showToast('Error al calcular: ' + e.message, 'error')
+      showToast('Error al cargar: ' + e.message, 'error')
     } finally {
-      setCalculando(false)
+      setCargando(false)
     }
   }
 
-  const handleDescargar = () => {
-    if (!semana) return
-    const regPorEmp = {}
-    for (const emp of empleados) {
-      regPorEmp[emp.empleado_id] = registros.filter(r => r.empleado_id === emp.empleado_id)
+  useEffect(() => { cargar() }, [lunesFecha])
+
+  const irAnterior  = () => setLunesFecha(p => getLunesAnterior(p))
+  const irSiguiente = () => setLunesFecha(p => getLunesSiguiente(p))
+  const irActual    = () => setLunesFecha(getLunesDeSemana(hoyLocal()))
+
+  const handleDescargar = async () => {
+    setDescargando(true)
+    try {
+      await descargarCSV(lunesFecha, empleados, resumenes)
+    } catch (e) {
+      showToast('Error al descargar: ' + e.message, 'error')
+    } finally {
+      setDescargando(false)
     }
-    descargarCSV(semana, empleados, regPorEmp, resumenes)
   }
 
   if (cargandoEmpleados) {
@@ -187,22 +163,22 @@ export default function ResumenSemanal() {
           <div className="page-subtitle">Totales, horas extra y bono de puntualidad</div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button
-            className="btn btn-outline"
-            onClick={handleCalcular}
-            disabled={calculando || cargando}
-          >
-            {calculando ? 'Calculando…' : '↻ Actualizar resumen'}
+          <button className="btn btn-outline" onClick={() => setVerDia(true)}>
+            📅 Registros por día
           </button>
-          <button
-            className="btn btn-primary"
-            onClick={handleDescargar}
-            disabled={cargando || !semana}
-          >
-            ⬇ Descargar CSV
+          <button className="btn btn-outline" onClick={cargar} disabled={cargando}>
+            {cargando ? 'Calculando…' : '↻ Actualizar resumen'}
+          </button>
+          <button className="btn btn-primary" onClick={handleDescargar} disabled={cargando || descargando}>
+            {descargando ? 'Generando…' : '⬇ Descargar CSV'}
           </button>
         </div>
       </div>
+
+      {verDia && <ModalRegistrosDia onClose={() => setVerDia(false)} />}
+      {empleadoSel && (
+        <ModalRegistrosEmpleado empleado={empleadoSel} lunes={lunesFecha} onClose={() => setEmpleadoSel(null)} />
+      )}
 
       <div className="page-body">
         {toast && <div className={`alert alert-${toast.type}`}>{toast.msg}</div>}
@@ -210,9 +186,7 @@ export default function ResumenSemanal() {
         {/* Navegación de semana */}
         <div className="p-week-nav">
           <button className="btn btn-outline btn-sm" onClick={irAnterior}>← Anterior</button>
-          <div className="p-week-title">
-            {semana ? semana.descripcion : lunesFecha}
-          </div>
+          <div className="p-week-title">{descripcionSemana(lunesFecha)}</div>
           <button className="btn btn-outline btn-sm" onClick={irSiguiente}>Siguiente →</button>
           <button className="btn btn-outline btn-sm" onClick={irActual}>Hoy</button>
         </div>
@@ -228,10 +202,16 @@ export default function ResumenSemanal() {
                 <tr>
                   <th>Empleado</th>
                   <th>Días completos</th>
+                  <th>Faltas</th>
                   <th>Trabajadas</th>
                   <th>Esperadas</th>
                   <th>Diferencia</th>
                   <th>Extra</th>
+                  <th>Faltantes</th>
+                  <th>Retardos</th>
+                  <th>Salidas anticipadas</th>
+                  <th>Comida</th>
+                  <th>Exceso comida</th>
                   <th>Bono puntualidad</th>
                 </tr>
               </thead>
@@ -241,35 +221,56 @@ export default function ResumenSemanal() {
                   if (!res) return (
                     <tr key={emp.empleado_id}>
                       <td data-label="Empleado" style={{ fontWeight: 500 }}>{emp.nombre}</td>
-                      <td colSpan={6} style={{ color: 'var(--text-muted)', fontSize: 13 }}>
-                        Sin datos — haz clic en "Actualizar resumen"
+                      <td colSpan={12} style={{ color: 'var(--text-muted)', fontSize: 13 }}>
+                        Sin turno asignado
                       </td>
                     </tr>
                   )
 
-                  const dif = res.minutos_trabajados - res.minutos_esperados
                   return (
-                    <tr key={emp.empleado_id}>
-                      <td data-label="Empleado" style={{ fontWeight: 500 }}>{emp.nombre}</td>
+                    <tr
+                      key={emp.empleado_id}
+                      onClick={() => setEmpleadoSel(emp)}
+                      style={{ cursor: 'pointer' }}
+                      title="Ver registros por día"
+                    >
+                      <td data-label="Empleado" style={{ fontWeight: 500, color: 'var(--accent)' }}>{emp.nombre}</td>
                       <td data-label="Días completos">
-                        <span className="badge badge-blue">{res.dias_con_registro_completo} / 6</span>
+                        <span className="badge badge-blue">{res.dias_completos} / {res.dias_laborales}</span>
                       </td>
-                      <td data-label="Trabajadas" style={{ fontVariantNumeric: 'tabular-nums' }}>
-                        {minToHHMM(res.minutos_trabajados)}
+                      <td data-label="Faltas">
+                        <Resaltado valor={res.faltas} texto={res.faltas} color="var(--danger)" />
                       </td>
-                      <td data-label="Esperadas" style={{ fontVariantNumeric: 'tabular-nums', color: 'var(--text-muted)' }}>
-                        {minToHHMM(res.minutos_esperados)}
+                      <td data-label="Trabajadas" style={tabular}>{minToHHMM(res.minutos_trabajados)}</td>
+                      <td data-label="Esperadas" style={{ ...tabular, color: 'var(--text-muted)' }}>
+                        {minToHHMM(res.minutos_programados)}
                       </td>
-                      <td data-label="Diferencia" style={{ fontVariantNumeric: 'tabular-nums' }}>
-                        <span style={{ color: dif >= 0 ? 'var(--success)' : 'var(--danger)', fontWeight: 600 }}>
-                          {dif >= 0 ? '+' : '-'}{minToHHMM(dif)}
+                      <td data-label="Diferencia" style={tabular}>
+                        <span style={{ color: res.minutos_diferencia >= 0 ? 'var(--success)' : 'var(--danger)', fontWeight: 600 }}>
+                          {res.minutos_diferencia >= 0 ? '+' : ''}{minToHHMM(res.minutos_diferencia)}
                         </span>
                       </td>
-                      <td data-label="Extra" style={{ fontVariantNumeric: 'tabular-nums' }}>
-                        {res.minutos_extra > 0
-                          ? <span style={{ color: 'var(--warning)', fontWeight: 600 }}>{minToHHMM(res.minutos_extra)}</span>
-                          : <span style={{ color: 'var(--text-muted)' }}>—</span>
-                        }
+                      <td data-label="Extra" style={tabular}>
+                        <Resaltado valor={res.minutos_extra} texto={minToHHMM(res.minutos_extra)} color="var(--warning)" />
+                      </td>
+                      <td data-label="Faltantes" style={tabular}>
+                        <Resaltado valor={res.minutos_faltantes} texto={minToHHMM(res.minutos_faltantes)} color="var(--danger)" />
+                      </td>
+                      <td data-label="Retardos" style={tabular}>
+                        <Resaltado valor={res.retardos} texto={`${res.retardos} (${res.minutos_retardo} min)`} color="var(--danger)" />
+                      </td>
+                      <td data-label="Salidas anticipadas" style={tabular}>
+                        <Resaltado
+                          valor={res.salidas_anticipadas}
+                          texto={`${res.salidas_anticipadas} (${res.minutos_salida_anticipada} min)`}
+                          color="var(--danger)"
+                        />
+                      </td>
+                      <td data-label="Comida" style={tabular}>
+                        {res.minutos_comida > 0 ? minToHHMM(res.minutos_comida) : <span style={{ color: 'var(--text-muted)' }}>—</span>}
+                      </td>
+                      <td data-label="Exceso comida" style={tabular}>
+                        <Resaltado valor={res.minutos_exceso_comida} texto={minToHHMM(res.minutos_exceso_comida)} color="var(--warning)" />
                       </td>
                       <td data-label="Bono">
                         {res.bono_puntualidad
@@ -283,8 +284,7 @@ export default function ResumenSemanal() {
                                 </div>
                               )}
                             </span>
-                          )
-                        }
+                          )}
                       </td>
                     </tr>
                   )
@@ -295,7 +295,8 @@ export default function ResumenSemanal() {
         )}
 
         <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 16 }}>
-          * Semana completa esperada: 57 h 30 min (Lun–Vie 10 h/día + Sáb 7.5 h)
+          * Las horas esperadas dependen del turno de cada empleado (horario menos tiempo de comida)
+          y solo cuentan los días laborales que ya transcurrieron.
         </p>
       </div>
     </>

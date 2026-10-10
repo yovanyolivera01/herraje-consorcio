@@ -12,12 +12,19 @@ const DIAS = [
     { value: 7, label: 'Dom' },
 ]
 
+function minutosEntre(inicio, fin) {
+    const [h1, m1] = inicio.split(':').map(Number)
+    const [h2, m2] = fin.split(':').map(Number)
+    return (h2 * 60 + m2) - (h1 * 60 + m1)
+}
+
 export default function TurnoModal({ turno, onClose, onSave }) {
 
     const [form, setForm] = useState({
         hora_inicio: turno?.hora_inicio ?? '',
         hora_fin: turno?.hora_fin ?? '',
         tolerancia: turno?.tolerancia ?? '',
+        minutos_comida: turno?.minutos_comida ?? 60,
         dias_laborales: turno?.dias_laborales ?? [1, 2, 3, 4, 5, 6],
     })
 
@@ -34,6 +41,10 @@ export default function TurnoModal({ turno, onClose, onSave }) {
         }
         if (form.tolerancia === '' || Number(form.tolerancia) < 0) e.tolerancia = 'La tolerancia no puede ser negativa'
         else if (Number(form.tolerancia) > 30) e.tolerancia = 'La tolerancia no puede ser mayor a 30 minutos'
+        if (form.minutos_comida === '' || Number(form.minutos_comida) < 0) e.minutos_comida = 'La comida no puede ser negativa'
+        else if (form.hora_inicio && form.hora_fin && Number(form.minutos_comida) >= minutosEntre(form.hora_inicio, form.hora_fin)) {
+            e.minutos_comida = 'La comida debe ser menor a la duración del turno'
+        }
         if (!form.dias_laborales.length) e.dias_laborales = 'Selecciona al menos un día'
         return e
     }
@@ -105,6 +116,18 @@ export default function TurnoModal({ turno, onClose, onSave }) {
                         </div>
 
                         <div className="form-group">
+                            <label className="form-label required">Tiempo de comida (minutos)</label>
+                            <input
+                                type="number"
+                                className={`form-input${errors.minutos_comida ? ' error' : ''}`}
+                                value={form.minutos_comida}
+                                onChange={set('minutos_comida')}
+                                placeholder="60"
+                            />
+                            {errors.minutos_comida && <div className="form-error">{errors.minutos_comida}</div>}
+                        </div>
+
+                        <div className="form-group">
                             <label className="form-label required">Días laborales</label>
                             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                                 {DIAS.map(dia => {
@@ -150,6 +173,7 @@ export function TurnosTable({ turnos }) {
                         <th>Hora inicio</th>
                         <th>Hora fin</th>
                         <th>Tolerancia</th>
+                        <th>Comida</th>
                         <th>Días laborales</th>
                     </tr>
                 </thead>
@@ -159,6 +183,7 @@ export function TurnosTable({ turnos }) {
                             <td data-label="Hora inicio" style={{ fontWeight: 500 }}>{t.hora_inicio}</td>
                             <td data-label="Hora fin">{t.hora_fin}</td>
                             <td data-label="Tolerancia">{t.tolerancia} min</td>
+                            <td data-label="Comida">{t.minutos_comida ?? 60} min</td>
                             <td data-label="Días laborales">{(t.dias_laborales ?? []).map(diaLabel).join(', ')}</td>
                         </tr>
                     ))}

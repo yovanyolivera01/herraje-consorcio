@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { getEmpleados } from '../lib/empleado'
-import BotonRegistro from './botonRegistro'
 import ModalReconocimiento from './modalReconocimiento'
 import logoVR from '../assets/images/logoVR.jpeg'
 import {
@@ -161,13 +160,12 @@ export default function Layout() {
   const location = useLocation()
   const { role, user, logout } = useAuth()
 
-  // Registro de entrada/salida en el menú — el login es una sola cuenta
+  // Registro de asistencia en el menú — el login es una sola cuenta
   // compartida (sin sesión por empleado), así que cada quien se identifica
-  // con reconocimiento facial. Ya no hay una lista para elegirse a mano
-  // (se quitó): en cuanto la cámara reconoce a alguien, se marca su
-  // entrada/salida de una — sin un click aparte para confirmar.
+  // con reconocimiento facial. En cuanto la cámara reconoce a alguien se
+  // marca la siguiente de sus 4 marcas del día (entrada, salida a comer,
+  // regreso de comer, salida) — sin botones manuales ni click de confirmación.
   const [empleadosRegistro,  setEmpleadosRegistro]  = useState([])
-  const [empleadoRegistroId, setEmpleadoRegistroId] = useState(() => localStorage.getItem('hc_empleado_registro') ?? '')
   const [modalReconocer,     setModalReconocer]     = useState(false)
   const [mensajeAsistencia,  setMensajeAsistencia]  = useState(null)
 
@@ -175,27 +173,19 @@ export default function Layout() {
     getEmpleados().then(setEmpleadosRegistro).catch(() => setEmpleadosRegistro([]))
   }, [])
 
-  // ModalReconocimiento ya registró la asistencia (sp_registro la primera
-  // vez del día, sp_update_registro la segunda) antes de llamar esto — acá
-  // solo se refleja el resultado; no se vuelve a llamar la API (eso
-  // duplicaría el registro) y no se cierra el modal, para que la persona
-  // alcance a ver su propio mensaje de éxito antes de cerrarlo a mano.
-  const handleReconocido = (empleado, accion) => {
-    setEmpleadoRegistroId(String(empleado.empleado_id))
+  // ModalReconocimiento ya registró la marca (ver lib/asistencia.js) antes
+  // de llamar esto — acá solo se refleja el resultado; no se vuelve a llamar
+  // la API (eso duplicaría el registro) y no se cierra el modal, para que la
+  // persona alcance a ver su propio mensaje de éxito antes de cerrarlo a mano.
+  const handleReconocido = (empleado, accion, texto) => {
     setMensajeAsistencia({
       tipo: 'ok',
-      texto: accion === 'entrada' ? `✅ Entrada registrada: ${empleado.nombre}`
-           : accion === 'salida'  ? `✅ Salida registrada: ${empleado.nombre}`
-           : `${empleado.nombre} ya registró su entrada y salida hoy`,
+      texto: accion === 'completo'
+        ? `${empleado.nombre} ya completó sus 4 registros de hoy`
+        : `✅ ${texto} registrado: ${empleado.nombre}`,
     })
     setTimeout(() => setMensajeAsistencia(null), 5000)
   }
-
-  useEffect(() => {
-    if (empleadoRegistroId) localStorage.setItem('hc_empleado_registro', empleadoRegistroId)
-  }, [empleadoRegistroId])
-
-  const empleadoRegistro = empleadosRegistro.find(e => String(e.empleado_id) === empleadoRegistroId)
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light')
@@ -390,7 +380,7 @@ export default function Layout() {
             <button
               type="button"
               onClick={() => setModalReconocer(true)}
-              title="Reconocer rostro y marcar entrada/salida automáticamente"
+              title="Reconocer rostro y registrar asistencia automáticamente"
               style={{
                 width: '100%', boxSizing: 'border-box', display: 'flex', alignItems: 'center',
                 justifyContent: 'center', gap: 6, padding: '6px 10px', borderRadius: 7, fontSize: 13,
@@ -408,9 +398,6 @@ export default function Layout() {
               >
                 {mensajeAsistencia.texto}
               </span>
-            )}
-            {empleadoRegistro && (
-              <BotonRegistro compact id_empleado={empleadoRegistro.empleado_id} id_turno={empleadoRegistro.id_turno} />
             )}
           </div>
         )}

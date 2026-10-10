@@ -17,6 +17,6 @@ async function apiFetch(path, options = {}) {
 
 export const getTurnos = async () => apiFetch('/personal/turno')
 
-export const createTurno = async ({ hora_inicio, hora_fin, tolerancia, dias_laborales }) =>
-  apiFetch('/personal/turno', { method: 'POST', body: { hora_inicio, hora_fin, tolerancia, dias_laborales } })
+export const createTurno = async ({ hora_inicio, hora_fin, tolerancia, dias_laborales, minutos_comida }) =>
+  apiFetch('/personal/turno', { method: 'POST', body: { hora_inicio, hora_fin, tolerancia, dias_laborales, minutos_comida } })
 
