@@ -64,6 +64,7 @@ export function printTicketVidrio(detalle) {
         <td colspan="4" style="font-size:11px;color:#555;padding-bottom:2px">${p.descripcion_vidrio}</td>
       </tr>` : ''
     return `
+      <tbody class="partida-group">
       <tr class="bold">
         <td class="c-cant">${pzas}</td>
         <td class="c-med">${p.largo_cm}×${p.ancho_cm}</td>
@@ -73,7 +74,8 @@ export function printTicketVidrio(detalle) {
       </tr>
       ${descRow}
       ${procRows}
-      ${subtotalRow}`
+      ${subtotalRow}
+      </tbody>`
   }
 
   const renderMaquila = p => {
@@ -96,6 +98,7 @@ export function printTicketVidrio(detalle) {
           <td colspan="4" style="font-size:11px;color:#555;padding-bottom:2px">${p.descripcion}</td>
         </tr>` : ''
       return `
+        <tbody class="partida-group">
         <tr class="bold">
           <td class="c-cant">${pzas}</td>
           <td class="c-med">${p.largo_cm}×${p.ancho_cm}</td>
@@ -104,7 +107,8 @@ export function printTicketVidrio(detalle) {
           <td class="c-tot">$${Number(p.subtotal_partida).toFixed(2)}</td>
         </tr>
         ${descRow}
-        ${procRows}`
+        ${procRows}
+        </tbody>`
     }
     const label = p.descripcion || p.clave || '—'
     const notasProcs = (parseMaqNotas(p)?.procesos) ?? []
@@ -126,6 +130,7 @@ export function printTicketVidrio(detalle) {
         return `<tr style="font-size:11px"><td colspan="3" style="padding-left:10px"><div style="display:flex;align-items:center">${icon}<span>+${txt}</span></div></td><td class="c-cu">${cu}</td><td class="c-tot">${tot}</td></tr>`
       }).join('')
       return `
+        <tbody class="partida-group">
         <tr class="bold">
           <td class="c-cant"></td>
           <td class="c-med"></td>
@@ -133,17 +138,20 @@ export function printTicketVidrio(detalle) {
           <td class="c-cu"></td>
           <td class="c-tot">$${Number(p.subtotal_partida).toFixed(2)}</td>
         </tr>
-        ${procRows}`
+        ${procRows}
+        </tbody>`
     }
     const cu  = p.precio_unitario != null ? `$${Number(p.precio_unitario).toFixed(2)}` : ''
     return `
+      <tbody class="partida-group">
       <tr class="bold">
         <td class="c-cant">${p.cantidad ?? 1}</td>
         <td class="c-med"></td>
         <td>${label}</td>
         <td class="c-cu">${cu}</td>
         <td class="c-tot">$${Number(p.subtotal_partida).toFixed(2)}</td>
-      </tr>`
+      </tr>
+      </tbody>`
   }
 
   const renderHerraje = p => `
@@ -162,7 +170,7 @@ export function printTicketVidrio(detalle) {
     <th>Descripción</th>
     <th class="c-cu">c/u</th>
     <th class="c-tot">Total</th>
-  </tr></thead><tbody>`
+  </tr></thead>`
 
   const totalCalculado = detalle.partidas.reduce((sum, p) => sum + Number(p.subtotal_partida), 0)
 
@@ -176,8 +184,8 @@ export function printTicketVidrio(detalle) {
   ].join('')
 
   let rows = ''
-  if (vidrios.length)    rows += sectionLbl('Vidrio') + colHeader + vidrios.map(renderVidrio).join('') + '</tbody></table>'
-  if (maquilas.length)   rows += sectionLbl('Maquila') + colHeader + maquilas.map(renderMaquila).join('') + '</tbody></table>'
+  if (vidrios.length)    rows += sectionLbl('Vidrio') + colHeader + vidrios.map(renderVidrio).join('') + '</table>'
+  if (maquilas.length)   rows += sectionLbl('Maquila') + colHeader + maquilas.map(renderMaquila).join('') + '</table>'
   if (extrasProc.length) rows += sectionLbl('Proceso Extra') + extrasProc.map(p => `
     <div class="row"><span>${p.cantidad ?? 1} · ${p.descripcion ?? '—'}</span><span>$${Number(p.subtotal_partida).toFixed(2)}</span></div>`).join('')
   if (herrajes.length)   rows += sectionLbl('Herraje') + herrajes.map(renderHerraje).join('')
@@ -239,9 +247,13 @@ export function printTicketVidrio(detalle) {
     .total-row { font-size: 15px; font-weight: 700; }
     .footer { margin-top: 10px; font-size: 12px; }
     .tbl-vidrio { width: 100%; border-collapse: collapse; font-size: 10px; margin-bottom: 3px; }
+    .tbl-vidrio thead { display: table-header-group; }
     .tbl-vidrio td, .tbl-vidrio th { vertical-align: baseline; padding: 1px 0; }
     .tbl-vidrio thead th { font-size: 9px; font-weight: 400; color: #555; text-align: left; border-bottom: 1px dashed #aaa; padding-bottom: 3px; }
     .tbl-vidrio .bold td { font-weight: 700; }
+    /* Una pieza puede generar varias filas (medida + procesos + subtotal) —
+       sin esto el navegador puede partirla entre dos hojas al imprimir. */
+    .tbl-vidrio tbody.partida-group, .tbl-vidrio tr { break-inside: avoid; page-break-inside: avoid; }
     .c-cant { width: 22px; }
     .c-med  { width: 54px; }
     .c-cu   { width: 48px; text-align: right; padding-left: 6px; }
@@ -508,6 +520,7 @@ export function printCotizacionCarta(detalle) {
         <td></td>
       </tr>` : ''
     return `
+      <tbody class="partida-group">
       <tr class="partida-row">
         <td style="text-align:center;font-weight:700">${pzas}</td>
         <td><strong>${p.clave}</strong></td>
@@ -517,7 +530,8 @@ export function printCotizacionCarta(detalle) {
         <td></td>
       </tr>
       ${procSubRows}
-      ${subtotalRow}`
+      ${subtotalRow}
+      </tbody>`
   }).join('')
 
   const pie = detalle.tipo === 'pedido' ? '¡Gracias por su compra!' : 'Cotización con vigencia de 15 días a partir de la fecha de emisión.'
@@ -578,11 +592,15 @@ export function printCotizacionCarta(detalle) {
 
     /* ── Tabla partidas ── */
     table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
+    thead { display: table-header-group; }
     th { background: #1a3a6b; color: #fff; padding: 8px 10px; font-size: 12px; text-align: left; }
     th:last-child { text-align: right; }
     td { padding: 7px 10px; border-bottom: 1px solid #eee; font-size: 13px; vertical-align: top; }
     .partida-row td { background: #fff; }
     .partida-row:hover td { background: #fafafa; }
+    /* Cada pieza puede generar varias filas (medida + procesos + subtotal) —
+       sin esto el navegador puede partir una pieza entre dos hojas al imprimir. */
+    tbody.partida-group, tr { break-inside: avoid; page-break-inside: avoid; }
 
     /* ── Total ── */
     .total-box {
@@ -673,9 +691,7 @@ export function printCotizacionCarta(detalle) {
         <th></th>
       </tr>
     </thead>
-    <tbody>
-      ${rows}
-    </tbody>
+    ${rows}
   </table>
 
   ${extrasPartidas.length > 0 ? `
@@ -1105,10 +1121,26 @@ export async function printPedidoA4(detalle) {
     }))
     const headerPxHeight = Math.round(headerEl.offsetHeight * scale)
 
-    const [canvas, headerCanvas] = await Promise.all([
+    // Cada tabla (Vidrio/Maquila/Proceso Extra/Herraje) tiene su propio <thead>
+    // con los nombres de columna. Si sus filas no caben en una sola hoja, la
+    // continuación en la siguiente hoja necesita ese thead repetido arriba —
+    // si no, se ven números sueltos sin saber a qué columna pertenecen.
+    const theadEls = Array.from(contenedor.querySelectorAll('table thead'))
+    const theadInfo = theadEls.map(th => {
+      const table = th.closest('table')
+      return {
+        el:          th,
+        theadBottom: Math.round((th.offsetTop + th.offsetHeight) * scale),
+        tableBottom: Math.round((table.offsetTop + table.offsetHeight) * scale),
+      }
+    })
+
+    const [canvas, headerCanvas, ...theadCanvases] = await Promise.all([
       html2canvas(contenedor, { scale, useCORS: true, backgroundColor: '#ffffff', logging: false }),
       html2canvas(headerEl,   { scale, useCORS: true, backgroundColor: '#ffffff', logging: false }),
+      ...theadInfo.map(t => html2canvas(t.el, { scale, useCORS: true, backgroundColor: '#ffffff', logging: false })),
     ])
+    theadInfo.forEach((t, i) => { t.canvas = theadCanvases[i]; t.pxHeight = Math.round(t.el.offsetHeight * scale) })
 
     const pdf    = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
     const pageW  = pdf.internal.pageSize.getWidth()
@@ -1119,6 +1151,7 @@ export async function printPedidoA4(detalle) {
     const pxPerMM    = canvas.width / maxW
     const headerMM   = headerPxHeight / pxPerMM
     const headerGapMM = 4
+    const theadGapMM  = 2
     const bodyMaxHmm = pageH - margin * 2 - headerMM - headerGapMM
     const bodyMaxHpx = Math.round(bodyMaxHmm * pxPerMM)
 
@@ -1134,31 +1167,44 @@ export async function printPedidoA4(detalle) {
       return desiredY
     }
 
+    // Si esta hoja empieza en medio del cuerpo de una tabla (después de su
+    // thead, antes de su última fila), esa tabla necesita su thead repetido.
+    const theadParaContinuacion = (y) => theadInfo.find(t => y >= t.theadBottom && y < t.tableBottom) ?? null
+
     // 1a pasada: solo calcula dónde cae cada corte, sin dibujar nada — así
     // sabemos el total de hojas ANTES de dibujar la primera (para "Página X de Y").
     const pageSlices = []
     let cursorY = headerPxHeight
     while (cursorY < canvas.height) {
-      let sliceEnd = Math.min(cursorY + bodyMaxHpx, canvas.height)
+      const theadRep  = theadParaContinuacion(cursorY)
+      const availHpx  = theadRep ? bodyMaxHpx - theadRep.pxHeight - Math.round(theadGapMM * pxPerMM) : bodyMaxHpx
+      let sliceEnd = Math.min(cursorY + availHpx, canvas.height)
       sliceEnd = snapCut(sliceEnd, cursorY)
       const sliceH = sliceEnd - cursorY
       if (sliceH <= 0) break
-      pageSlices.push({ start: cursorY, end: sliceEnd })
+      pageSlices.push({ start: cursorY, end: sliceEnd, theadRep })
       cursorY = sliceEnd
     }
     const totalPages = pageSlices.length
 
     // 2a pasada: dibuja cada hoja con su encabezado repetido y el contador de página.
-    pageSlices.forEach(({ start, end }, idx) => {
+    pageSlices.forEach(({ start, end, theadRep }, idx) => {
       if (idx > 0) pdf.addPage()
       pdf.addImage(headerCanvas.toDataURL('image/png'), 'PNG', margin, margin, maxW, headerMM)
+
+      let bodyY = margin + headerMM + headerGapMM
+      if (theadRep) {
+        const theadMM = theadRep.pxHeight / pxPerMM
+        pdf.addImage(theadRep.canvas.toDataURL('image/png'), 'PNG', margin, bodyY, maxW, theadMM)
+        bodyY += theadMM + theadGapMM
+      }
 
       const sliceH = end - start
       const slice = document.createElement('canvas')
       slice.width  = canvas.width
       slice.height = sliceH
       slice.getContext('2d').drawImage(canvas, 0, start, canvas.width, sliceH, 0, 0, canvas.width, sliceH)
-      pdf.addImage(slice.toDataURL('image/png'), 'PNG', margin, margin + headerMM + headerGapMM, maxW, sliceH / pxPerMM)
+      pdf.addImage(slice.toDataURL('image/png'), 'PNG', margin, bodyY, maxW, sliceH / pxPerMM)
 
       if (totalPages > 1) {
         pdf.setFontSize(9)
