@@ -11,7 +11,7 @@ router.get('/reportes/partidas-vidrio', async (req, res) => {
   try {
     const { fecha_inicio, fecha_fin } = req.query
     const { rows } = await query(`
-      SELECT
+    SELECT
         pp.id_partida AS id_partida_pedido,
         pp.id_pedido,
         p.folio,
@@ -24,7 +24,7 @@ router.get('/reportes/partidas-vidrio', async (req, res) => {
         pp.ancho_cm,
         COALESCE(pp.metros2, 0)  AS metros2,
         COALESCE(pp.cantidad, 1) AS cantidad,
-        pv.precio_m2,
+        pv.precio_m2,  
         pv.subtotal_vidrio,
         pp.subtotal_procesos,
         pp.subtotal AS total_partida

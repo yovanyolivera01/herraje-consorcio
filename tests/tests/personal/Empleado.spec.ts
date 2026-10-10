@@ -72,6 +72,27 @@ test('should create and then dar de baja a new empleado', async ({ page }) => {
 })
 
 
-test ('only create empleado', async({page})=>{
-    
+test('only create empleado', async ({ page }) => {
+  // Teléfono único por corrida (uq_empleados_telefono).
+  const telefono = `55${Date.now().toString().slice(-8)}`
+
+  await page.getByRole('button', { name: '+ Nuevo empleado' }).click()
+  await expect(page.getByRole('heading', { name: 'Nuevo empleado' })).toBeVisible()
+
+  const modal = page.locator('.modal').filter({ hasText: 'Nuevo empleado' })
+  await modal.getByPlaceholder('Nombre').fill('PlaywrightCreate')
+  await modal.getByPlaceholder('Apellido paterno').fill('Prueba')
+  await modal.getByPlaceholder('Apellido materno').fill('Completo')
+  await modal.getByPlaceholder('Teléfono').fill(telefono)
+  await modal.locator('select').selectOption({ index: 1 })
+  await modal.getByPlaceholder('Calle y número').fill('Av. Reforma 123')
+  await modal.getByPlaceholder('Colonia').fill('Centro')
+  await modal.getByPlaceholder('Ciudad').fill('Monterrey')
+  await modal.getByPlaceholder('Código postal').fill('64000')
+  await modal.getByRole('button', { name: 'Guardar' }).click()
+
+  await expect(page.getByText('Empleado registrado correctamente ✅')).toBeVisible()
+  const fila = page.getByRole('row', { name: new RegExp(telefono) })
+  await expect(fila).toBeVisible()
+  await expect(fila).toContainText('PlaywrightCreate')
 })
