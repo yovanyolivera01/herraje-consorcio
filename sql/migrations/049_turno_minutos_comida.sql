@@ -2,6 +2,13 @@
 -- que las horas a trabajar por día son (fin - inicio) - minutos_comida.
 -- Antes esto era una constante (60) en el cálculo de horas.
 
+-- Prerrequisito de v_horas_ausencia: esta columna se creó en
+-- sql/functions/sps_turnos.sql. Se repite aquí (idempotente) para que la
+-- migración funcione aunque ese script nunca se haya corrido en esta base.
+ALTER TABLE turno
+  ADD COLUMN IF NOT EXISTS dias_laborales INTEGER[] NOT NULL DEFAULT '{1,2,3,4,5,6}';
+
+
 ALTER TABLE turno ADD COLUMN IF NOT EXISTS minutos_comida INTEGER NOT NULL DEFAULT 60;
 
 

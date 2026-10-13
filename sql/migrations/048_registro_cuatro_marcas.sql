@@ -7,6 +7,13 @@
 -- para no romper datos históricos ni sp_registro / sp_obtener_registro_hoy,
 -- que regresan el tipo `registro` y toman las columnas nuevas solas.
 
+-- Prerrequisito de v_horas_ausencia: esta columna se creó en
+-- sql/functions/sps_turnos.sql. Se repite aquí (idempotente) para que la
+-- migración funcione aunque ese script nunca se haya corrido en esta base.
+ALTER TABLE turno
+  ADD COLUMN IF NOT EXISTS dias_laborales INTEGER[] NOT NULL DEFAULT '{1,2,3,4,5,6}';
+
+
 ALTER TABLE registro ADD COLUMN IF NOT EXISTS hora_salida_comida  TIME;
 ALTER TABLE registro ADD COLUMN IF NOT EXISTS hora_regreso_comida TIME;
 
