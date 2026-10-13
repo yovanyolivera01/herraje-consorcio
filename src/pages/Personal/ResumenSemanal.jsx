@@ -2,19 +2,12 @@ import { useState, useEffect } from 'react'
 import { usePersonal } from '../../context/PersonalContext'
 import ModalRegistrosDia from '../../components/modalRegistrosDia'
 import ModalRegistrosEmpleado from '../../components/modalRegistrosEmpleado'
-import { getResumenHoras, getHorasEmpleado, minToHHMM, horaCorta } from '../../lib/calculosApi'
+import { getResumenHoras, minToHHMM } from '../../lib/calculosApi'
+import { descargarReporteHorasPDF } from '../../utils/reportHoras'
 import {
   hoyLocal, getLunesDeSemana, getLunesAnterior, getLunesSiguiente,
-  getDomingoDeSemana, descripcionSemana, getNombreDia,
+  getDomingoDeSemana, descripcionSemana,
 } from '../../lib/semana'
-
-const MESES = ['enero','febrero','marzo','abril','mayo','junio',
-  'julio','agosto','septiembre','octubre','noviembre','diciembre']
-
-const ESTADO_TEXTO = {
-  completo: 'Completo', en_curso: 'En curso', en_comida: 'En comida',
-  falta: 'Falta', pendiente: 'Pendiente', descanso: 'Descanso',
-}
 
 const tabular = { fontVariantNumeric: 'tabular-nums' }
 
@@ -23,73 +16,6 @@ function Resaltado({ valor, texto, color }) {
   return valor > 0
     ? <span style={{ color, fontWeight: 600 }}>{texto}</span>
     : <span style={{ color: 'var(--text-muted)' }}>—</span>
-}
-
-// ── Genera y descarga el CSV ──────────────────────────────────
-// El detalle por día se pide al backend por empleado; los totales ya vienen
-// en `resumenes`.
-async function descargarCSV(lunes, empleados, resumenes) {
-  const domingo = getDomingoDeSemana(lunes)
-  const lineas = []
-  lineas.push(`"REPORTE SEMANAL - ${descripcionSemana(lunes)}"`)
-  lineas.push('')
-  lineas.push('"Empleado","Teléfono","Día","Fecha","Entrada","Salida a comer","Regreso","Salida","Estado","Horas trabajadas","Horas extra","Retardo (min)"')
-
-  for (const emp of empleados) {
-    const { dias } = await getHorasEmpleado(emp.empleado_id, lunes, domingo)
-
-    for (const dia of dias) {
-      const d = new Date(dia.fecha + 'T12:00:00')
-      lineas.push([
-        `"${emp.nombre}"`,
-        `"${emp.telefono ?? ''}"`,
-        `"${getNombreDia(dia.fecha)}"`,
-        `"${d.getDate()} de ${MESES[d.getMonth()]}"`,
-        `"${dia.marcas ? horaCorta(dia.marcas.entrada) : ''}"`,
-        `"${dia.marcas ? horaCorta(dia.marcas.salida_comida) : ''}"`,
-        `"${dia.marcas ? horaCorta(dia.marcas.regreso_comida) : ''}"`,
-        `"${dia.marcas ? horaCorta(dia.marcas.salida) : ''}"`,
-        `"${ESTADO_TEXTO[dia.estado] ?? dia.estado}"`,
-        `"${dia.estado === 'completo' ? minToHHMM(dia.minutos_trabajados) : ''}"`,
-        `"${dia.minutos_extra > 0 ? minToHHMM(dia.minutos_extra) : ''}"`,
-        `"${dia.es_retardo ? dia.retardo_minutos : ''}"`,
-      ].join(','))
-    }
-
-    const res = resumenes[emp.empleado_id]
-    if (res) {
-      const dif = res.minutos_diferencia
-      const vacio = '"—"'
-      lineas.push([
-        `"${emp.nombre} — TOTAL"`, `"${emp.telefono ?? ''}"`, vacio, vacio, vacio, vacio, vacio, vacio,
-        `"Completos ${res.dias_completos}/${res.dias_laborales} · Faltas ${res.faltas}"`,
-        `"${minToHHMM(res.minutos_trabajados)} / ${minToHHMM(res.minutos_programados)} (${dif >= 0 ? '+' : ''}${minToHHMM(dif)})"`,
-        `"${minToHHMM(res.minutos_extra)}"`,
-        `"${res.retardos} (${res.minutos_retardo} min)"`,
-      ].join(','))
-      lineas.push([
-        `"${emp.nombre} — OTROS"`, vacio, vacio, vacio, vacio, vacio, vacio, vacio,
-        `"Faltantes ${minToHHMM(res.minutos_faltantes)} · Salidas anticipadas ${res.salidas_anticipadas} (${res.minutos_salida_anticipada} min)"`,
-        `"Comida ${minToHHMM(res.minutos_comida)} · Exceso ${minToHHMM(res.minutos_exceso_comida)}"`,
-        vacio, vacio,
-      ].join(','))
-      lineas.push([
-        `"${emp.nombre} — BONO"`,
-        vacio, vacio, vacio, vacio, vacio, vacio, vacio,
-        `"${res.bono_puntualidad ? 'APLICA' : 'NO APLICA'}"`,
-        `"${res.motivo_bono ?? ''}"`, vacio, vacio,
-      ].join(','))
-    }
-    lineas.push('')
-  }
-
-  const blob = new Blob(['﻿' + lineas.join('\n')], { type: 'text/csv;charset=utf-8;' })
-  const url  = URL.createObjectURL(blob)
-  const a    = document.createElement('a')
-  a.href     = url
-  a.download = `reporte-${lunes}.csv`
-  a.click()
-  URL.revokeObjectURL(url)
 }
 
 // ── Página principal ──────────────────────────────────────────
@@ -131,7 +57,7 @@ export default function ResumenSemanal() {
   const handleDescargar = async () => {
     setDescargando(true)
     try {
-      await descargarCSV(lunesFecha, empleados, resumenes)
+      await descargarReporteHorasPDF(lunesFecha, empleados, resumenes)
     } catch (e) {
       showToast('Error al descargar: ' + e.message, 'error')
     } finally {
@@ -170,7 +96,7 @@ export default function ResumenSemanal() {
             {cargando ? 'Calculando…' : '↻ Actualizar resumen'}
           </button>
           <button className="btn btn-primary" onClick={handleDescargar} disabled={cargando || descargando}>
-            {descargando ? 'Generando…' : '⬇ Descargar CSV'}
+            {descargando ? 'Generando…' : '⬇ Descargar PDF'}
           </button>
         </div>
       </div>
