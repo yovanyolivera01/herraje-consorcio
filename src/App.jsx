@@ -22,7 +22,7 @@ import HistorialCotizaciones    from './pages/Cotizacion/HistorialCotizaciones'
 import PedidosPendientes        from './pages/Cotizacion/PedidosPendientes'
 import HistorialVentas          from './pages/Cotizacion/HistorialVentas'
 import Empleados                from './pages/Personal/Empleados'
-import RegistroSemanal          from './pages/Personal/RegistroSemanal'
+// import RegistroSemanal          from './pages/Personal/RegistroSemanal'  // desactivada: se usa solo Resumen Semanal
 import ResumenSemanal           from './pages/Personal/ResumenSemanal'
 import InventarioVidrio         from './pages/Cotizacion/InventarioVidrio'
 import HistorialMaquila         from './pages/Cotizacion/HistorialMaquila'
@@ -73,7 +73,8 @@ export default function App() {
 
                   {/* ── Módulo de Gestión de Personal ── */}
                   <Route path="personal/empleados" element={<Empleados />} />
-                  <Route path="personal/registro"  element={<RegistroSemanal />} />
+                  {/* Registro Semanal desactivada: se usa solo Resumen Semanal
+                  <Route path="personal/registro"  element={<RegistroSemanal />} /> */}
                   <Route path="personal/resumen"   element={<ResumenSemanal />} />
                   <Route path="personal/puestos"   element={<Puestos/>}/>
                   <Route path="personal/turnos"    element={<Turnos/>}/>

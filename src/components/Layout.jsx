@@ -128,7 +128,8 @@ const personalNavItems = [
     { to: '/personal/turnos',    icon: <Clock size={16} />,     label: 'Turnos' },
   ]},
   { section: 'Asistencia', links: [
-    { to: '/personal/registro', icon: <CalendarClock size={16} />, label: 'Registro Semanal' },
+    // Registro Semanal desactivada: se usa solo Resumen Semanal
+    // { to: '/personal/registro', icon: <CalendarClock size={16} />, label: 'Registro Semanal' },
     { to: '/personal/resumen',  icon: <BarChart2 size={16} />,     label: 'Resumen Semanal' },
   ]},
 ]
