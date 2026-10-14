@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import logoVR from '../assets/images/logoVR.jpeg'
 import { useAuth } from '../context/AuthContext'
 import { HOME_POR_ROL, PERMISOS } from '../context/AuthContext'
+import { FLYER_KEY } from '../components/modalFlyer'
 
 export default function Login() {
   const { login }  = useAuth()
@@ -22,6 +23,7 @@ export default function Login() {
     setLoading(true)
     try {
       const session = await login(usuario.trim(), password.trim())
+      try { sessionStorage.setItem(FLYER_KEY, '1') } catch { /* sin storage: simplemente no se muestra el aviso */ }
       const home    = HOME_POR_ROL[session.rol] ?? '/cot/nueva'
       const permitidas = PERMISOS[session.rol]
       const puedeVolver = from && (permitidas === null || permitidas?.some(r => from.startsWith(r)))

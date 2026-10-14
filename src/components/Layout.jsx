@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { getEmpleados } from '../lib/empleado'
 import ModalReconocimiento from './modalReconocimiento'
+import ModalFlyer, { FLYER_KEY } from './modalFlyer'
 import logoVR from '../assets/images/logoVR.jpeg'
 import {
   Truck, Package, ReceiptText, BarChart2,
@@ -168,6 +169,16 @@ export default function Layout() {
   // regreso de comer, salida) — sin botones manuales ni click de confirmación.
   const [empleadosRegistro,  setEmpleadosRegistro]  = useState([])
   const [modalReconocer,     setModalReconocer]     = useState(false)
+
+  // Aviso de la nueva implementación: Login.jsx activa FLYER_KEY al iniciar
+  // sesión; se muestra una vez y se borra al cerrarlo.
+  const [mostrarFlyer, setMostrarFlyer] = useState(() => {
+    try { return sessionStorage.getItem(FLYER_KEY) === '1' } catch { return false }
+  })
+  const cerrarFlyer = () => {
+    try { sessionStorage.removeItem(FLYER_KEY) } catch { /* sin storage */ }
+    setMostrarFlyer(false)
+  }
   const [mensajeAsistencia,  setMensajeAsistencia]  = useState(null)
 
   useEffect(() => {
@@ -402,6 +413,8 @@ export default function Layout() {
             )}
           </div>
         )}
+
+        {mostrarFlyer && <ModalFlyer onClose={cerrarFlyer} />}
 
         {modalReconocer && (
           <ModalReconocimiento
