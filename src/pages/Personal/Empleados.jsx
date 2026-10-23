@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { usePersonal } from '../../context/PersonalContext'
 import EmpleadoModal from '../../components/formEmpleado'
 import ModalCara from '../../components/modalCara'
+import ModalInfoEmpleado from '../../components/modalInfoEmpleado'
 
 // ── Modal de confirmación ─────────────────────────────────────
 function DeleteModal({ nombre, onCancel, onConfirm }) {
@@ -131,14 +132,18 @@ export default function Empleados() {
               </thead>
               <tbody>
                 {filtered.map(emp => (
-                  <tr key={emp.empleado_id}>
+                  <tr
+                    key={emp.empleado_id}
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => setModal({ type: 'info', data: emp })}
+                  >
                     <td data-label="#">
                       <span className="badge badge-blue">{emp.empleado_id}</span>
                     </td>
                     <td data-label="Nombre" style={{ fontWeight: 500 }}>{emp.nombre}</td>
                     <td data-label="Teléfono">{emp.telefono}</td>
                     <td data-label="">
-                      <div style={{ display: 'flex', gap: 2 }}>
+                      <div style={{ display: 'flex', gap: 2 }} onClick={e => e.stopPropagation()}>
                         <button
                           className="btn-icon"
                           title="Editar"
@@ -183,6 +188,13 @@ export default function Empleados() {
           nombre={modal.data.nombre}
           onCancel={() => setModal(null)}
           onConfirm={handleDelete}
+        />
+      )}
+
+      {modal?.type === 'info' && (
+        <ModalInfoEmpleado
+          empleado={modal.data}
+          onClose={() => setModal(null)}
         />
       )}
 

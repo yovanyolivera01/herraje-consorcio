@@ -97,9 +97,17 @@ function calcularDia(fecha, registro, turno, hoy = hoyMX()) {
               : 'en_curso',
         minutos_trabajados: trabajados,
         minutos_comida: comida,
-        // Extra y faltante solo tienen sentido con el día cerrado
-        minutos_extra:     completo && laboral ? Math.max(0, trabajados - programados) : 0,
-        minutos_faltantes: completo && laboral ? Math.max(0, programados - trabajados) : 0,
+        // Extra y faltante solo tienen sentido con el día cerrado.
+        // Extra = lo que llegó ANTES de la hora de entrada + lo que se quedó
+        // DESPUÉS de la hora de salida (llegar tarde no se compensa con
+        // quedarse más). Faltante = retardo + salida anticipada + lo que
+        // excedió de comida.
+        minutos_extra: completo && laboral
+            ? Math.max(0, aMinutos(turno.hora_inicio) - llegada) + Math.max(0, salida - aMinutos(turno.hora_fin))
+            : 0,
+        minutos_faltantes: completo && laboral
+            ? retardo + Math.max(0, aMinutos(turno.hora_fin) - salida) + Math.max(0, (comida ?? 0) - comidaProgramada(turno))
+            : 0,
         retardo_minutos: retardo,
         es_retardo: retardo > (turno.tolerancia ?? 0),
         salida_anticipada_min: completo ? Math.max(0, aMinutos(turno.hora_fin) - salida) : 0,
@@ -148,7 +156,7 @@ function calcularRango(inicio, fin, registrosPorFecha, turno) {
         salidas_anticipadas: dias.filter(d => d.salida_anticipada_min > 0).length,
         minutos_salida_anticipada: sum('salida_anticipada_min'),
     }
-    totales.minutos_diferencia = totales.minutos_trabajados - totales.minutos_programados
+    totales.minutos_diferencia = totales.minutos_extra - totales.minutos_faltantes
 
     // Bono de puntualidad: ningún retardo y todos los días laborales ya
     // transcurridos completos (con al menos un día laboral transcurrido).

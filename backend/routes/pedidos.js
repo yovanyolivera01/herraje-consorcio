@@ -196,6 +196,17 @@ router.get('/pedidos/credito', async (req, res) => {
 
 // ── Pedidos cancelados ────────────────────────────────────────────────────────
 
+router.get('/pedidos/consulta', async (req, res) => {
+  try {
+    const { fecha_inicio, fecha_fin } = req.query
+    const { rows } = await query(
+      'SELECT * FROM sp_consulta_pedidos($1::timestamptz, $2::timestamptz)',
+      [fecha_inicio || null, fecha_fin || null]
+    )
+    ok(res, rows)
+  } catch (e) { err(res, e) }
+})
+
 router.get('/pedidos/cancelados', async (req, res) => {
   try {
     const { fecha_inicio, fecha_fin } = req.query
@@ -210,7 +221,6 @@ router.get('/pedidos/cancelados', async (req, res) => {
       FROM pedido p
       LEFT JOIN cliente c ON c.id_cliente = p.id_cliente
       WHERE p.estatus    = 'CANCELADO'
-        AND p.tipo_pedido = 'VIDRIO'
         AND ($1::timestamptz IS NULL OR p.fecha_creacion >= $1::timestamptz)
         AND ($2::timestamptz IS NULL OR p.fecha_creacion <= $2::timestamptz)
       ORDER BY p.fecha_creacion DESC

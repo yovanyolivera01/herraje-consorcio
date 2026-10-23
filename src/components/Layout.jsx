@@ -56,7 +56,7 @@ const ventasNavEmpleado = [
 // ── Reportes ──────────────────────────────────────────────────────────────
 const reportesNavItems = [
   { section: 'Reportes', links: [
-    { to: '/cot/ventas',            icon: <CheckCircle2 size={16} />, label: 'Ventas netas' },
+    { to: '/cot/ventas',            icon: <CheckCircle2 size={16} />, label: 'Consulta de pedidos' },
     { to: '/cot/facturas',          icon: <FileText size={16} />,     label: 'Historial facturas' },
     { to: '/cot/reporte-vidrio',    icon: <Frame size={16} />,        label: 'Reporte Vidrio' },
     { to: '/cot/historial',         icon: <BarChart2 size={16} />,    label: 'Cotizaciones' },
@@ -92,7 +92,7 @@ const ventasNavVendedor = [
 const reportesNavVendedor = [
   { section: 'Reportes', links: [
     { to: '/cot/historial', icon: <BarChart2 size={16} />,    label: 'Cotizaciones' },
-    { to: '/cot/ventas',    icon: <CheckCircle2 size={16} />, label: 'Ventas netas' },
+    { to: '/cot/ventas',    icon: <CheckCircle2 size={16} />, label: 'Consulta de pedidos' },
   ]},
 ]
 
@@ -110,7 +110,7 @@ const ventasNavAlmacen = [
   //  { to: '/cot/pedidos-pendientes', icon: <Clock size={16} />,          label: 'Pendientes' },
     { to: '/ventas/nueva',           icon: <ReceiptText size={16} />,    label: 'Nueva venta' },
     { to: '/ventas/historial',       icon: <BarChart2 size={16} />,      label: 'Historial ventas' },
-    { to: '/cot/ventas',             icon: <CheckCircle2 size={16} />,   label: 'Ventas netas' },
+    { to: '/cot/ventas',             icon: <CheckCircle2 size={16} />,   label: 'Consulta de pedidos' },
   ]},
 ]
 

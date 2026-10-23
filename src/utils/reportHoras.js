@@ -1,6 +1,6 @@
 import jsPDF from 'jspdf'
 import logoVR from '../assets/images/logoVR.jpeg'
-import { getHorasEmpleado, minToHHMM, horaCorta } from '../lib/calculosApi'
+import { getHorasEmpleado, getCalculoNomina, minToHHMM, horaCorta } from '../lib/calculosApi'
 import { getDomingoDeSemana, descripcionSemana, getNombreDia } from '../lib/semana'
 
 // Reporte de horas de empleados en PDF (A4 horizontal): logotipo de la
@@ -113,9 +113,12 @@ function fila(doc, y, celdas, { negrita = false, fondo = null } = {}) {
 
 // Alto que ocupa el bloque de un empleado (nombre + cabecera + días + total + bono + firma)
 const ALTO_FIRMA = 17
-const altoBloque = (nDias) => 8 + ALTO_FILA * (nDias + 2) + 7 + ALTO_FIRMA + 6
+const ALTO_PAGO = 13
+const altoBloque = (nDias, conPago) => 8 + ALTO_FILA * (nDias + 2) + 7 + (conPago ? ALTO_PAGO : 0) + ALTO_FIRMA + 6
 
-function dibujarEmpleado(doc, y, empleado, dias, totales) {
+const dinero = (n) => `$${(Number(n) || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+
+function dibujarEmpleado(doc, y, empleado, dias, totales, pago) {
   const total = COLUMNAS.reduce((a, c) => a + c.ancho, 0)
 
   // Barra con nombre y turno
@@ -174,8 +177,30 @@ function dibujarEmpleado(doc, y, empleado, dias, totales) {
     MARGEN + 60, y + 3.5
   )
 
+  // Pago: sueldo del periodo (según los días del turno), extra, deducciones y total
+  y += 6
+  if (pago) {
+    const r = pago.resumen
+    doc.setFillColor(240, 247, 240)
+    doc.rect(MARGEN, y, total, ALTO_PAGO - 4, 'F')
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(8)
+    doc.setTextColor(30, 30, 30)
+    doc.text(
+      `Valor por dia ${dinero(r.valor_dia)} x ${r.dias_pagados} dias = ${dinero(pago.sueldo_base)}   |   `
+      + `Extra: ${pago.horas_extra} h x ${dinero(pago.tarifa_hora_extra)} = ${dinero(pago.monto_extra)}   |   `
+      + `Deducciones: ${r.faltas} falta(s) + ${minToHHMM(r.minutos_faltantes)} h faltantes = -${dinero(pago.deducciones)}`,
+      MARGEN + 2, y + 3.8
+    )
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(11)
+    doc.setTextColor(...AZUL)
+    doc.text(`TOTAL A PAGAR: ${dinero(pago.total_pagar)}`, MARGEN + total - 2, y + 7.6, { align: 'right' })
+    y += ALTO_PAGO - 4
+  }
+
   // Línea de firma con el nombre del empleado debajo
-  y += 7 + 10
+  y += pago ? 10 : 4
   const anchoLinea = 80
   doc.setDrawColor(60, 60, 60)
   doc.setLineWidth(0.3)
@@ -194,14 +219,16 @@ export async function descargarReporteHorasPDF(lunes, empleados, resumenes) {
   const domingo = getDomingoDeSemana(lunes)
   const semanaTxt = descripcionSemana(lunes)
 
-  const [logo, detalles] = await Promise.all([
+  const [logo, detalles, nomina] = await Promise.all([
     cargarLogo(),
     Promise.all(
       empleados
         .filter(e => resumenes[e.empleado_id])
         .map(e => getHorasEmpleado(e.empleado_id, lunes, domingo))
     ),
+    getCalculoNomina(lunes, domingo),
   ])
+  const pagoDe = Object.fromEntries(nomina.empleados.filter(p => p.resumen).map(p => [p.empleado_id, p]))
 
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
   const alto = doc.internal.pageSize.getHeight()
@@ -215,11 +242,28 @@ export async function descargarReporteHorasPDF(lunes, empleados, resumenes) {
   }
 
   for (const { empleado, dias, totales } of detalles) {
-    if (y + altoBloque(dias.length) > alto - MARGEN - 6) {
+    const pago = pagoDe[empleado.empleado_id]
+    if (y + altoBloque(dias.length, !!pago) > alto - MARGEN - 6) {
       doc.addPage()
       y = dibujarEncabezado(doc, logo, semanaTxt)
     }
-    y = dibujarEmpleado(doc, y, empleado, dias, totales)
+    y = dibujarEmpleado(doc, y, empleado, dias, totales, pago)
+  }
+
+  // Total general de la nómina de todos los empleados
+  if (detalles.length > 0) {
+    if (y + 14 > alto - MARGEN - 6) {
+      doc.addPage()
+      y = dibujarEncabezado(doc, logo, semanaTxt)
+    }
+    const ancho = COLUMNAS.reduce((a, c) => a + c.ancho, 0)
+    doc.setFillColor(...AZUL)
+    doc.rect(MARGEN, y, ancho, 10, 'F')
+    doc.setTextColor(255, 255, 255)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(12)
+    doc.text('TOTAL GENERAL A PAGAR', MARGEN + 3, y + 6.8)
+    doc.text(dinero(nomina.total_pagar), MARGEN + ancho - 3, y + 6.8, { align: 'right' })
   }
 
   // Pie con numeración

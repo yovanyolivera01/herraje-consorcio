@@ -1,11 +1,16 @@
 import { useState, useEffect, useCallback } from 'react'
 import { fmt5, hoyMX, lunesMX } from '../../lib/utils'
 import * as XLSX from 'xlsx'
-import { getPedidosEntregados, getDetallePedido, getPedidosParaExport, getPedidosCancelados, getPedidosPendientes, marcarComoEntregado } from '../../lib/pedidosApi'
+import { getPedidosEntregados, getDetallePedido, getPedidosParaExport, getPedidosCancelados, getPedidosPendientes, getPedidosConsulta, marcarComoEntregado } from '../../lib/pedidosApi'
 import { getPedidosPendientesMaquila } from '../../lib/maquilaApi'
 import { crearCFDI, getCFDIPdfUrl, getCFDIXmlUrl } from '../../lib/facturamaApi'
 import { printTicketVidrio, printPedidoA4 } from '../../utils/ticket'
 import {getClientes} from '../../lib/clientesApi'
+import FiltrosPedidos from '../../components/FiltrosPedidos'
+
+const OPCIONES_ESTADO     = [{ val: null, label: 'Todos' }, { val: 'ENTREGADO', label: 'Entregado' }, { val: 'PENDIENTE', label: 'Pendiente' }, { val: 'CANCELADO', label: 'Cancelado' }]
+const OPCIONES_PAGO       = [{ val: null, label: 'Todos' }, { val: 'LIQUIDADO', label: 'Liquidado' }, { val: 'ANTICIPO', label: 'Anticipo' }]
+const OPCIONES_PAGO_TODOS = [{ val: null, label: 'Cualquier pago' }, ...OPCIONES_PAGO.slice(1), { val: 'POR COBRAR', label: 'Por cobrar' }]
 
 function parseMaqNotas(notas) {
   try {
@@ -679,7 +684,17 @@ async function exportarExcel(fechaDesde, fechaHasta) {
 
 // ── Página Historial de Ventas ────────────────────────────────────────────
 export default function HistorialVentas() {
-  const [tab, setTab] = useState('entregados')
+  const tab = 'todos' // solo queda la consulta; los demás tabs quedan sin acceso
+
+  // todos
+  const [busquedaTodos,   setBusquedaTodos]   = useState('')
+  const [consDesde,       setConsDesde]       = useState('')
+  const [consHasta,       setConsHasta]       = useState('')
+  const [consulta,        setConsulta]        = useState([])
+  const [loadingCons,     setLoadingCons]     = useState(false)
+  const [errorCons,       setErrorCons]       = useState(null)
+  const [filtroEstado,    setFiltroEstado]    = useState(null)
+  const [filtroPagoTodos, setFiltroPagoTodos] = useState(null)
 
   // entregados
   const [pedidos,      setPedidos]      = useState([])
@@ -739,9 +754,39 @@ export default function HistorialVentas() {
     .filter(v => v.tipo_pago === 'LIQUIDADO')
     .filter(v => !qPend || v.folio?.toLowerCase().includes(qPend) || v.clienteNombre?.toLowerCase().includes(qPend))
 
+  // Consulta de pedidos: viene de sp_consulta_pedidos (todos los tipos y estatus del rango)
+  const todos = consulta.map(p => ({ ...p, estado: p.estatus }))
+
+  const qTodos = busquedaTodos.trim().toLowerCase()
+  const filteredTodos = todos
+    .filter(v => !filtroEstado || v.estado === filtroEstado)
+    .filter(v => !filtroPagoTodos || v.tipo_pago === filtroPagoTodos)
+    .filter(v => !qTodos || v.folio?.toLowerCase().includes(qTodos) || v.clienteNombre?.toLowerCase().includes(qTodos))
+  const totalTodos = filteredTodos.reduce((s, p) => s + p.total, 0)
+
+  const estadoBadge = (e) =>
+    e === 'ENTREGADO'   ? <span className="badge badge-green">Entregado</span>
+    : e === 'CANCELADO' ? <span className="badge" style={{ background:'#fef2f2', color:'#991b1b', border:'1px solid #fca5a5' }}>Cancelado</span>
+    : <span className="badge badge-orange">Pendiente</span>
+
   // ── loaders ───────────────────────────────────────────────────────────────
 
-  const cargar = useCallback(async () => {
+  const cargarConsulta = useCallback(async () => {
+    if (!consDesde || !consHasta) { setConsulta([]); return }
+    setLoadingCons(true)
+    setErrorCons(null)
+    try {
+      setConsulta(await getPedidosConsulta(consDesde, consHasta))
+    } catch (err) {
+      setErrorCons(err.message)
+    } finally {
+      setLoadingCons(false)
+    }
+  }, [consDesde, consHasta])
+
+  useEffect(() => { cargarConsulta() }, [cargarConsulta])
+
+  const cargar =useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
@@ -802,6 +847,17 @@ export default function HistorialVentas() {
   const totalAcumulado = filteredFinal.reduce((s, p) => s + p.total, 0)
   const totalCancelado = filteredCan.reduce((s, p) => s + p.total, 0)
 
+  const sumaTotal = (lista) => lista.reduce((s, p) => s + p.total, 0)
+  const resumen = {
+    todos:        { cantidad: filteredTodos.length,  total: totalTodos },
+    entregados:   { cantidad: filteredFinal.length,  total: totalAcumulado },
+    cancelados:   { cantidad: filteredCan.length,    total: totalCancelado, color: '#dc2626' },
+    'Por cobrar': { cantidad: filteredCob.length,    total: sumaTotal(filteredCob) },
+    Anticipo:     { cantidad: filteredAntic.length,  total: sumaTotal(filteredAntic) },
+    pendientes:   { cantidad: filteredPend.length,   total: sumaTotal(filteredPend) },
+  }[tab]
+  resumen.color ??= 'var(--accent)'
+
   const handleExportar = async () => {
     setExporting(true)
     try {
@@ -818,102 +874,133 @@ export default function HistorialVentas() {
     : fp === 'POR COBRAR' ? <span className="badge badge-blue">Por cobrar</span>
     : <span className="badge badge-orange">Anticipo</span>
 
-  const tabStyle = (t) => ({
-    padding: '6px 18px',
-    borderRadius: 6,
-    border: 'none',
-    cursor: 'pointer',
-    fontWeight: 600,
-    fontSize: 13,
-    background:   tab === t ? 'var(--accent)' : 'transparent',
-    color:        tab === t ? '#fff' : 'var(--text-muted)',
-    borderBottom: tab === t ? '2px solid var(--accent)' : '2px solid transparent',
-  })
-
   // ── render ────────────────────────────────────────────────────────────────
 
   return (
     <>
       <div className="page-header">
         <div>
-          <div className="page-title">Historial de Ventas</div>
-          <div style={{ display: 'flex', gap: 4, marginTop: 6 }}>
-            <button style={tabStyle('entregados')} onClick={() => setTab('entregados')}>Entregados</button>
-            <button style={tabStyle('cancelados')} onClick={() => setTab('cancelados')}>Cancelados</button>
-            <button style={tabStyle('Por cobrar')}  onClick={() => setTab('Por cobrar')}>Por cobrar</button>
-            <button style={tabStyle('Anticipo')}    onClick={() => setTab('Anticipo')}>Anticipo</button>
-            <button style={tabStyle('pendientes')}  onClick={() => setTab('pendientes')}>Pendientes</button>
-          </div>
-        </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          {tab === 'entregados' ? (
-            <>
-              <input type="text" className="filter-select" placeholder="Buscar folio, cliente..." value={busqueda} onChange={e => setBusqueda(e.target.value)} style={{ minWidth: 200 }} />
-              <button className="btn btn-outline" onClick={cargar} disabled={loading}>↻ Actualizar</button>
-              <button className="btn btn-primary" onClick={handleExportar} disabled={exporting || pedidos.length === 0}>
-                {exporting ? 'Exportando...' : '⬇ Excel'}
-              </button>
-            </>
-          ) : tab === 'cancelados' ? (
-            <>
-              <input type="text" className="filter-select" placeholder="Buscar folio, cliente..." value={busquedaCan} onChange={e => setBusquedaCan(e.target.value)} style={{ minWidth: 200 }} />
-              <button className="btn btn-outline" onClick={cargarCancelados} disabled={loadingCan}>↻ Actualizar</button>
-            </>
-          ) : tab === 'Por cobrar' ? (
-            <>
-              <input type="text" className="filter-select" placeholder="Buscar folio, cliente..." value={busquedaPorCobrar} onChange={e => setBusquedaPorCobrar(e.target.value)} style={{ minWidth: 200 }} />
-              <button className="btn btn-outline" onClick={() => { cargar(); cargarPendientes() }} disabled={loading || loadingPend}>↻ Actualizar</button>
-            </>
-          ) : tab === 'Anticipo' ? (
-            <>
-              <input type="text" className="filter-select" placeholder="Buscar folio, cliente..." value={busquedaAnticipo} onChange={e => setBusquedaAnticipo(e.target.value)} style={{ minWidth: 200 }} />
-              <button className="btn btn-outline" onClick={() => { cargar(); cargarPendientes() }} disabled={loading || loadingPend}>↻ Actualizar</button>
-            </>
-          ) : (
-            <>
-              <input type="text" className="filter-select" placeholder="Buscar folio, cliente..." value={busquedaPend} onChange={e => setBusquedaPend(e.target.value)} style={{ minWidth: 200 }} />
-              <button className="btn btn-outline" onClick={cargarPendientes} disabled={loadingPend}>↻ Actualizar</button>
-            </>
-          )}
+          <div className="page-title">Consulta de pedidos</div>
         </div>
       </div>
 
       <div className="page-body">
 
-        {/* Filtros de fecha */}
-        <div className="filter-bar" style={{ marginBottom: 20 }}>
-          <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Desde:</span>
-          <input type="date" className="filter-select" value={fechaDesde} onChange={e => setFechaDesde(e.target.value)} />
-          <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Hasta:</span>
-          <input type="date" className="filter-select" value={fechaHasta} onChange={e => setFechaHasta(e.target.value)} />
-          <button className="btn btn-outline btn-sm" onClick={() => { setFechaDesde(lunesMX()); setFechaHasta(hoyMX()) }}>
-            Esta semana
-          </button>
-          {tab === 'entregados' && (
+        {/* Filtros */}
+        <FiltrosPedidos
+          desde={tab === 'todos' ? consDesde : fechaDesde} hasta={tab === 'todos' ? consHasta : fechaHasta}
+          onDesde={tab === 'todos' ? setConsDesde : setFechaDesde} onHasta={tab === 'todos' ? setConsHasta : setFechaHasta}
+          busqueda={{ todos: busquedaTodos, entregados: busqueda, cancelados: busquedaCan, 'Por cobrar': busquedaPorCobrar, Anticipo: busquedaAnticipo, pendientes: busquedaPend }[tab]}
+          onBusqueda={{ todos: setBusquedaTodos, entregados: setBusqueda, cancelados: setBusquedaCan, 'Por cobrar': setBusquedaPorCobrar, Anticipo: setBusquedaAnticipo, pendientes: setBusquedaPend }[tab]}
+          grupos={
+            tab === 'todos' ? [
+              { opciones: OPCIONES_ESTADO,     valor: filtroEstado,    onChange: setFiltroEstado },
+              { opciones: OPCIONES_PAGO_TODOS, valor: filtroPagoTodos, onChange: setFiltroPagoTodos },
+            ] : tab === 'entregados' ? [
+              { opciones: OPCIONES_PAGO, valor: filtroPago, onChange: setFiltroPago },
+            ] : []
+          }
+          resumen={[
+            { label: 'Pedidos', valor: resumen.cantidad },
+            { label: 'Total', valor: `$${fmt5(resumen.total)}`, color: resumen.color },
+          ]}
+        >
+          {tab === 'todos' ? (
+            <button className="btn btn-outline" onClick={cargarConsulta} disabled={loadingCons || !consDesde || !consHasta}>🔍 Consultar</button>
+          ) : tab === 'entregados' ? (
             <>
-              <div style={{ width: 1, background: 'var(--border)', alignSelf: 'stretch', margin: '0 4px' }} />
-              {[{ val: null, label: 'Todos' }, { val: 'LIQUIDADO', label: 'Liquidado' }, { val: 'ANTICIPO', label: 'Anticipo' }].map(({ val, label }) => (
-                <button key={label} className={filtroPago === val ? 'btn btn-primary btn-sm' : 'btn btn-outline btn-sm'} onClick={() => setFiltroPago(val)}>
-                  {label}
-                </button>
-              ))}
+              <button className="btn btn-outline" onClick={cargar} disabled={loading}>🔍 Consultar</button>
+              <button className="btn btn-primary" onClick={handleExportar} disabled={exporting || pedidos.length === 0}>
+                {exporting ? 'Exportando...' : '⬇ Excel'}
+              </button>
             </>
+          ) : tab === 'cancelados' ? (
+            <button className="btn btn-outline" onClick={cargarCancelados} disabled={loadingCan}>🔍 Consultar</button>
+          ) : tab === 'Por cobrar' || tab === 'Anticipo' ? (
+            <button className="btn btn-outline" onClick={() => { cargar(); cargarPendientes() }} disabled={loading || loadingPend}>🔍 Consultar</button>
+          ) : (
+            <button className="btn btn-outline" onClick={cargarPendientes} disabled={loadingPend}>🔍 Consultar</button>
           )}
-        </div>
+        </FiltrosPedidos>
+
+        {/* ── TAB: TODOS ── */}
+        {tab === 'todos' && (
+          <>
+            {!consDesde || !consHasta ? (
+              <div className="empty-state">
+                <div className="empty-state-icon">📅</div>
+                <h3>Selecciona un rango de fechas</h3>
+                <p>Elige la fecha inicial y final para ver los pedidos</p>
+              </div>
+            ) : loadingCons ? (
+              <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>Cargando pedidos...</div>
+            ) : errorCons ? (
+              <div className="alert alert-error">❌ {errorCons}</div>
+            ) : filteredTodos.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-state-icon">📊</div>
+                <h3>Sin pedidos</h3>
+                <p>Ajusta el rango de fechas o los filtros</p>
+              </div>
+            ) : (
+              <>
+                <div className="hist-desktop">
+                  <div className="table-container">
+                    <table className="table">
+                      <thead>
+                        <tr>
+                          <th>Folio</th><th>Fecha</th><th>Cliente</th><th>Estado</th><th>Pago</th>
+                          <th style={{ textAlign: 'right' }}>Total</th><th style={{ width: 100 }}></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredTodos.map(p => (
+                          <tr key={p.folio} style={{ cursor: 'pointer' }} onClick={() => setSeleccionado(p)}>
+                            <td><span className="badge badge-blue">{p.folio}</span></td>
+                            <td style={{ fontSize: 14, color: 'var(--text-muted)' }}>{p.estado === 'ENTREGADO' && p.fechaEntrega ? p.fechaEntrega : p.fecha}</td>
+                            <td style={{ fontWeight: 500 }}>{p.clienteNombre}</td>
+                            <td>{estadoBadge(p.estado)}</td>
+                            <td>{p.tipo_pago ? formaPagoBadge(p.tipo_pago) : '—'}</td>
+                            <td style={{ textAlign: 'right', fontWeight: 700, color: p.estado === 'CANCELADO' ? '#dc2626' : 'var(--accent)' }}>${fmt5(p.total)}</td>
+                            <td><button className="btn btn-outline btn-sm" onClick={e => { e.stopPropagation(); setSeleccionado(p) }}>Ver detalle</button></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    <div style={{ padding: '12px 18px', textAlign: 'right', fontWeight: 700, fontSize: 15, borderTop: '1px solid var(--border)', color: 'var(--accent)' }}>
+                      Total: ${fmt5(totalTodos)}
+                    </div>
+                  </div>
+                </div>
+                <div className="hist-mobile">
+                  {filteredTodos.map(p => (
+                    <div key={p.folio} className="hist-card" onClick={() => setSeleccionado(p)}>
+                      <div className="hist-card-header">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span className="badge badge-blue">{p.folio}</span>
+                          {estadoBadge(p.estado)}
+                        </div>
+                        <span style={{ fontWeight: 700, fontSize: 17, color: p.estado === 'CANCELADO' ? '#dc2626' : 'var(--accent)' }}>${fmt5(p.total)}</span>
+                      </div>
+                      <div className="hist-card-body">
+                        <div style={{ fontWeight: 600, fontSize: 15 }}>{p.clienteNombre}</div>
+                        <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 3 }}>{p.fecha}</div>
+                      </div>
+                      <div className="hist-card-footer">
+                        {p.tipo_pago ? formaPagoBadge(p.tipo_pago) : <span />}
+                        <button className="btn btn-outline btn-sm" onClick={e => { e.stopPropagation(); setSeleccionado(p) }}>Ver detalle</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </>
+        )}
 
         {/* ── TAB: ENTREGADOS ── */}
         {tab === 'entregados' && (
           <>
-            <div className="stats-row">
-              <div className="stat-card">
-                <div className="stat-label">Ventas en periodo</div>
-                <div className="stat-value">{filteredFinal.length}</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-label">Total acumulado</div>
-                <div className="stat-value" style={{ fontSize: 18, color: 'var(--accent)' }}>${fmt5(totalAcumulado)}</div>
-              </div>
-            </div>
             {loading ? (
               <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>Cargando ventas...</div>
             ) : error ? (
@@ -985,16 +1072,6 @@ export default function HistorialVentas() {
         {/* ── TAB: CANCELADOS ── */}
         {tab === 'cancelados' && (
           <>
-            <div className="stats-row">
-              <div className="stat-card">
-                <div className="stat-label">Cancelados en periodo</div>
-                <div className="stat-value">{filteredCan.length}</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-label">Total cancelado</div>
-                <div className="stat-value" style={{ fontSize: 18, color: '#dc2626' }}>${fmt5(totalCancelado)}</div>
-              </div>
-            </div>
             {loadingCan ? (
               <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>Cargando cancelados...</div>
             ) : errorCan ? (
@@ -1056,18 +1133,6 @@ export default function HistorialVentas() {
         {/* ── TAB: POR COBRAR ── */}
         {tab === 'Por cobrar' && (
           <>
-            <div className="stats-row">
-              <div className="stat-card">
-                <div className="stat-label">Por cobrar</div>
-                <div className="stat-value">{filteredCob.length}</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-label">Total por cobrar</div>
-                <div className="stat-value" style={{ fontSize: 18, color: 'var(--accent)' }}>
-                  ${fmt5(filteredCob.reduce((s, p) => s + p.total, 0))}
-                </div>
-              </div>
-            </div>
             {loading || loadingPend ? (
               <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>Cargando...</div>
             ) : filteredCob.length === 0 ? (
@@ -1147,18 +1212,6 @@ export default function HistorialVentas() {
         {/* ── TAB: ANTICIPO ── */}
         {tab === 'Anticipo' && (
           <>
-            <div className="stats-row">
-              <div className="stat-card">
-                <div className="stat-label">Con anticipo</div>
-                <div className="stat-value">{filteredAntic.length}</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-label">Total</div>
-                <div className="stat-value" style={{ fontSize: 18, color: 'var(--accent)' }}>
-                  ${fmt5(filteredAntic.reduce((s, p) => s + p.total, 0))}
-                </div>
-              </div>
-            </div>
             {loading || loadingPend ? (
               <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>Cargando...</div>
             ) : filteredAntic.length === 0 ? (
@@ -1241,18 +1294,6 @@ export default function HistorialVentas() {
         {/* ── TAB: PENDIENTES ── */}
         {tab === 'pendientes' && (
           <>
-            <div className="stats-row">
-              <div className="stat-card">
-                <div className="stat-label">Pedidos pendientes</div>
-                <div className="stat-value">{filteredPend.length}</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-label">Total pendiente</div>
-                <div className="stat-value" style={{ fontSize: 18, color: 'var(--accent)' }}>
-                  ${fmt5(filteredPend.reduce((s, p) => s + p.total, 0))}
-                </div>
-              </div>
-            </div>
             {loadingPend ? (
               <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>Cargando...</div>
             ) : errorPend ? (
