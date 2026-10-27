@@ -266,6 +266,37 @@ export const getPedidosCancelados = async (fechaDesde, fechaHasta) => {
   })
 }
 
+// ── Consulta de pedidos (todos los tipos y estatus en un rango de fechas) ─────
+
+export const getPedidosConsulta = async (fechaDesde, fechaHasta) => {
+  const params = new URLSearchParams({
+    fecha_inicio: mxDayBound(fechaDesde, false),
+    fecha_fin:    mxDayBound(fechaHasta, true),
+  })
+  const rows = await apiFetch(`/consulta-pedidos?${params}`)
+  return rows.map(row => {
+    const { fecha, hora }     = formatearFechaHora(row.fecha_creacion)
+    const { fecha: fechaEnt } = row.fecha_entrega ? formatearFechaHora(row.fecha_entrega) : { fecha: '—' }
+    return {
+      id:               row.id_pedido,
+      folio:            fmtFolio(row.folio),
+      tipo_pedido:      row.tipo_pedido,
+      estatus:          row.estatus,
+      fecha,
+      hora,
+      fechaCreacionISO: row.fecha_creacion,
+      fechaEntrega:     fechaEnt,
+      fechaEntregaISO:  row.fecha_entrega,
+      clienteNombre:    row.cliente ?? 'Mostrador',
+      tipo_pago:        row.tipo_pago,
+      forma_pago:       row.tipo_pago,
+      anticipo:         Number(row.monto_anticipo),
+      total:            Number(row.total),
+      esCancelado:      row.estatus === 'CANCELADO',
+    }
+  })
+}
+
 // ── Export a Excel ────────────────────────────────────────────────────────────
 
 export const getPedidosParaExport = async (fechaDesde, fechaHasta) => {

@@ -34,6 +34,12 @@ export function minToHHMM(min) {
 // '09:15:00' -> '09:15'
 export const horaCorta = (t) => (t ? t.slice(0, 5) : '—')
 
+// Pago de todos los empleados en un rango (vista previa, no guarda nada):
+// { empleados: [{ empleado_id, nombre, sueldo_base, horas_extra, monto_extra,
+//   deducciones, total_pagar, tarifa_hora_extra, resumen }], total_pagar }
+export const getCalculoNomina = (fecha_inicio, fecha_fin) =>
+  apiFetch(`/nomina/calculo?fecha_inicio=${fecha_inicio}&fecha_fin=${fecha_fin}`)
+
 // Registros (4 marcas + cálculos) de todos los empleados en un día
 export const getHorasDia = (fecha) =>
   apiFetch(`/calculos/horas/dia?fecha=${fecha}`)

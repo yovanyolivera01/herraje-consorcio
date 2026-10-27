@@ -34,3 +34,7 @@ export async function deleteEmpleado(id) {
 export async function updateEmpleadoCara(id, cara) {
   return apiFetch(`/personal/empleados/${id}/cara`, { method: 'PATCH', body: { cara } })
 }
+// Información completa del empleado (puesto, turno, dirección) - vista v_empleado_info
+export async function getEmpleadoInfo(id) {
+  return apiFetch(`/personal/empleados/${id}/info`)
+}

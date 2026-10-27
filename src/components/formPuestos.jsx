@@ -1,5 +1,10 @@
 import { useState } from "react";
 
+// Largo permitido del nombre y la descripción del puesto
+const NOMBRE_MIN = 2
+const NOMBRE_MAX = 20
+const DESCRIPCION_MAX = 30
+const NUMERO_MAX_DIGITOS = 5 // plazas, salario y hora extra
 
 export default function PersonalModal({puestos,onClose,onSave}){
 
@@ -19,11 +24,21 @@ export default function PersonalModal({puestos,onClose,onSave}){
     
     const validate = () =>{
         const e = {}
-        if (!form.nombre.trim()) e.nombre = 'El nombre es obligatorio'
-        if (!form.descripcion.trim()) e.descripcion = 'La descripción es obligatorio'
-        if (!String(form.plazas).trim()) e.plazas = 'Las plazas son obligatorias'
-        if (!String(form.salario).trim()) e.salario = 'El salario es obligatorio'
-        if (!String(form.hora_extra).trim()) e.hora_extra = 'La hora extra es obligatoria'
+        const nombre = form.nombre.trim()
+        if (!nombre) e.nombre = 'El nombre es obligatorio'
+        else if (nombre.length < NOMBRE_MIN) e.nombre = `El nombre debe tener al menos ${NOMBRE_MIN} caracteres`
+        else if (nombre.length > NOMBRE_MAX) e.nombre = `El nombre no puede pasar de ${NOMBRE_MAX} caracteres`
+        if (!form.descripcion.trim()) e.descripcion = 'La descripción es obligatoria'
+        else if (form.descripcion.trim().length > DESCRIPCION_MAX) e.descripcion = `La descripción no puede pasar de ${DESCRIPCION_MAX} caracteres`
+        const numero = (campo, vacio, etiqueta) => {
+            const v = String(form[campo]).trim()
+            if (!v) e[campo] = vacio
+            else if (!/^\d+$/.test(v) || Number(v) < 1) e[campo] = `${etiqueta} debe ser un número mayor a 0`
+            else if (v.length > NUMERO_MAX_DIGITOS) e[campo] = `${etiqueta} no puede pasar de ${NUMERO_MAX_DIGITOS} dígitos`
+        }
+        numero('plazas', 'Las plazas son obligatorias', 'Las plazas')
+        numero('salario', 'El salario es obligatorio', 'El salario')
+        numero('hora_extra', 'La hora extra es obligatoria', 'La hora extra')
         return e
     }
 
@@ -39,6 +54,12 @@ export default function PersonalModal({puestos,onClose,onSave}){
 
     
     const set = field => (e) => setForm (f => ({...f,[field]:e.target.value}))
+
+    // solo dígitos, máximo NUMERO_MAX_DIGITOS: sin signo menos, punto ni letras
+    const setNumero = field => (e) => {
+        const val = e.target.value.replace(/\D/g, '').slice(0, NUMERO_MAX_DIGITOS)
+        setForm(f => ({...f,[field]:val}))
+    }
 
     // quita cualquier digito mientras se escribe — nombre/descripcion no deben llevar numeros
     const setTexto = field => (e) => {
@@ -62,6 +83,7 @@ export default function PersonalModal({puestos,onClose,onSave}){
                                 className={`form-input${errors.nombre ? ' error' : ''}`}
                                 value={form.nombre}
                                 onChange={setTexto('nombre')}
+                                maxLength={NOMBRE_MAX}
                                 placeholder="Nombre del puesto"
                                 autoFocus={!puestos}
                                 disabled={!!puestos}
@@ -75,6 +97,7 @@ export default function PersonalModal({puestos,onClose,onSave}){
                                 className={`form-input${errors.descripcion ? ' error' : ''}`}
                                 value={form.descripcion}
                                 onChange={setTexto('descripcion')}
+                                maxLength={DESCRIPCION_MAX}
                                 placeholder="Descripción del puesto"
                                 disabled={!!puestos}
                             />
@@ -85,10 +108,10 @@ export default function PersonalModal({puestos,onClose,onSave}){
                             <div className="form-group">
                                 <label className="form-label required">Plazas</label>
                                 <input
-                                    type="number" min="1"
+                                    inputMode="numeric"
                                     className={`form-input${errors.plazas ? ' error' : ''}`}
                                     value={form.plazas}
-                                    onChange={set('plazas')}
+                                    onChange={setNumero('plazas')}
                                     placeholder="0"
                                 />
                                 {errors.plazas && <div className="form-error">{errors.plazas}</div>}
@@ -97,10 +120,10 @@ export default function PersonalModal({puestos,onClose,onSave}){
                             <div className="form-group">
                                 <label className="form-label required">Salario</label>
                                 <input
-                                    type="number" min="1" step="1.0"
+                                    inputMode="numeric"
                                     className={`form-input${errors.salario ? ' error' : ''}`}
                                     value={form.salario}
-                                    onChange={set('salario')}
+                                    onChange={setNumero('salario')}
                                     placeholder="$0.00"
                                 />
                                 {errors.salario && <div className="form-error">{errors.salario}</div>}
@@ -110,10 +133,10 @@ export default function PersonalModal({puestos,onClose,onSave}){
                         <div className="form-group">
                             <label className="form-label required">Hora extra</label>
                             <input
-                                type="number" min="1" step="1.0"
+                                inputMode="numeric"
                                 className={`form-input${errors.hora_extra ? ' error' : ''}`}
                                 value={form.hora_extra}
-                                onChange={set('hora_extra')}
+                                onChange={setNumero('hora_extra')}
                                 placeholder="$0.00"
                             />
                             {errors.hora_extra && <div className="form-error">{errors.hora_extra}</div>}

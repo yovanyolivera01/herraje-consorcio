@@ -20,14 +20,16 @@ router.get('/personal/empleados', async (req, res) => {
 
 router.post('/personal/empleados', async (req, res) => {
   try {
+    // La fecha de registro no la manda el usuario: es el día de hoy (hora de
+    // México, el timezone de la sesión) al momento de dar de alta.
     const {
-      nombre, telefono, fecha_registro, apellido_materno, apellido_paterno,
+      nombre, telefono, apellido_materno, apellido_paterno,
       id_puesto, id_turno, calle, ciudad, colonia, cp, huella, cara, id_estado,
     } = req.body
     const { rows } = await query(
-      'SELECT * FROM public.sp_agregar_empleado($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)',
+      'SELECT * FROM public.sp_agregar_empleado($1,$2,CURRENT_DATE,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)',
       [
-        nombre?.trim(), telefono?.trim(), fecha_registro || new Date(),
+        nombre?.trim(), telefono?.trim(),
         apellido_materno ?? null, apellido_paterno ?? null,
         // id_puesto/id_turno son integer en la SP — '' (campo numérico
         // vacío en el form) no es null/undefined así que "?? null" no lo
@@ -67,6 +69,20 @@ router.delete('/personal/empleados/:id', async (req, res) => {
   try {
     await query('UPDATE empleados SET id_estado=0 WHERE empleado_id=$1', [req.params.id])
     ok(res, { ok: true })
+  } catch (e) { err(res, e) }
+})
+
+// Información completa de UN empleado (puesto, turno, dirección) desde la vista v_empleado_info.
+router.get('/personal/empleados/:id/info', async (req, res) => {
+  try {
+    const { rows } = await query(
+      `SELECT *, to_char(fecha_registro, 'YYYY-MM-DD') AS fecha_registro,
+              to_char(hora_inicio, 'HH24:MI') AS hora_inicio, to_char(hora_fin, 'HH24:MI') AS hora_fin
+       FROM v_empleado_info WHERE empleado_id = $1`,
+      [req.params.id]
+    )
+    if (!rows[0]) return err(res, new Error('Empleado no encontrado'), 404)
+    ok(res, rows[0])
   } catch (e) { err(res, e) }
 })
 

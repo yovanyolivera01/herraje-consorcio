@@ -210,7 +210,6 @@ router.get('/pedidos/cancelados', async (req, res) => {
       FROM pedido p
       LEFT JOIN cliente c ON c.id_cliente = p.id_cliente
       WHERE p.estatus    = 'CANCELADO'
-        AND p.tipo_pedido = 'VIDRIO'
         AND ($1::timestamptz IS NULL OR p.fecha_creacion >= $1::timestamptz)
         AND ($2::timestamptz IS NULL OR p.fecha_creacion <= $2::timestamptz)
       ORDER BY p.fecha_creacion DESC

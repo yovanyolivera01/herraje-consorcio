@@ -12,6 +12,9 @@ const DIAS = [
     { value: 7, label: 'Dom' },
 ]
 
+// Duración mínima de un turno: la hora fin va al menos 4 horas después del inicio
+const DURACION_MIN_TURNO = 4 * 60
+
 function minutosEntre(inicio, fin) {
     const [h1, m1] = inicio.split(':').map(Number)
     const [h2, m2] = fin.split(':').map(Number)
@@ -38,6 +41,8 @@ export default function TurnoModal({ turno, onClose, onSave }) {
         if (!form.hora_fin) e.hora_fin = 'La hora de fin es obligatoria'
         if (form.hora_inicio && form.hora_fin && form.hora_fin <= form.hora_inicio) {
             e.hora_fin = 'La hora de fin debe ser posterior a la hora de inicio'
+        } else if (form.hora_inicio && form.hora_fin && minutosEntre(form.hora_inicio, form.hora_fin) < DURACION_MIN_TURNO) {
+            e.hora_fin = `El turno debe durar al menos ${DURACION_MIN_TURNO / 60} horas`
         }
         if (form.tolerancia === '' || Number(form.tolerancia) < 0) e.tolerancia = 'La tolerancia no puede ser negativa'
         else if (Number(form.tolerancia) > 30) e.tolerancia = 'La tolerancia no puede ser mayor a 30 minutos'
@@ -59,6 +64,12 @@ export default function TurnoModal({ turno, onClose, onSave }) {
     }
 
     const set = field => (e) => setForm(f => ({ ...f, [field]: e.target.value }))
+
+    // solo enteros >= 0: quita el signo menos, punto, 'e' y cualquier otro carácter
+    const setEntero = field => (e) => {
+        const val = e.target.value.replace(/\D/g, '').slice(0, 3)
+        setForm(f => ({ ...f, [field]: val }))
+    }
 
     // agrega o quita el día del arreglo dias_laborales al hacer click en su botón
     const toggleDia = (dia) => {
@@ -106,10 +117,10 @@ export default function TurnoModal({ turno, onClose, onSave }) {
                         <div className="form-group">
                             <label className="form-label required">Tolerancia (minutos)</label>
                             <input
-                                type="number"
+                                inputMode="numeric"
                                 className={`form-input${errors.tolerancia ? ' error' : ''}`}
                                 value={form.tolerancia}
-                                onChange={set('tolerancia')}
+                                onChange={setEntero('tolerancia')}
                                 placeholder="0"
                             />
                             {errors.tolerancia && <div className="form-error">{errors.tolerancia}</div>}
@@ -118,10 +129,10 @@ export default function TurnoModal({ turno, onClose, onSave }) {
                         <div className="form-group">
                             <label className="form-label required">Tiempo de comida (minutos)</label>
                             <input
-                                type="number"
+                                inputMode="numeric"
                                 className={`form-input${errors.minutos_comida ? ' error' : ''}`}
                                 value={form.minutos_comida}
-                                onChange={set('minutos_comida')}
+                                onChange={setEntero('minutos_comida')}
                                 placeholder="60"
                             />
                             {errors.minutos_comida && <div className="form-error">{errors.minutos_comida}</div>}
