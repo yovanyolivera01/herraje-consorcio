@@ -41,3 +41,6 @@ dist-ssr
 
 # Ajustes locales de Claude Code (por maquina)
 .claude/settings.local.json
+
+# Snapshots del MCP de Playwright
+/.playwright-mcp/
