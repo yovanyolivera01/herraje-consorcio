@@ -196,17 +196,6 @@ router.get('/pedidos/credito', async (req, res) => {
 
 // ── Pedidos cancelados ────────────────────────────────────────────────────────
 
-router.get('/pedidos/consulta', async (req, res) => {
-  try {
-    const { fecha_inicio, fecha_fin } = req.query
-    const { rows } = await query(
-      'SELECT * FROM sp_consulta_pedidos($1::timestamptz, $2::timestamptz)',
-      [fecha_inicio || null, fecha_fin || null]
-    )
-    ok(res, rows)
-  } catch (e) { err(res, e) }
-})
-
 router.get('/pedidos/cancelados', async (req, res) => {
   try {
     const { fecha_inicio, fecha_fin } = req.query

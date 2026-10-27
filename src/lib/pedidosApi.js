@@ -273,7 +273,7 @@ export const getPedidosConsulta = async (fechaDesde, fechaHasta) => {
     fecha_inicio: mxDayBound(fechaDesde, false),
     fecha_fin:    mxDayBound(fechaHasta, true),
   })
-  const rows = await apiFetch(`/pedidos/consulta?${params}`)
+  const rows = await apiFetch(`/consulta-pedidos?${params}`)
   return rows.map(row => {
     const { fecha, hora }     = formatearFechaHora(row.fecha_creacion)
     const { fecha: fechaEnt } = row.fecha_entrega ? formatearFechaHora(row.fecha_entrega) : { fecha: '—' }

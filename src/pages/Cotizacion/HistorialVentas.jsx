@@ -762,7 +762,10 @@ export default function HistorialVentas() {
     .filter(v => !filtroEstado || v.estado === filtroEstado)
     .filter(v => !filtroPagoTodos || v.tipo_pago === filtroPagoTodos)
     .filter(v => !qTodos || v.folio?.toLowerCase().includes(qTodos) || v.clienteNombre?.toLowerCase().includes(qTodos))
-  const totalTodos = filteredTodos.reduce((s, p) => s + p.total, 0)
+  // Los cancelados no suman al total, salvo que se filtre por CANCELADO
+  const totalTodos = filteredTodos
+    .filter(p => filtroEstado === 'CANCELADO' || p.estado !== 'CANCELADO')
+    .reduce((s, p) => s + p.total, 0)
 
   const estadoBadge = (e) =>
     e === 'ENTREGADO'   ? <span className="badge badge-green">Entregado</span>

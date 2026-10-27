@@ -28,6 +28,7 @@ const asistenciaRoutes = require('./routes/asistencia')
 const calculosRoutes   = require('./routes/calculos')
 const nominaRoutes     = require('./routes/nomina')
 const turnoRoutes     = require('./routes/turno')
+const consultaPedidosRoutes = require('./routes/consultaPedidos')
 const app  = express()
 const PORT = process.env.PORT || 3001
 
@@ -57,6 +58,7 @@ app.use('/api', asistenciaRoutes)
 app.use('/api', calculosRoutes)
 app.use('/api', nominaRoutes)
 app.use('/api', turnoRoutes)
+app.use('/api', consultaPedidosRoutes)
 
 // Serve React build in production
 const distPath = path.join(__dirname, '..', 'dist')
