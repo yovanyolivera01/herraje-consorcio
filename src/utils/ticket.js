@@ -991,8 +991,10 @@ export async function printPedidoA4(detalle) {
     .doc-titulo { font-size: 14px; font-weight: 700; color: #1a3a6b; }
     .doc-meta { font-size: 10px; color: #555; line-height: 1.25; text-align: right; }
     .doc-meta strong { color: #111; }
-    .cliente-box { background: #f4f7fb; border-left: 3px solid #1a3a6b; padding: 3px 8px; border-radius: 0 4px 4px 0; margin-bottom: 5px; }
+    .cliente-box { background: #fff; border: 1px solid #c9d3e3; border-left: 3px solid #1a3a6b; padding: 2px 8px; border-radius: 0 4px 4px 0; margin-bottom: 4px; }
+    .cliente-box .c-linea { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
     .cliente-box .c-nombre { font-size: 12px; font-weight: 700; color: #1a3a6b; }
+    .cliente-box .c-nivel { color: #555; font-size: 10px; }
     .cliente-box .c-detail { color: #555; font-size: 10px; margin-top: 0; }
     .section-title { font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #1a3a6b; border-bottom: 2px solid #1a3a6b; padding-bottom: 2px; margin-bottom: 4px; }
     table { width: 100%; border-collapse: collapse; margin-bottom: 6px; }
@@ -1040,9 +1042,11 @@ export async function printPedidoA4(detalle) {
       </div>
 
       <div class="cliente-box">
-        <div class="c-nombre">${detalle.clienteNombre ?? 'Mostrador'}</div>
-        <div class="c-detail">${detalle.nivelNombre ? `Nivel: ${detalle.nivelNombre}` : ''}</div>
-        ${detalle.observaciones ? `<div class="c-detail" style="margin-top:2px"><em>Obs: ${detalle.observaciones}</em></div>` : ''}
+        <div class="c-linea">
+          <span class="c-nombre">${detalle.clienteNombre ?? 'Mostrador'}</span>
+          ${detalle.nivelNombre ? `<span class="c-nivel">Nivel: <strong>${detalle.nivelNombre}</strong></span>` : ''}
+        </div>
+        ${detalle.observaciones ? `<div class="c-detail" style="margin-top:1px"><em>Obs: ${detalle.observaciones}</em></div>` : ''}
       </div>
     </div>
     ${vidrioSection}
@@ -1114,33 +1118,28 @@ export async function printPedidoA4(detalle) {
     // Cada partida vive en su propio <tbody class="pblock"> (o <div class="pblock">
     // para las secciones sin tabla) — así medimos su posición ANTES de rasterizar,
     // para nunca cortar una partida a la mitad entre dos hojas.
+    const rango = (top, bottom) => ({ top: Math.round(top * scale), bottom: Math.round(bottom * scale) })
+
+    // El encabezado de columnas (<thead>) de cada tabla solo sale una vez. Para
+    // que no quede solo al final de una hoja, se trata como un bloque junto con
+    // la primera partida de su tabla. Va primero en la lista para que snapCut
+    // lo encuentre antes que el bloque de esa partida.
+    const theadRanges = Array.from(contenedor.querySelectorAll('table thead')).map(th => {
+      const primera = th.parentElement.querySelector('tbody')
+      const fin = primera ? primera.offsetTop + primera.offsetHeight : th.offsetTop + th.offsetHeight
+      return rango(th.offsetTop, fin)
+    })
     const pblocks = Array.from(contenedor.querySelectorAll('.pblock'))
-    const blockRanges = pblocks.map(el => ({
-      top:    Math.round(el.offsetTop * scale),
-      bottom: Math.round((el.offsetTop + el.offsetHeight) * scale),
-    }))
+    const blockRanges = [
+      ...theadRanges,
+      ...pblocks.map(el => rango(el.offsetTop, el.offsetTop + el.offsetHeight)),
+    ]
     const headerPxHeight = Math.round(headerEl.offsetHeight * scale)
 
-    // Cada tabla (Vidrio/Maquila/Proceso Extra/Herraje) tiene su propio <thead>
-    // con los nombres de columna. Si sus filas no caben en una sola hoja, la
-    // continuación en la siguiente hoja necesita ese thead repetido arriba —
-    // si no, se ven números sueltos sin saber a qué columna pertenecen.
-    const theadEls = Array.from(contenedor.querySelectorAll('table thead'))
-    const theadInfo = theadEls.map(th => {
-      const table = th.closest('table')
-      return {
-        el:          th,
-        theadBottom: Math.round((th.offsetTop + th.offsetHeight) * scale),
-        tableBottom: Math.round((table.offsetTop + table.offsetHeight) * scale),
-      }
-    })
-
-    const [canvas, headerCanvas, ...theadCanvases] = await Promise.all([
+    const [canvas, headerCanvas] = await Promise.all([
       html2canvas(contenedor, { scale, useCORS: true, backgroundColor: '#ffffff', logging: false }),
       html2canvas(headerEl,   { scale, useCORS: true, backgroundColor: '#ffffff', logging: false }),
-      ...theadInfo.map(t => html2canvas(t.el, { scale, useCORS: true, backgroundColor: '#ffffff', logging: false })),
     ])
-    theadInfo.forEach((t, i) => { t.canvas = theadCanvases[i]; t.pxHeight = Math.round(t.el.offsetHeight * scale) })
 
     const pdf    = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
     const pageW  = pdf.internal.pageSize.getWidth()
@@ -1151,7 +1150,6 @@ export async function printPedidoA4(detalle) {
     const pxPerMM    = canvas.width / maxW
     const headerMM   = headerPxHeight / pxPerMM
     const headerGapMM = 4
-    const theadGapMM  = 2
     const bodyMaxHmm = pageH - margin * 2 - headerMM - headerGapMM
     const bodyMaxHpx = Math.round(bodyMaxHmm * pxPerMM)
 
@@ -1167,37 +1165,26 @@ export async function printPedidoA4(detalle) {
       return desiredY
     }
 
-    // Si esta hoja empieza en medio del cuerpo de una tabla (después de su
-    // thead, antes de su última fila), esa tabla necesita su thead repetido.
-    const theadParaContinuacion = (y) => theadInfo.find(t => y >= t.theadBottom && y < t.tableBottom) ?? null
-
     // 1a pasada: solo calcula dónde cae cada corte, sin dibujar nada — así
     // sabemos el total de hojas ANTES de dibujar la primera (para "Página X de Y").
     const pageSlices = []
     let cursorY = headerPxHeight
     while (cursorY < canvas.height) {
-      const theadRep  = theadParaContinuacion(cursorY)
-      const availHpx  = theadRep ? bodyMaxHpx - theadRep.pxHeight - Math.round(theadGapMM * pxPerMM) : bodyMaxHpx
-      let sliceEnd = Math.min(cursorY + availHpx, canvas.height)
+      let sliceEnd = Math.min(cursorY + bodyMaxHpx, canvas.height)
       sliceEnd = snapCut(sliceEnd, cursorY)
       const sliceH = sliceEnd - cursorY
       if (sliceH <= 0) break
-      pageSlices.push({ start: cursorY, end: sliceEnd, theadRep })
+      pageSlices.push({ start: cursorY, end: sliceEnd })
       cursorY = sliceEnd
     }
     const totalPages = pageSlices.length
 
     // 2a pasada: dibuja cada hoja con su encabezado repetido y el contador de página.
-    pageSlices.forEach(({ start, end, theadRep }, idx) => {
+    pageSlices.forEach(({ start, end }, idx) => {
       if (idx > 0) pdf.addPage()
       pdf.addImage(headerCanvas.toDataURL('image/png'), 'PNG', margin, margin, maxW, headerMM)
 
-      let bodyY = margin + headerMM + headerGapMM
-      if (theadRep) {
-        const theadMM = theadRep.pxHeight / pxPerMM
-        pdf.addImage(theadRep.canvas.toDataURL('image/png'), 'PNG', margin, bodyY, maxW, theadMM)
-        bodyY += theadMM + theadGapMM
-      }
+      const bodyY = margin + headerMM + headerGapMM
 
       const sliceH = end - start
       const slice = document.createElement('canvas')

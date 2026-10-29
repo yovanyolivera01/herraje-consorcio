@@ -2120,38 +2120,26 @@ export default function NuevaCotizacion() {
               {datosCotOpen && <div className="form-row">
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label required">Nivel de precio</label>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+                  <select
+                    data-testid="nivel-precio-select"
+                    className="form-select"
+                    style={{ marginTop: 4 }}
+                    value={nivelId}
+                    onChange={e => { setNivelId(e.target.value); if (e.target.value) setDatosCotOpen(false) }}
+                  >
+                    <option value="">-- Selecciona nivel --</option>
                     {nivelesPrecio.map(n => {
-                      const activo  = nivelId === String(n.id_nivel_precio)
                       const precioM2 = tipoVidrioId
                         ? getPrecioVidrio(Number(tipoVidrioId), n.id_nivel_precio)
                         : null
                       return (
-                        <button
-                          key={n.id_nivel_precio}
-                          type="button"
-                          onClick={() => { setNivelId(String(n.id_nivel_precio)); setDatosCotOpen(false) }}
-                          style={{
-                            padding: '7px 14px', borderRadius: 8, fontSize: 14,
-                            cursor: 'pointer',
-                            border: `2px solid ${activo ? 'var(--accent)' : 'var(--border)'}`,
-                            background: activo ? 'var(--accent)' : 'var(--card)',
-                            color: activo ? 'white' : 'var(--text)',
-                            fontWeight: activo ? 700 : 400,
-                            transition: 'all 0.15s',
-                            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1,
-                          }}
-                        >
-                          <span>{n.es_hoja_completa ? 'POR HOJA' : n.nombre}</span>
-                          {precioM2 !== null && (
-                            <span style={{ fontSize: 11, opacity: 0.85, fontWeight: 600 }}>
-                              ${precioM2.toFixed(2)}/m²
-                            </span>
-                          )}
-                        </button>
+                        <option key={n.id_nivel_precio} value={String(n.id_nivel_precio)}>
+                          {n.es_hoja_completa ? 'POR HOJA' : n.nombre}
+                          {precioM2 !== null ? ` — $${precioM2.toFixed(2)}/m²` : ''}
+                        </option>
                       )
                     })}
-                  </div>
+                  </select>
                   {usarPreciosCli && (
                     <div className="form-hint" style={{ marginTop: 6 }}>
                       ✓ Cliente con precios especiales ({preciosCli.length} configurados)

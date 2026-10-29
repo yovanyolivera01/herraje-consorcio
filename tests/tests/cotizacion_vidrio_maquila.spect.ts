@@ -19,10 +19,10 @@ async function seleccionarNivel(page: any) {
   // Abrir el panel colapsable de nivel de precio
   await page.getByTestId('nivel-precio-toggle').click()
 
-  // Los botones de nivel aparecen en .form-row al expandir
-  const primerNivel = page.locator('.form-row button').first()
-  await primerNivel.waitFor({ state: 'visible', timeout: 8000 })
-  await primerNivel.click()
+  // La lista de niveles aparece al expandir; se elige el primer nivel
+  const selectNivel = page.getByTestId('nivel-precio-select')
+  await selectNivel.waitFor({ state: 'visible', timeout: 8000 })
+  await selectNivel.selectOption({ index: 1 })
 
   // El badge azul confirma que se selecciono un nivel
   await expect(page.locator('.badge-blue').first()).toBeVisible({ timeout: 5000 })

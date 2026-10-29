@@ -1,12 +1,12 @@
 import { useEffect } from 'react'
-import flyerRRHH from '../assets/images/flyer-sistema-rrhh.png'
+import flyerConsultaPedidos from '../assets/images/flyer-consulta-pedidos.png'
 
 // Clave de sessionStorage: Login.jsx la activa al iniciar sesión y el modal
 // la borra al cerrarse, así el aviso sale una vez por inicio de sesión y no
 // al navegar ni al refrescar después de cerrarlo.
 export const FLYER_KEY = 'hc_mostrar_flyer'
 
-// Modal con el flyer de aviso de la nueva implementación (sistema de RRHH).
+// Modal con el flyer de aviso: guía rápida de Consulta de pedidos.
 // Solo se cierra con la X (o Escape / clic fuera de la imagen).
 export default function ModalFlyer({ onClose }) {
     useEffect(() => {
@@ -40,8 +40,8 @@ export default function ModalFlyer({ onClose }) {
                     ✕
                 </button>
                 <img
-                    src={flyerRRHH}
-                    alt="Aviso: próximamente el nuevo sistema de Recursos Humanos"
+                    src={flyerConsultaPedidos}
+                    alt="Guía rápida: cómo consultar un pedido"
                     style={{
                         display: 'block', maxWidth: '100%', maxHeight: 'calc(100vh - 40px)',
                         borderRadius: 12, boxShadow: '0 10px 40px rgba(0,0,0,0.5)',
