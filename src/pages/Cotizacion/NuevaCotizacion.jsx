@@ -35,6 +35,9 @@ function convertirPartidaDesdeDB(p) {
     subtotal_procesos:  p.subtotal_procesos,
     subtotal_partida:   p.subtotal_partida,
     es_hoja_completa:   p.es_hoja_completa ?? false,
+    // por pieza: en partida_vidrio.precio_vidrio se guarda el precio por pieza
+    es_por_pieza:       p.es_por_pieza ?? false,
+    precio_pieza:       p.es_por_pieza ? Number(p.precio_vidrio) : null,
     procesos: (p.procesos ?? []).map(pr => ({
       id_proceso:      pr.id_proceso,
       id_unidad_cobro: pr.id_unidad_cobro,
@@ -1236,10 +1239,15 @@ export default function NuevaCotizacion() {
 
     const esPequena   = preview.metros2_total / parsed.piezas <= 0.12 ||
                         (preview.metros2_total / parsed.piezas < 0.45 && preview.procesosCalc.length > 0)
+    // Pieza pequeña con precio capturado: es precio POR PIEZA (c/u). La
+    // partida se guarda como por pieza (sp_insertar_partida_vidrio_por_pieza):
+    // vidrio = c/u × piezas, más los procesos.
     const manualNum   = esPequena && precioManual !== '' ? parseFloat(precioManual) : NaN
-    const subtotalFin = (!isNaN(manualNum) && manualNum > 0)
-      ? manualNum
-      : preview.subtotal_vidrio + preview.subtotal_procesos
+    const porPieza    = !isNaN(manualNum) && manualNum > 0
+    const subVidrio   = porPieza
+      ? Math.round(manualNum * parsed.piezas * 100) / 100
+      : preview.subtotal_vidrio
+    const subtotalFin = Math.round((subVidrio + preview.subtotal_procesos) * 100) / 100
 
     const nuevaPartida = {
       _key:              Date.now() + Math.random(),
@@ -1250,13 +1258,17 @@ export default function NuevaCotizacion() {
       largo_cm:          largo,
       ancho_cm:          ancho,
       metros2:           preview.metros2_total,
-      precio_m2_aplicado: preview.precio_m2,
-      subtotal_vidrio:   preview.subtotal_vidrio,
+      precio_m2_aplicado: porPieza
+        ? (preview.metros2_total > 0 ? Math.round(subVidrio / preview.metros2_total * 100) / 100 : 0)
+        : preview.precio_m2,
+      subtotal_vidrio:   subVidrio,
       subtotal_procesos: preview.subtotal_procesos,
       subtotal_partida:  subtotalFin,
       es_hoja_completa:  preview.esHojaCompleta,
+      es_por_pieza:      porPieza,
+      precio_pieza:      porPieza ? manualNum : null,
       procesos:          preview.procesosCalc,
-      precio_manual:     (!isNaN(manualNum) && manualNum > 0) ? manualNum : null,
+      precio_manual:     null,
       observaciones:     '',
     }
 
@@ -1879,7 +1891,7 @@ export default function NuevaCotizacion() {
           ...pedidoCreado.partidas.filter(p => !p.tipo || p.tipo === 'VIDRIO').map(p => ({
             piezas: p.cantidad, clave: p.clave_vidrio,
             largo_cm: p.largo_cm, ancho_cm: p.ancho_cm,
-            subtotal_vidrio: p.subtotal_vidrio, procesos: p.procesos,
+            subtotal_vidrio: p.subtotal_vidrio, es_por_pieza: p.es_por_pieza, procesos: p.procesos,
             subtotal_partida: p.subtotal_partida,
             descripcion_vidrio: p.descripcion_vidrio,
           })),
@@ -1964,7 +1976,7 @@ export default function NuevaCotizacion() {
         tipo: 'VIDRIO',
         piezas: p.piezas, clave: p.tipoClaveLabel,
         largo_cm: p.largo_cm, ancho_cm: p.ancho_cm,
-        subtotal_vidrio: p.subtotal_vidrio, procesos: p.procesos ?? [],
+        subtotal_vidrio: p.subtotal_vidrio, es_por_pieza: p.es_por_pieza, procesos: p.procesos ?? [],
         subtotal_partida: p.subtotal_partida,
       }
       if (p.tipo === 'MAQUILA' && p.piezas_maq != null) return {
@@ -2407,10 +2419,10 @@ export default function NuevaCotizacion() {
                       background: '#fffbeb', border: '1.5px solid #f59e0b',
                     }}>
                       <div style={{ fontSize: 12, color: '#92400e', fontWeight: 600, marginBottom: 6 }}>
-                        ⚠️ Pieza pequeña — precio calculado: <strong>${fmt5(preview.subtotal_rounded)}</strong>
+                        ⚠️ Pieza pequeña — vidrio calculado: <strong>${(preview.subtotal_vidrio / preview.piezas).toFixed(2)} c/u</strong>
                       </div>
                       <div style={{ fontSize: 12, color: '#78350f', marginBottom: 8 }}>
-                        Puedes ajustar el precio final a cobrar:
+                        Puedes cobrarla por pieza — precio c/u:
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span style={{ fontSize: 14, fontWeight: 600, color: '#78350f' }}>$</span>
@@ -2420,7 +2432,7 @@ export default function NuevaCotizacion() {
                           step="0.01"
                           className="form-input"
                           style={{ maxWidth: 140, margin: 0 }}
-                          placeholder={preview.subtotal_rounded.toFixed(2)}
+                          placeholder={(preview.subtotal_vidrio / preview.piezas).toFixed(2)}
                           value={precioManual}
                           onChange={e => setPrecioManual(e.target.value)}
                         />
@@ -2436,7 +2448,9 @@ export default function NuevaCotizacion() {
                       </div>
                       {precioManual && Number(precioManual) > 0 && (
                         <div style={{ fontSize: 12, color: '#15803d', marginTop: 6, fontWeight: 600 }}>
-                          ✓ Se cobrará: ${Number(precioManual).toFixed(2)}
+                          ✓ Se cobrará: ${Number(precioManual).toFixed(2)} c/u × {preview.piezas} pza
+                          {preview.subtotal_procesos > 0 ? ` + procesos $${preview.subtotal_procesos.toFixed(2)}` : ''}
+                          {' '}= ${(Math.round((Number(precioManual) * preview.piezas + preview.subtotal_procesos) * 100) / 100).toFixed(2)}
                         </div>
                       )}
                     </div>

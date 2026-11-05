@@ -200,6 +200,7 @@ export const getDetallePedido = async (id_pedido) => {
         subtotal_procesos:  Number(p.subtotal_procesos),
         subtotal_partida:   Number(p.total_partida),
         cantidad:           p.cantidad,
+        es_por_pieza:       p.es_por_pieza ?? false,
         procesos:           procesosPorPartida[p.id_partida_pedido] ?? [],
       })),
       ...(data.maquilas ?? []).map(m => ({

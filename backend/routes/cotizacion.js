@@ -245,7 +245,7 @@ router.get('/cotizaciones/:id', async (req, res) => {
           pv.precio_m2 AS precio_m2_aplicado,
           pv.subtotal_vidrio, pv.precio_vidrio, p.subtotal_procesos,
           p.subtotal AS subtotal_partida,
-          pv.es_hoja_completa, p.observaciones,
+          pv.es_hoja_completa, pv.es_por_pieza, p.observaciones,
           json_build_object('id_tipo_vidrio', tv.id_tipo_vidrio, 'clave', tv.clave, 'descripcion', tv.descripcion) AS tipo_vidrio
         FROM partida p
         JOIN partida_vidrio pv ON pv.id_partida = p.id_partida

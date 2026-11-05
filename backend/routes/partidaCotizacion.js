@@ -5,37 +5,18 @@ const router = express.Router()
 function ok(res, data)  { res.json(data) }
 function err(res, e, status = 500) { res.status(status).json({ message: e.message }) }
 
-// VIDRIO's glass-specific columns (id_tipo_vidrio, precio_m2,
-// subtotal_vidrio, es_hoja_completa) live in `partida_vidrio`, NOT NULL
-// there — the database itself rejects a VIDRIO row with no glass type.
-// The SELECT below re-joins it so the API response shape matches the
-// old single-table one exactly.
-//
-// Processes attached to a VIDRIO piece are NOT their own `partida` row
-// — they're a row in `partida_proceso` pointing straight at the piece
-// via id_partida (id_proceso/id_unidad_cobro/cantidad/precio_unitario/
-// subtotal all live there together).
-
-const INSERT_VIDRIO_JOINED = `
-WITH ins AS (
-  INSERT INTO partida (id_cotizacion, tipo, largo_cm, ancho_cm, metros2, metros2_pieza, cantidad, subtotal_procesos, precio_unitario, subtotal, observaciones)
-  VALUES ($1,'VIDRIO',$2,$3,$4,ROUND($4::NUMERIC / NULLIF($5::NUMERIC,0), 4),$5::NUMERIC,$6,ROUND($7::NUMERIC / NULLIF($5::NUMERIC,0), 2),$7,$8)
-  RETURNING id_partida, id_cotizacion, largo_cm, ancho_cm, metros2, metros2_pieza, cantidad, subtotal_procesos, precio_unitario, subtotal, observaciones
-),
-insv AS (
-  INSERT INTO partida_vidrio (id_partida, id_tipo_vidrio, precio_m2, es_hoja_completa, subtotal_vidrio, precio_vidrio)
-  SELECT id_partida, $9, $10, $11, $12, ROUND($12::NUMERIC / NULLIF($5::NUMERIC,0), 2) FROM ins
-  RETURNING id_partida, id_tipo_vidrio, precio_m2, es_hoja_completa, subtotal_vidrio, precio_vidrio
-)
-SELECT
-  ins.id_partida, ins.id_cotizacion, insv.id_tipo_vidrio,
-  ins.cantidad AS piezas, ins.largo_cm, ins.ancho_cm, ins.metros2, ins.metros2_pieza,
-  insv.precio_m2 AS precio_m2_aplicado,
-  insv.subtotal_vidrio, insv.precio_vidrio, ins.subtotal_procesos, ins.precio_unitario,
-  ins.subtotal AS subtotal_partida,
-  insv.es_hoja_completa, ins.observaciones
-FROM ins JOIN insv ON insv.id_partida = ins.id_partida
-`
+// Una partida VIDRIO (partida + partida_vidrio + sus procesos) se inserta
+// con sp_insertar_partida_vidrio (migración 054), que delega en
+// sp_insertar_partida_vidrio_por_pieza cuando es_por_pieza = true. Luego
+// se lee con sp_select_partida para regresar el formato de siempre.
+async function insertVidrio(client, id_cotizacion, partida) {
+  const { rows } = await client.query(
+    'SELECT sp_insertar_partida_vidrio($1, $2) AS id_partida',
+    [id_cotizacion, JSON.stringify(partida)]
+  )
+  const { rows: pRows } = await client.query('SELECT * FROM sp_select_partida($1)', [rows[0].id_partida])
+  return pRows[0]
+}
 
 async function insertProceso(client, id_partida, proc, piezas) {
   const precio_por_pieza = piezas ? Math.round((proc.subtotal / piezas) * 100) / 100 : null
@@ -75,29 +56,7 @@ router.post('/cotizaciones/:id/partidas', async (req, res) => {
   const client = await pool.connect()
   try {
     await client.query('BEGIN')
-    const partida = req.body
-    const { rows: pRows } = await client.query(INSERT_VIDRIO_JOINED, [
-      req.params.id,
-      partida.largo_cm,
-      partida.ancho_cm,
-      partida.metros2,
-      partida.piezas ?? 1,
-      partida.subtotal_procesos ?? 0,
-      partida.subtotal_partida,
-      partida.observaciones || null,
-      partida.id_tipo_vidrio,
-      partida.precio_m2_aplicado,
-      partida.es_hoja_completa ?? false,
-      partida.subtotal_vidrio,
-    ])
-
-    const p = pRows[0]
-    if (partida.procesos?.length) {
-      for (const proc of partida.procesos) {
-        await insertProceso(client, p.id_partida, proc, partida.piezas ?? 1)
-      }
-    }
-
+    const p = await insertVidrio(client, req.params.id, req.body)
     await client.query('COMMIT')
     ok(res, p)
   } catch (e) {
@@ -146,25 +105,7 @@ router.put('/cotizaciones/:id/actualizar', async (req, res) => {
 
     // Re-insertar partidas
     for (const partida of (partidas ?? [])) {
-      const { rows: pRows } = await client.query(INSERT_VIDRIO_JOINED, [
-        req.params.id,
-        partida.largo_cm,
-        partida.ancho_cm,
-        partida.metros2,
-        partida.piezas ?? 1,
-        partida.subtotal_procesos ?? 0,
-        partida.subtotal_partida,
-        partida.observaciones || null,
-        partida.id_tipo_vidrio,
-        partida.precio_m2_aplicado,
-        partida.es_hoja_completa ?? false,
-        partida.subtotal_vidrio,
-      ])
-      if (partida.procesos?.length) {
-        for (const proc of partida.procesos) {
-          await insertProceso(client, pRows[0].id_partida, proc, partida.piezas ?? 1)
-        }
-      }
+      await insertVidrio(client, req.params.id, partida)
     }
 
     for (const m of (maquilas ?? [])) {

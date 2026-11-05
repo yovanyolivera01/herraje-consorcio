@@ -14,7 +14,7 @@ function buildCotizacionHTML(detalle) {
     return `
       <tr style="background:${idx % 2 === 0 ? '#fff' : '#fafafa'}">
         <td style="font-weight:700;text-align:center">${pzas}</td>
-        <td style="font-weight:700;color:#1a3a6b">${p.clave}</td>
+        <td style="font-weight:700;color:#1a3a6b">${p.clave}${p.es_por_pieza ? '<div style="font-size:10px;font-weight:400;font-style:italic;color:#555">* Venta por pieza</div>' : ''}</td>
         <td style="color:#555;font-size:11px">${procesos}</td>
         <td style="color:#555;font-size:11px;text-align:center">${m2} m²</td>
         <td style="text-align:right;font-size:11px">$${precioPza}</td>

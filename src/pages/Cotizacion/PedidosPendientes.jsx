@@ -490,7 +490,7 @@ function DetallePedidoModal({ resumen, onClose, onEntregado }) {
                       clave: p.clave_vidrio,
                       largo_cm: p.largo_cm,
                       ancho_cm: p.ancho_cm,
-                      subtotal_vidrio: p.subtotal_vidrio,
+                      subtotal_vidrio: p.subtotal_vidrio, es_por_pieza: p.es_por_pieza,
                       procesos: p.procesos ?? [],
                       subtotal_partida: p.subtotal_partida,
                       descripcion_vidrio: p.descripcion_vidrio,

@@ -181,9 +181,11 @@ export const getDetalleCotizacion = async (id) => {
       metros2:            Number(p.metros2),
       precio_m2_aplicado: Number(p.precio_m2_aplicado),
       subtotal_vidrio:    Number(p.subtotal_vidrio),
+      precio_vidrio:      Number(p.precio_vidrio),
       subtotal_procesos:  Number(p.subtotal_procesos),
       subtotal_partida:   Number(p.subtotal_partida),
       es_hoja_completa:   p.es_hoja_completa,
+      es_por_pieza:       p.es_por_pieza ?? false,
       observaciones:      p.observaciones ?? '',
       procesos: (p.partida_proceso ?? []).map(pp => ({
         id:              pp.id_partida_proceso,

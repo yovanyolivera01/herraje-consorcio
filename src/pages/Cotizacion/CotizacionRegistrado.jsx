@@ -630,7 +630,7 @@ export default function CotizacionRegistrado() {
         clave:            p.tipoClaveLabel,
         largo_cm:         p.largo_cm,
         ancho_cm:         p.ancho_cm,
-        subtotal_vidrio:  p.subtotal_vidrio_emp ?? p.subtotal_vidrio,
+        subtotal_vidrio:  p.subtotal_vidrio_emp ?? p.subtotal_vidrio, es_por_pieza: p.es_por_pieza,
         procesos:         p.procesos_emp ?? p.procesos,
         subtotal_partida: p.subtotal_partida_emp ?? p.subtotal_partida,
       }))
@@ -685,7 +685,7 @@ export default function CotizacionRegistrado() {
           tipo: 'VIDRIO',
           piezas: p.piezas, clave: p.tipoClaveLabel,
           largo_cm: p.largo_cm, ancho_cm: p.ancho_cm,
-          subtotal_vidrio: p.subtotal_vidrio, procesos: p.procesos,
+          subtotal_vidrio: p.subtotal_vidrio, es_por_pieza: p.es_por_pieza, procesos: p.procesos,
           subtotal_partida: p.subtotal_partida,
         }
         return {
@@ -715,7 +715,7 @@ export default function CotizacionRegistrado() {
         if (p.tipo === 'VIDRIO') return {
           piezas: p.piezas, clave: p.tipoClaveLabel,
           largo_cm: p.largo_cm, ancho_cm: p.ancho_cm,
-          subtotal_vidrio: p.subtotal_vidrio, procesos: p.procesos,
+          subtotal_vidrio: p.subtotal_vidrio, es_por_pieza: p.es_por_pieza, procesos: p.procesos,
           subtotal_partida: p.subtotal_partida,
         }
         return {
