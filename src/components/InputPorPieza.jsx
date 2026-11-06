@@ -21,6 +21,51 @@ const r2 = n => Math.round(n * 100) / 100
 const money = n => `$${Number(n).toFixed(2)}`
 const nuevaKey = () => Date.now() + Math.random()
 
+// Recuadro "Pieza pequeña" para capturar el precio c/u.
+//   calculadoCU: precio c/u calculado (se muestra y sirve de placeholder)
+//   etiqueta:    qué se calculó ('vidrio', 'maquila'...)
+//   adicional:   monto que se suma al total por pieza (p. ej. procesos del vidrio)
+export function PrecioPorPiezaBox({ calculadoCU, piezas, etiqueta = 'vidrio', adicional = 0, value, onChange }) {
+  const precio = Number(value)
+  return (
+    <div style={{ marginTop: 10, padding: '10px 12px', borderRadius: 8, background: '#fffbeb', border: '1.5px solid #f59e0b' }}>
+      <div style={{ fontSize: 12, color: '#92400e', fontWeight: 600, marginBottom: 6 }}>
+        ⚠️ Pieza pequeña — {etiqueta} calculado: <strong>{money(calculadoCU)} c/u</strong>
+      </div>
+      <div style={{ fontSize: 12, color: '#78350f', marginBottom: 8 }}>
+        Puedes cobrarla por pieza — precio c/u:
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ fontSize: 14, fontWeight: 600, color: '#78350f' }}>$</span>
+        <input
+          type="number" min="0" step="0.01" inputMode="decimal"
+          className="form-input"
+          style={{ maxWidth: 140, margin: 0 }}
+          placeholder={Number(calculadoCU).toFixed(2)}
+          value={value}
+          onChange={e => onChange(e.target.value)}
+        />
+        {value && (
+          <button
+            type="button"
+            style={{ fontSize: 12, color: '#92400e', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+            onClick={() => onChange('')}
+          >
+            Restablecer
+          </button>
+        )}
+      </div>
+      {value && precio > 0 && (
+        <div style={{ fontSize: 12, color: '#15803d', marginTop: 6, fontWeight: 600 }}>
+          ✓ Se cobrará: {money(precio)} c/u × {piezas} pza
+          {adicional > 0 ? ` + procesos ${money(adicional)}` : ''}
+          {' '}= {money(r2(precio * piezas + adicional))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function InputPorPieza({
   tiposVidrio = [],
   procesos = [],

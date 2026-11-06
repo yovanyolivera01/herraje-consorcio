@@ -222,6 +222,7 @@ export const getDetalleCotizacion = async (id) => {
       observaciones:      m.observaciones ?? '',
       id_espesor:         m.id_espesor,
       espesor_label:      m.espesor_label ?? '',
+      es_por_pieza:       !!m.es_por_pieza,
       procesos: (m.procesos ?? []).map(pr => ({
         id_proceso:      pr.id_proceso,
         id_unidad_cobro: pr.id_unidad_cobro,

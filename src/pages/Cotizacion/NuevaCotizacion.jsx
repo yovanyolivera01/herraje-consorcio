@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { fmt5 } from '../../lib/utils'
-import { parseNotacion, calcTotal } from '../../lib/cotizacionUtils'
+import { parseNotacion, calcTotal, esPiezaPequena } from '../../lib/cotizacionUtils'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useCotizacion } from '../../context/CotizacionContext'
 import { useApp } from '../../context/AppContext'
@@ -10,6 +10,7 @@ import { venderProductoGeneral } from '../../lib/productosGeneralesApi'
 import { printTicketVidrio, printPedidoA4 } from '../../utils/ticket'
 import CompartirBotones from '../../components/CompartirBotones'
 import BuscadorSelect from '../../components/BuscadorSelect'
+import { PrecioPorPiezaBox } from '../../components/InputPorPieza'
 
 const TIPO_META = {
   VIDRIO:   { label: 'Vidrio',        bg: '#dbeafe', color: '#1d4ed8' },
@@ -79,6 +80,8 @@ function convertirMaquilaDesdeDB(m) {
     ancho_cm:         m.ancho_cm,
     piezas_maq:       m.piezas,
     metros2:          m.metros2,
+    es_por_pieza:     !!m.es_por_pieza,
+    precio_pieza:     m.es_por_pieza && m.piezas > 0 ? m.subtotal_partida / m.piezas : null,
     id_espesor:       m.id_espesor,
     espesor_label:    m.espesor_label,
     procesos_maq: (m.procesos ?? []).map(pr => ({
@@ -115,6 +118,7 @@ function construirMaquilasPayload(partidas) {
       subtotal_partida:  p.subtotal_partida,
       observaciones:     p.observaciones || null,
       id_espesor:        p.id_espesor ?? null,
+      es_por_pieza:      !!p.es_por_pieza,
       procesos: (p.procesos_maq ?? []).map(pr => ({
         id_proceso:      pr.id_proceso,
         id_unidad_cobro: pr.id_unidad_cobro,
@@ -196,6 +200,11 @@ function TicketCotizacion({ cotizacion }) {
                   </div>
                 )
               })}
+              {p.es_por_pieza && (
+                <div style={{ fontSize: 11, paddingLeft: 10, fontStyle: 'italic' }}>
+                  * Venta por pieza — ${fmt5(p.subtotal_partida / (p.piezas_maq || 1))} c/u
+                </div>
+              )}
               <div className="ticket-row" style={{ fontWeight: 600, fontSize: 12 }}>
                 <span>Subtotal</span><span>${fmt5(p.subtotal_partida)}</span>
               </div>
@@ -363,6 +372,9 @@ function TicketPedidoRapido({ detalle, extras = [] }) {
                   <span style={{ width:50, textAlign:'right' }}>${fmt5(pr.subtotal)}</span>
                 </div>
               ))}
+              {p.es_por_pieza && (
+                <div style={{ fontSize:11, paddingLeft:10, fontStyle:'italic', color:'var(--text-muted)' }}>* Venta por pieza</div>
+              )}
             </div>
           )})}
         </>
@@ -896,6 +908,7 @@ export default function NuevaCotizacion() {
   const [maqEspesorId,     setMaqEspesorId]     = useState('')
   const [maqProcesosSelec, setMaqProcesosSelec] = useState([]) // [{id_proceso, cantidad:''}]
   const [maqError,         setMaqError]         = useState('')
+  const [maqPrecioPieza,   setMaqPrecioPieza]   = useState('') // c/u para pieza pequeña
 
   // ── Estado buscador Herraje ───────────────────────────────────────────────
   const [herrajeQuery, setHerrajeQuery] = useState('')
@@ -987,6 +1000,7 @@ export default function NuevaCotizacion() {
       if (d.maqDescripcion)        setMaqDescripcion(d.maqDescripcion)
       if (d.maqEspesorId)          setMaqEspesorId(d.maqEspesorId)
       if (d.maqProcesosSelec)      setMaqProcesosSelec(d.maqProcesosSelec)
+      if (d.maqPrecioPieza)        setMaqPrecioPieza(d.maqPrecioPieza)
       if (d.partidas?.length)      setPartidas(d.partidas)
       if (d.formaPago)             setFormaPago(d.formaPago)
       if (d.anticipoStr)           setAnticipoStr(d.anticipoStr)
@@ -1007,14 +1021,14 @@ export default function NuevaCotizacion() {
       nivelId, clienteId, observaciones, tipoPartida,
       notacion, tipoVidrioId, procesosSeleccionados,
       barrenosSeleccionados, saquesSeleccionados, extrasSeleccionados, precioManual,
-      maqNotacion, maqDescripcion, maqEspesorId, maqProcesosSelec,
+      maqNotacion, maqDescripcion, maqEspesorId, maqProcesosSelec, maqPrecioPieza,
       partidas, formaPago, anticipoStr,
     }))
   }, [ // eslint-disable-line react-hooks/exhaustive-deps
     cotCreada, nivelId, clienteId, observaciones, tipoPartida,
     notacion, tipoVidrioId, procesosSeleccionados,
     barrenosSeleccionados, saquesSeleccionados, extrasSeleccionados, precioManual,
-    maqNotacion, maqDescripcion, maqEspesorId, maqProcesosSelec,
+    maqNotacion, maqDescripcion, maqEspesorId, maqProcesosSelec, maqPrecioPieza,
     partidas, formaPago, anticipoStr,
   ])
 
@@ -1237,8 +1251,7 @@ export default function NuevaCotizacion() {
     const largo = parsed.largo
     const ancho  = parsed.ancho
 
-    const esPequena   = preview.metros2_total / parsed.piezas <= 0.12 ||
-                        (preview.metros2_total / parsed.piezas < 0.45 && preview.procesosCalc.length > 0)
+    const esPequena   = esPiezaPequena(preview.metros2_total, parsed.piezas, preview.procesosCalc.length > 0)
     // Pieza pequeña con precio capturado: es precio POR PIEZA (c/u). La
     // partida se guarda como por pieza (sp_insertar_partida_vidrio_por_pieza):
     // vidrio = c/u × piezas, más los procesos.
@@ -1337,7 +1350,16 @@ export default function NuevaCotizacion() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [efectivoNivelId, usarPreciosCli, preciosCli, cliPrecioFallback, nivelId, maqMetros2, maqParsed, maqEspesorId, maqProcesosSelec, procesosActivos, saques, barrenos, extras])
 
-  const maqSubtotal = Math.round(maqPreviewProcesos.reduce((s, p) => s + p.subtotal, 0) * 100) / 100
+  const maqSubtotalProcesos = Math.round(maqPreviewProcesos.reduce((s, p) => s + p.subtotal, 0) * 100) / 100
+  // Maquila POR PIEZA: misma validación de m² que la venta de vidrio. Con
+  // pieza pequeña y precio c/u capturado, ese precio reemplaza el cobro
+  // calculado de los procesos (el cliente trae el vidrio).
+  const maqEsPequena = !maqParsed.error && esPiezaPequena(maqMetros2, maqParsed.piezas, maqProcesosSelec.length > 0)
+  const maqPrecioNum = maqEsPequena && maqPrecioPieza !== '' ? parseFloat(maqPrecioPieza) : NaN
+  const maqPorPieza  = !isNaN(maqPrecioNum) && maqPrecioNum > 0
+  const maqSubtotal  = maqPorPieza
+    ? Math.round(maqPrecioNum * maqParsed.piezas * 100) / 100
+    : maqSubtotalProcesos
 
   const toggleMaqProceso = (procOrId) => {
     const proc = typeof procOrId === 'object' && procOrId !== null ? procOrId : null
@@ -1364,8 +1386,7 @@ export default function NuevaCotizacion() {
     if (!efectivoNivelId)           { setMaqNotError('Selecciona un nivel de precio'); return }
     if (!maqProcesosSelec.length)                          { setMaqNotError('Selecciona al menos un proceso'); return }
     if (maqPreviewProcesos.some(p => p.configVacio))      { setMaqNotError('Hay procesos con 0 lados seleccionados. Abre ⚙️ para configurarlos.'); return }
-    if (maqSubtotal === 0)                                 { setMaqNotError('Los procesos seleccionados no tienen precio configurado'); return }
-    const espesorSel = espesores.find(e => e.id_espesor === Number(maqEspesorId))
+    if (maqSubtotal === 0)                                 { setMaqNotError('Los procesos seleccionados no tienen precio configurado'); return }    const espesorSel = espesores.find(e => e.id_espesor === Number(maqEspesorId))
     setPartidas(prev => [...prev, {
       _key:            Date.now() + Math.random(),
       tipo:            'MAQUILA',
@@ -1381,9 +1402,11 @@ export default function NuevaCotizacion() {
       unidad:          'pza',
       precio_unitario:  maqParsed.piezas > 0 ? maqSubtotal / maqParsed.piezas : 0,
       subtotal_partida: maqSubtotal,
+      es_por_pieza:     maqPorPieza,
+      precio_pieza:     maqPorPieza ? maqPrecioNum : null,
       observaciones:    '',
     }])
-    setMaqNotacion(''); setMaqDescripcion(''); setMaqEspesorId(''); setMaqProcesosSelec([]); setMaqNotError(''); setMaqError('')
+    setMaqNotacion(''); setMaqDescripcion(''); setMaqEspesorId(''); setMaqProcesosSelec([]); setMaqNotError(''); setMaqError(''); setMaqPrecioPieza('')
   }
 
   // ── Proceso Extra ─────────────────────────────────────────────────────────
@@ -1900,7 +1923,7 @@ export default function NuevaCotizacion() {
             piezas: p.piezas, largo_cm: p.largo_cm, ancho_cm: p.ancho_cm,
             clave: p.espesor_label,
             descripcion: p.descripcion, subtotal_partida: p.subtotal_partida,
-            procesos: p.procesos,
+            es_por_pieza: p.es_por_pieza, procesos: p.procesos,
           })),
           ...pedidoExtras.map(e => ({
             tipo: ['HERRAJE', 'PRODUCTO', 'EXTRA'].includes(e.tipo) ? e.tipo : 'MAQUILA',
@@ -1986,6 +2009,7 @@ export default function NuevaCotizacion() {
         descripcion: p.descripcion,
         procesos: p.procesos_maq ?? [],
         subtotal_partida: p.subtotal_partida,
+        es_por_pieza: !!p.es_por_pieza,
       }
       return {
         tipo: p.tipo ?? 'MAQUILA',
@@ -2412,48 +2436,15 @@ export default function NuevaCotizacion() {
                   )}
 
                   {/* Edición manual para piezas pequeñas */}
-                  {(preview.metros2_total / preview.piezas <= 0.12 ||
-                    (preview.metros2_total / preview.piezas < 0.45 && preview.procesosCalc.length > 0)) && (
-                    <div style={{
-                      marginTop: 10, padding: '10px 12px', borderRadius: 8,
-                      background: '#fffbeb', border: '1.5px solid #f59e0b',
-                    }}>
-                      <div style={{ fontSize: 12, color: '#92400e', fontWeight: 600, marginBottom: 6 }}>
-                        ⚠️ Pieza pequeña — vidrio calculado: <strong>${(preview.subtotal_vidrio / preview.piezas).toFixed(2)} c/u</strong>
-                      </div>
-                      <div style={{ fontSize: 12, color: '#78350f', marginBottom: 8 }}>
-                        Puedes cobrarla por pieza — precio c/u:
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ fontSize: 14, fontWeight: 600, color: '#78350f' }}>$</span>
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          className="form-input"
-                          style={{ maxWidth: 140, margin: 0 }}
-                          placeholder={(preview.subtotal_vidrio / preview.piezas).toFixed(2)}
-                          value={precioManual}
-                          onChange={e => setPrecioManual(e.target.value)}
-                        />
-                        {precioManual && (
-                          <button
-                            type="button"
-                            style={{ fontSize: 12, color: '#92400e', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
-                            onClick={() => setPrecioManual('')}
-                          >
-                            Restablecer
-                          </button>
-                        )}
-                      </div>
-                      {precioManual && Number(precioManual) > 0 && (
-                        <div style={{ fontSize: 12, color: '#15803d', marginTop: 6, fontWeight: 600 }}>
-                          ✓ Se cobrará: ${Number(precioManual).toFixed(2)} c/u × {preview.piezas} pza
-                          {preview.subtotal_procesos > 0 ? ` + procesos $${preview.subtotal_procesos.toFixed(2)}` : ''}
-                          {' '}= ${(Math.round((Number(precioManual) * preview.piezas + preview.subtotal_procesos) * 100) / 100).toFixed(2)}
-                        </div>
-                      )}
-                    </div>
+                  {esPiezaPequena(preview.metros2_total, preview.piezas, preview.procesosCalc.length > 0) && (
+                    <PrecioPorPiezaBox
+                      etiqueta="vidrio"
+                      calculadoCU={preview.subtotal_vidrio / preview.piezas}
+                      piezas={preview.piezas}
+                      adicional={preview.subtotal_procesos}
+                      value={precioManual}
+                      onChange={setPrecioManual}
+                    />
                   )}
                 </div>
               )}
@@ -2675,6 +2666,17 @@ export default function NuevaCotizacion() {
                           )}
                         </div>
                       )}
+
+                      {/* Cobro por pieza para piezas pequeñas (misma validación de m² que vidrio) */}
+                      {maqEsPequena && (
+                        <PrecioPorPiezaBox
+                          etiqueta="maquila"
+                          calculadoCU={maqSubtotalProcesos / maqParsed.piezas}
+                          piezas={maqParsed.piezas}
+                          value={maqPrecioPieza}
+                          onChange={setMaqPrecioPieza}
+                        />
+                      )}
                     </div>
                   )}
 
@@ -2805,6 +2807,11 @@ export default function NuevaCotizacion() {
                               + {pr.nombre} ({Number(pr.cantidad).toFixed(2)} {pr.unidad} × ${Number(pr.precio_unitario).toFixed(2)}): ${fmt5(pr.subtotal)}
                             </div>
                           ))}
+                          {p.es_por_pieza && (
+                            <div style={{ fontSize: 12, color: '#b45309', fontWeight: 600 }}>
+                              Venta por pieza: ${Number(p.precio_pieza ?? p.subtotal_partida / (p.piezas_maq || 1)).toFixed(2)} c/u
+                            </div>
+                          )}
                         </>
                       ) : p.tipo === 'EXTRA' ? (
                         <>

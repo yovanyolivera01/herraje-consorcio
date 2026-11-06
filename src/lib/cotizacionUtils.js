@@ -35,3 +35,11 @@ export function calcTotal(partidas) {
     return s + Number(p.subtotal_partida ?? 0)
   }, 0)
 }
+
+// Validación de m² para permitir cobro POR PIEZA (venta de vidrio y maquila):
+// pieza de <= 0.12 m², o de < 0.45 m² cuando lleva procesos.
+export function esPiezaPequena(metros2Total, piezas, tieneProcesos) {
+  if (!(piezas > 0) || metros2Total == null) return false
+  const m2Pieza = metros2Total / piezas
+  return m2Pieza <= 0.12 || (m2Pieza < 0.45 && tieneProcesos)
+}

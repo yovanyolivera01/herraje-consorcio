@@ -1,6 +1,18 @@
 import logoUrl from '../assets/images/logoVR_b64.txt?raw'
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
+import { esPiezaPequena } from '../lib/cotizacionUtils'
+
+// Pieza pequeña (misma validación de m² de la cotización) o vendida por
+// pieza: en los impresos solo se muestran C/u y Total de la partida; los
+// procesos van con su nombre, sin precio.
+function soloTotales(p) {
+  if (p.es_por_pieza) return true
+  const pzas  = Number(p.piezas ?? p.cantidad ?? 1)
+  const largo = Number(p.largo_cm), ancho = Number(p.ancho_cm)
+  const m2    = largo > 0 && ancho > 0 ? pzas * largo * ancho / 10000 : Number(p.metros2)
+  return esPiezaPequena(m2, pzas, (p.procesos ?? []).length > 0)
+}
 
 /**
  * Imprime un ticket de vidrio (cotización o pedido) via iframe.
@@ -37,12 +49,12 @@ export function printTicketVidrio(detalle) {
     const pzas    = p.piezas ?? 1
     const cuVid   = Number(p.subtotal_vidrio ?? p.subtotal_partida) / pzas
     const totVid  = cuVid * pzas
-    // Por pieza: la línea del vidrio muestra el c/u y el Total de la partida
-    // (partida.precio_unitario / partida.subtotal); los procesos solo con su
+    // Pieza pequeña o por pieza (soloTotales): la línea muestra el c/u y el Total
+    // de la partida (subtotal / piezas); los procesos solo con su
     // nombre, sin los precios calculados en el front, y sin fila Subtotal.
-    const porPieza = !!p.es_por_pieza
+    const porPieza = soloTotales(p)
     const cuShow   = porPieza
-      ? Number(p.precio_unitario ?? Number(p.subtotal_partida) / pzas)
+      ? Number(p.subtotal_partida) / pzas
       : cuVid
     const totShow  = porPieza ? Number(p.subtotal_partida) : totVid
     const hasProc = (p.procesos ?? []).length > 0
@@ -80,7 +92,7 @@ export function printTicketVidrio(detalle) {
         <td class="c-cu">$${cuShow.toFixed(2)}</td>
         <td class="c-tot">$${totShow.toFixed(2)}</td>
       </tr>
-      ${porPieza ? `
+      ${p.es_por_pieza ? `
       <tr>
         <td></td>
         <td colspan="4" style="font-size:11px;font-style:italic;padding-bottom:2px">* Venta por pieza</td>
@@ -101,15 +113,19 @@ export function printTicketVidrio(detalle) {
         return `
         <tr style="font-size:11px">
           <td colspan="3" style="padding-left:10px"><div style="display:flex;align-items:center">${icon}<span>+ ${pr.nombre}</span></div></td>
-          <td class="c-cu">${pr.precio_unitario != null ? `$${Number(pr.precio_unitario).toFixed(2)}` : ''}</td>
-          <td class="c-tot">$${Number(pr.subtotal ?? 0).toFixed(2)}</td>
+          <td class="c-cu">${!soloTotales(p) && pr.precio_unitario != null ? `$${Number(pr.precio_unitario).toFixed(2)}` : ''}</td>
+          <td class="c-tot">${soloTotales(p) ? '' : `$${Number(pr.subtotal ?? 0).toFixed(2)}`}</td>
         </tr>`
       }).join('')
-      const descRow = p.descripcion ? `
+      const descRow = (p.es_por_pieza ? `
+        <tr>
+          <td></td>
+          <td colspan="4" style="font-size:11px;font-style:italic;padding-bottom:2px">* Venta por pieza</td>
+        </tr>` : '') + (p.descripcion ? `
         <tr>
           <td></td>
           <td colspan="4" style="font-size:11px;color:#555;padding-bottom:2px">${p.descripcion}</td>
-        </tr>` : ''
+        </tr>` : '')
       return `
         <tbody class="partida-group">
         <tr class="bold">
@@ -346,24 +362,27 @@ export function printPedidoPendiente(detalle) {
     const cant        = p.cantidad ?? 1
     const vidSubtotal = Number(p.subtotal_vidrio ?? p.subtotal_partida)
     const hasProc     = (p.procesos ?? []).length > 0
+    // Pieza pequeña / por pieza: solo C/u y Total de la partida, procesos sin precio
+    const soloTot     = soloTotales({ ...p, piezas: cant })
     const procRows = (p.procesos ?? []).map(pr => {
-      const cantLabel = pr.cantidad && pr.cantidad !== 1 ? ` × ${pr.cantidad}` : ''
+      const cantLabel = !soloTot && pr.cantidad && pr.cantidad !== 1 ? ` × ${pr.cantidad}` : ''
       return `<div class="row" style="padding-left:12px;font-size:11px;color:#444">
-        <span>+ ${pr.nombre}${cantLabel}</span><span>$${Number(pr.subtotal).toFixed(2)}</span>
+        <span>+ ${pr.nombre}${cantLabel}</span><span>${soloTot ? '' : `$${Number(pr.subtotal).toFixed(2)}`}</span>
       </div>`
     }).join('')
-    const subtotalRow = hasProc ? `
+    const subtotalRow = (hasProc && !soloTot) ? `
       <div class="row" style="padding-top:3px;border-top:1px dashed #ccc;margin-top:2px;font-weight:700;font-size:12px">
         <span>Subtotal</span><span>$${Number(p.subtotal_partida).toFixed(2)}</span>
       </div>` : ''
 
-    const cuVid = vidSubtotal / cant
+    const totLinea = soloTot ? Number(p.subtotal_partida) : vidSubtotal
+    const cuVid = totLinea / cant
     return `
       <div class="partida">
         <div style="display:flex;align-items:baseline;margin-bottom:2px;gap:6px">
           <span class="bold" style="font-size:13px;flex:1">${cant}- ${p.largo_cm}×${p.ancho_cm} ${p.clave_vidrio}</span>
           <span style="font-size:11px;color:#444;flex-shrink:0">$${cuVid.toFixed(2)} c/u</span>
-          <span class="bold" style="font-size:13px;flex-shrink:0">$${vidSubtotal.toFixed(2)}</span>
+          <span class="bold" style="font-size:13px;flex-shrink:0">$${totLinea.toFixed(2)}</span>
         </div>
         <div style="font-size:11px;color:#444;margin-bottom:3px;padding-left:12px">
           ${p.clave_vidrio}${p.descripcion_vidrio ? ' — ' + p.descripcion_vidrio : ''} · ${Number(p.metros2).toFixed(4)} m²
@@ -385,8 +404,8 @@ export function printPedidoPendiente(detalle) {
         : procs.length === 0 ? '' : procs.map(pr => `
         <div style="display:flex;padding-left:12px;font-size:11px;color:#444;gap:6px">
           <span style="flex:1">+ ${pr.nombre}</span>
-          <span style="flex-shrink:0">${pr.precio_unitario != null ? `$${Number(pr.precio_unitario).toFixed(2)}` : ''}</span>
-          <span style="flex-shrink:0">$${Number(pr.subtotal ?? 0).toFixed(2)}</span>
+          <span style="flex-shrink:0">${!soloTotales(p) && pr.precio_unitario != null ? `$${Number(pr.precio_unitario).toFixed(2)}` : ''}</span>
+          <span style="flex-shrink:0">${soloTotales(p) ? '' : `$${Number(pr.subtotal ?? 0).toFixed(2)}`}</span>
         </div>`).join('')
       const cuMaq = Number(p.subtotal_partida) / Number(p.piezas ?? p.cantidad ?? 1)
       return `
@@ -397,6 +416,7 @@ export function printPedidoPendiente(detalle) {
           <span class="bold" style="font-size:13px;flex-shrink:0">$${Number(p.subtotal_partida).toFixed(2)}</span>
         </div>
         ${p.descripcion ? `<div style="font-size:11px;color:#444;margin-bottom:3px;padding-left:12px">${p.descripcion}</div>` : ''}
+        ${p.es_por_pieza ? `<div style="font-size:11px;font-style:italic;margin-bottom:3px;padding-left:12px">* Venta por pieza</div>` : ''}
         ${procRows}
       </div>`
     }).join('<div style="border-top:1px dashed #ccc;margin:5px 0"></div>')}`
@@ -510,12 +530,12 @@ export function printCotizacionCarta(detalle) {
     const m2      = (pzas * p.largo_cm * p.ancho_cm / 10000).toFixed(4)
     const cuVid   = Number(p.subtotal_vidrio ?? p.subtotal_partida) / pzas
     const totVid  = cuVid * pzas
-    // Por pieza: la línea del vidrio muestra el c/u y el Total de la partida
-    // (partida.precio_unitario / partida.subtotal); los procesos solo con su
+    // Pieza pequeña o por pieza (soloTotales): la línea muestra el c/u y el Total
+    // de la partida (subtotal / piezas); los procesos solo con su
     // nombre, sin los precios calculados en el front, y sin fila Subtotal.
-    const porPieza = !!p.es_por_pieza
+    const porPieza = soloTotales(p)
     const cuShow   = porPieza
-      ? Number(p.precio_unitario ?? Number(p.subtotal_partida) / pzas)
+      ? Number(p.subtotal_partida) / pzas
       : cuVid
     const totShow  = porPieza ? Number(p.subtotal_partida) : totVid
     const hasProc = (p.procesos ?? []).length > 0
@@ -551,7 +571,7 @@ export function printCotizacionCarta(detalle) {
         <td style="text-align:right;font-weight:600">$${totShow.toFixed(2)}</td>
         <td></td>
       </tr>
-      ${porPieza ? `
+      ${p.es_por_pieza ? `
       <tr class="partida-row">
         <td></td>
         <td colspan="4" style="font-size:12px;font-style:italic;color:#555;padding-left:14px">* Venta por pieza</td>
@@ -805,12 +825,12 @@ export async function printPedidoA4(detalle) {
     const totVid  = cuVid * pzas
     const m2      = ((pzas * Number(p.largo_cm) * Number(p.ancho_cm)) / 10000).toFixed(4)
     const bg      = idx % 2 === 0 ? '#fff' : '#fafafa'
-    // Por pieza: la línea del vidrio muestra el c/u y el Total de la partida
-    // (partida.precio_unitario / partida.subtotal); los procesos solo con su
+    // Pieza pequeña o por pieza (soloTotales): la línea muestra el c/u y el Total
+    // de la partida (subtotal / piezas); los procesos solo con su
     // nombre, sin los precios calculados en el front, y sin fila Subtotal.
-    const porPieza = !!p.es_por_pieza
+    const porPieza = soloTotales(p)
     const cuShow   = porPieza
-      ? Number(p.precio_unitario ?? Number(p.subtotal_partida) / pzas)
+      ? Number(p.subtotal_partida) / pzas
       : cuVid
     const totShow  = porPieza ? Number(p.subtotal_partida) : totVid
     const hasProc = (p.procesos ?? []).length > 0
@@ -852,7 +872,7 @@ export async function printPedidoA4(detalle) {
         <td style="text-align:right;font-weight:600">$${totShow.toFixed(2)}</td>
         <td></td>
       </tr>
-      ${porPieza ? `
+      ${p.es_por_pieza ? `
       <tr style="background:${bg}">
         <td></td>
         <td colspan="4" style="font-size:11px;font-style:italic;color:#555;padding-top:0">* Venta por pieza</td>
@@ -885,13 +905,19 @@ export async function printPedidoA4(detalle) {
       : (p.descripcion ?? p.clave ?? '—')
     const bg = `background:${idx % 2 === 0 ? '#fff' : '#fafafa'}`
     if (hasDims && (p.procesos ?? []).length > 0) {
-      const procRows = p.procesos.map(pr => {
+      // Por pieza: procesos solo con su nombre (el precio c/u ya los incluye)
+      const porPiezaRow = p.es_por_pieza ? `
+        <tr>
+          <td style="font-size:11px;font-style:italic;color:#555;padding-left:14px">* Venta por pieza</td>
+          <td></td><td></td>
+        </tr>` : ''
+      const procRows = porPiezaRow + p.procesos.map(pr => {
         const cu = pr.precio_unitario != null ? `$${Number(pr.precio_unitario).toFixed(2)}` : '—'
         return `
         <tr>
           <td style="font-size:11px;color:#555;padding-left:14px">+ ${pr.nombre}</td>
-          <td style="text-align:right;font-size:11px;color:#555">${cu}</td>
-          <td style="text-align:right;font-size:11px;color:#555">$${Number(pr.subtotal ?? 0).toFixed(2)}</td>
+          <td style="text-align:right;font-size:11px;color:#555">${soloTotales(p) ? '' : cu}</td>
+          <td style="text-align:right;font-size:11px;color:#555">${soloTotales(p) ? '' : `$${Number(pr.subtotal ?? 0).toFixed(2)}`}</td>
         </tr>`
       }).join('')
       const cuMaq = Number(p.subtotal_partida) / Number(p.piezas ?? p.cantidad ?? 1)

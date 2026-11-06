@@ -503,6 +503,7 @@ function DetallePedidoModal({ resumen, onClose, onEntregado }) {
                       clave: p.espesor_label,
                       descripcion: p.descripcion,
                       subtotal_partida: p.subtotal_partida,
+                      es_por_pieza: !!p.es_por_pieza,
                       procesos: p.procesos ?? [],
                     })),
                     ...(detalle.extras ?? []).map(e => ({

@@ -586,6 +586,7 @@ function DetalleModal({ resumen, onClose, onConvertir, onEditar }) {
         largo_cm:         m.largo_cm,
         ancho_cm:         m.ancho_cm,
         subtotal_partida: m.subtotal_partida,
+        es_por_pieza:     !!m.es_por_pieza,
         procesos: (m.procesos ?? []).map(pr => ({
           nombre:          pr.nombre,
           unidad:          pr.unidad,

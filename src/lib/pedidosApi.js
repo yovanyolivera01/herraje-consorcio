@@ -215,6 +215,7 @@ export const getDetallePedido = async (id_pedido) => {
         subtotal_procesos: Number(m.subtotal_procesos),
         subtotal_partida: Number(m.subtotal),
         espesor_label:    m.espesor_label ?? null,
+        es_por_pieza:     !!m.es_por_pieza,
         procesos: (m.procesos ?? []).map(pr => ({
           nombre:          pr.proceso        ?? '',
           unidad:          pr.unidad_cobro   ?? '',

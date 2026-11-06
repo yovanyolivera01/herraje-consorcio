@@ -29,9 +29,9 @@ async function insertProceso(client, id_partida, proc, piezas) {
 }
 
 const INSERT_MAQUILA = `
-  INSERT INTO partida (id_cotizacion, tipo, descripcion, largo_cm, ancho_cm, metros2, metros2_pieza, cantidad, subtotal_procesos, precio_unitario, subtotal, observaciones, id_espesor)
-  VALUES ($1,'MAQUILA',$2,$3,$4,$5,ROUND($5::NUMERIC / NULLIF($6::NUMERIC,0), 4),$6::NUMERIC,$7,ROUND($8::NUMERIC / NULLIF($6::NUMERIC,0), 2),$8,$9,$10)
-  RETURNING id_partida, id_cotizacion, descripcion, largo_cm, ancho_cm, metros2, metros2_pieza, cantidad, subtotal_procesos, precio_unitario, subtotal, observaciones, id_espesor
+  INSERT INTO partida (id_cotizacion, tipo, descripcion, largo_cm, ancho_cm, metros2, metros2_pieza, cantidad, subtotal_procesos, precio_unitario, subtotal, observaciones, id_espesor, es_por_pieza)
+  VALUES ($1,'MAQUILA',$2,$3,$4,$5,ROUND($5::NUMERIC / NULLIF($6::NUMERIC,0), 4),$6::NUMERIC,$7,ROUND($8::NUMERIC / NULLIF($6::NUMERIC,0), 2),$8,$9,$10,$11)
+  RETURNING id_partida, id_cotizacion, descripcion, largo_cm, ancho_cm, metros2, metros2_pieza, cantidad, subtotal_procesos, precio_unitario, subtotal, observaciones, id_espesor, es_por_pieza
 `
 
 // Job de maquila dimensionado (largo_cm/ancho_cm reales) — mismo
@@ -41,7 +41,7 @@ const INSERT_MAQUILA = `
 async function insertMaquila(client, id_cotizacion, m) {
   const { rows } = await client.query(INSERT_MAQUILA, [
     id_cotizacion, m.descripcion || null, m.largo_cm, m.ancho_cm, m.metros2,
-    m.cantidad ?? 1, m.subtotal_procesos ?? 0, m.subtotal_partida, m.observaciones || null, m.id_espesor ?? null,
+    m.cantidad ?? 1, m.subtotal_procesos ?? 0, m.subtotal_partida, m.observaciones || null, m.id_espesor ?? null, !!m.es_por_pieza,
   ])
   const p = rows[0]
   if (m.procesos?.length) {

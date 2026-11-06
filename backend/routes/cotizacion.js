@@ -245,7 +245,7 @@ router.get('/cotizaciones/:id', async (req, res) => {
           pv.precio_m2 AS precio_m2_aplicado,
           pv.subtotal_vidrio, pv.precio_vidrio, p.subtotal_procesos,
           p.subtotal AS subtotal_partida,
-          pv.es_hoja_completa, pv.es_por_pieza, p.observaciones,
+          pv.es_hoja_completa, p.es_por_pieza, p.observaciones,
           json_build_object('id_tipo_vidrio', tv.id_tipo_vidrio, 'clave', tv.clave, 'descripcion', tv.descripcion) AS tipo_vidrio
         FROM partida p
         JOIN partida_vidrio pv ON pv.id_partida = p.id_partida
@@ -311,7 +311,7 @@ router.get('/cotizaciones/:id', async (req, res) => {
     const maqRes = await query(
       `SELECT p.id_partida, p.descripcion, p.largo_cm, p.ancho_cm, p.cantidad, p.metros2,
               p.subtotal_procesos, p.subtotal, p.observaciones,
-              p.id_espesor, esp.etiqueta AS espesor_label
+              p.id_espesor, esp.etiqueta AS espesor_label, p.es_por_pieza
        FROM partida p
        LEFT JOIN espesor esp ON esp.id_espesor = p.id_espesor
        WHERE p.id_cotizacion=$1 AND p.tipo='MAQUILA' AND p.largo_cm IS NOT NULL

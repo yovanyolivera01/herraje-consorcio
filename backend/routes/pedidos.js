@@ -260,7 +260,7 @@ router.get('/pedidos/:id', async (req, res) => {
     let maquilas = []
     const maqRes = await query(
       `SELECT p.id_partida, p.descripcion, p.largo_cm, p.ancho_cm, p.cantidad, p.metros2, p.subtotal_procesos, p.subtotal,
-              p.id_espesor, esp.etiqueta AS espesor_label
+              p.id_espesor, esp.etiqueta AS espesor_label, p.es_por_pieza
        FROM partida p
        LEFT JOIN espesor esp ON esp.id_espesor = p.id_espesor
        WHERE p.id_pedido=$1 AND p.tipo='MAQUILA' AND p.largo_cm IS NOT NULL
