@@ -7,7 +7,6 @@ function err(res, e, status = 500) { res.status(status).json({ message: e.messag
 
 
 // Consulta el pedido
-
 router.get('/anticipos/:id_cliente',async (req, res) => {
     try {
         const { rows } = await query('SELECT * FROM v_pedido_anticipos WHERE id_cliente = $1', [req.params.id_cliente])   
@@ -34,8 +33,6 @@ router.get('/saldo/:id_cliente', async (req, res) => {
 })
 
 
-
-
 // Resumen de anticipos de un pedido (sale de la vista v_pedido_anticipos)
 router.get('/anticipo-pedido/:id_pedido', async (req, res) => {
     try {
@@ -49,7 +46,6 @@ router.get('/anticipo-pedido/:id_pedido', async (req, res) => {
 
 
 // insert a row in the table anticipos_pedidos
-
 router.post('/anticipo', async (req, res) => {
     try {
         const { id_pedido, id_cliente, id_metodo_pago, monto, fecha_hora, referencia, observaciones } = req.body

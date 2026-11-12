@@ -32,6 +32,7 @@ import RegistrarEgreso          from './pages/Egresos/RegistrarEgreso'
 import HistorialFacturas        from './pages/Cotizacion/HistorialFacturas'
 import Puestos                  from './pages/Personal/puestos'
 import Turnos                   from './pages/Personal/turno'
+import Anticipos                from './pages/Pagos/anticipos'
 
 export default function App() {
   return (
@@ -64,6 +65,7 @@ export default function App() {
                   <Route path="cot/historial"           element={<HistorialCotizaciones />} />
                   <Route path="cot/pedidos-pendientes"  element={<PedidosPendientes />} />
                   <Route path="cot/ventas"              element={<HistorialVentas />} />
+                  <Route path="pagos/anticipos"         element={<Anticipos />} />
                   <Route path="cot/inventario"           element={<InventarioVidrio />} />
                   <Route path="cot/historial-maquila"    element={<HistorialMaquila />} />
                   <Route path="cot/maquila/historial"    element={<Navigate to="/cot/historial-maquila" replace />} />

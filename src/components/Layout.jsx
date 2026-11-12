@@ -40,6 +40,7 @@ const cotNavEmpleado = []
 const ventasNavItems = [
   { section: 'Ventas', links: [
     { to: '/cot/nueva',              icon: <ClipboardList size={16} />,  label: 'Nueva cotizacion' },
+    { to: '/pagos/anticipos',        icon: <ReceiptText size={16} />,    label: 'Anticipos' },
   //  { to: '/cot/registrado',         icon: <ClipboardCheck size={16} />, label: 'Cliente registrado' },
   //  { to: '/cot/pedidos-pendientes', icon: <Clock size={16} />,          label: 'Pendientes' },
   ]},
@@ -110,6 +111,7 @@ const ventasNavAlmacen = [
     { to: '/ventas/nueva',           icon: <ReceiptText size={16} />,    label: 'Nueva venta' },
     { to: '/ventas/historial',       icon: <BarChart2 size={16} />,      label: 'Historial ventas' },
     { to: '/cot/ventas',             icon: <CheckCircle2 size={16} />,   label: 'Consulta de pedidos' },
+    { to: '/pagos/anticipos',        icon: <ReceiptText size={16} />,    label: 'Anticipos' },
   ]},
 ]
 
